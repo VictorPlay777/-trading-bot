@@ -1,0 +1,402 @@
+"""
+Bybit V5 API Client - REST wrapper using requests (sync)
+Bypasses CloudFront blocking of aiohttp
+"""
+import hashlib
+import hmac
+import json
+import time
+from typing import Dict, List, Optional, Any, Tuple
+from urllib.parse import urlencode
+import requests
+
+from config import api_config
+from logger import get_logger, log_event
+
+logger = get_logger()
+
+
+class BybitAPIError(Exception):
+    """Custom exception for API errors"""
+    def __init__(self, code: int, message: str):
+        self.code = code
+        self.message = message
+        super().__init__(f"Bybit API Error {code}: {message}")
+
+
+class BybitClient:
+    """Sync Bybit V5 API Client using requests"""
+    
+    def __init__(self):
+        self.api_key = api_config.key
+        self.api_secret = api_config.secret
+        self.base_url = api_config.base_url
+        self.recv_window = api_config.recv_window
+        self._last_request_time = 0.0
+        self._min_interval = 0.05  # 50ms between requests
+        self.max_retries = 3  # Max retry attempts for connection errors
+    
+    def _generate_signature(self, timestamp: str, query_string: str = "", body_str: str = "") -> str:
+        """Generate V5 API signature - EXACT format as working bot.py"""
+        # For POST: param = timestamp + API_KEY + RECV_WINDOW + query_string + body_str
+        # For GET: param = timestamp + API_KEY + RECV_WINDOW + query_string
+        param = timestamp + self.api_key + str(self.recv_window) + query_string + body_str
+        
+        return hmac.new(
+            self.api_secret.encode('utf-8'),
+            param.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+    
+    def _get_headers(self, timestamp: str, signature: str) -> Dict[str, str]:
+        """Get request headers - exact format as working bot.py"""
+        return {
+            "X-BAPI-API-KEY": self.api_key,
+            "X-BAPI-SIGN": signature,
+            "X-BAPI-TIMESTAMP": timestamp,
+            "X-BAPI-RECV-WINDOW": str(self.recv_window)
+        }
+    
+    def _rate_limit(self):
+        """Simple rate limiting"""
+        now = time.time()
+        elapsed = now - self._last_request_time
+        if elapsed < self._min_interval:
+            time.sleep(self._min_interval - elapsed)
+        self._last_request_time = time.time()
+    
+    def _request(
+        self,
+        method: str,
+        endpoint: str,
+        query: str = "",
+        body: Optional[Dict] = None
+    ) -> Dict[str, Any]:
+        """Make authenticated request using requests with retry logic"""
+        self._rate_limit()
+        
+        timestamp = str(int(time.time() * 1000))
+        
+        # For POST requests, include body in signature
+        body_str = ""
+        if body and method.upper() == "POST":
+            body_str = json.dumps(body, separators=(",", ":"))
+        
+        # Generate signature
+        signature = self._generate_signature(timestamp, query, body_str)
+        headers = self._get_headers(timestamp, signature)
+        
+        url = self.base_url + endpoint
+        if query:
+            url += "?" + query
+        
+        # Retry logic for connection errors
+        for attempt in range(self.max_retries):
+            try:
+                timeout = 30  # 30 second timeout
+                if method.upper() == "GET":
+                    r = requests.get(url, headers=headers, timeout=timeout)
+                else:  # POST
+                    headers["Content-Type"] = "application/json"
+                    r = requests.post(url, headers=headers, data=body_str, timeout=timeout)
+                
+                # Log response details for debugging
+                logger.debug(f"Response status: {r.status_code}")
+                logger.debug(f"Response text (first 200 chars): {r.text[:200]}")
+                
+                # Check HTTP status
+                if r.status_code != 200:
+                    logger.error(f"HTTP {r.status_code}: {r.text[:500]}")
+                    raise BybitAPIError(r.status_code, r.text[:200])
+                
+                data = r.json()
+                
+                # Check for API errors
+                if data.get("retCode") != 0:
+                    raise BybitAPIError(data.get("retCode"), data.get("retMsg", "Unknown error"))
+                
+                return data
+                
+            except (requests.exceptions.ConnectionError, 
+                    requests.exceptions.Timeout,
+                    requests.exceptions.RequestException) as e:
+                if attempt < self.max_retries - 1:
+                    wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                    logger.warning(f"Connection error (attempt {attempt + 1}/{self.max_retries}): {e}. Retrying in {wait_time}s...")
+                    time.sleep(wait_time)
+                    # Regenerate timestamp and signature for retry
+                    timestamp = str(int(time.time() * 1000))
+                    signature = self._generate_signature(timestamp, query, body_str)
+                    headers = self._get_headers(timestamp, signature)
+                else:
+                    logger.error(f"Request failed after {self.max_retries} attempts: {e}")
+                    raise
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON decode error: {e}, text: {r.text[:500] if 'r' in locals() else 'N/A'}")
+                raise
+    
+    async def close(self):
+        """Dummy close for compatibility"""
+        pass
+    
+    # ==================== Market Data ====================
+    
+    def get_klines(
+        self,
+        symbol: str,
+        interval: str,
+        limit: int = 200,
+        category: str = "linear"
+    ) -> List[Dict[str, Any]]:
+        """Get candlestick data"""
+        query = f"category={category}&symbol={symbol}&interval={interval}&limit={limit}"
+        data = self._request("GET", "/v5/market/kline", query)
+        return data.get("result", {}).get("list", [])
+    
+    def get_orderbook(self, symbol: str, limit: int = 50, category: str = "linear") -> Dict:
+        """Get orderbook"""
+        query = f"category={category}&symbol={symbol}&limit={limit}"
+        return self._request("GET", "/v5/market/orderbook", query)
+    
+    def get_tickers(self, symbol: Optional[str] = None, category: str = "linear") -> Dict:
+        """Get 24h ticker data"""
+        query = f"category={category}"
+        if symbol:
+            query += f"&symbol={symbol}"
+        return self._request("GET", "/v5/market/tickers", query)
+
+    def get_instruments_info(self, symbol: Optional[str] = None, category: str = "linear") -> Dict:
+        """Get instruments info (including lot size requirements)"""
+        query = f"category={category}"
+        if symbol:
+            query += f"&symbol={symbol}"
+        data = self._request("GET", "/v5/market/instruments-info", query)
+        return data.get("result", {}).get("list", [])
+    
+    # ==================== Account ====================
+    
+    def get_wallet_balance(self, account_type: str = "UNIFIED") -> Dict:
+        """Get wallet balance"""
+        query = f"accountType={account_type}"
+        return self._request("GET", "/v5/account/wallet-balance", query)
+    
+    # ==================== Position ====================
+    
+    def get_positions(
+        self,
+        symbol: Optional[str] = None,
+        category: str = "linear"
+    ) -> List[Dict[str, Any]]:
+        """Get open positions"""
+        query = f"category={category}"
+        if symbol:
+            query += f"&symbol={symbol}"
+        data = self._request("GET", "/v5/position/list", query)
+        return data.get("result", {}).get("list", [])
+    
+    def set_leverage(
+        self,
+        symbol: str,
+        buy_leverage: int,
+        sell_leverage: int,
+        category: str = "linear"
+    ) -> Dict:
+        """Set leverage for a symbol"""
+        body = {
+            "category": category,
+            "symbol": symbol,
+            "buyLeverage": str(buy_leverage),
+            "sellLeverage": str(sell_leverage)
+        }
+        try:
+            return self._request("POST", "/v5/position/set-leverage", body=body)
+        except BybitAPIError as e:
+            # Error 110043: leverage not modified (already set to this value)
+            if e.code == 110043:
+                logger.warning(f"Leverage already set to {buy_leverage}x for {symbol}")
+                return {"retCode": 0, "retMsg": "Leverage already set"}
+            raise
+    
+    # ==================== Order ====================
+    
+    def place_order(
+        self,
+        symbol: str,
+        side: str,  # Buy or Sell
+        order_type: str,  # Market, Limit
+        qty: float,
+        price: Optional[float] = None,
+        stop_loss: Optional[float] = None,
+        take_profit: Optional[float] = None,
+        stop_loss_pct: Optional[float] = None,  # Percentage-based SL
+        take_profit_pct: Optional[float] = None,  # Percentage-based TP
+        category: str = "linear",
+        order_link_id: Optional[str] = None,
+        market_unit: Optional[str] = None  # "qty" (baseCoin) or "quoteCoin" (USDT) for market orders
+    ) -> Dict:
+        """Place an order"""
+        body = {
+            "category": category,
+            "symbol": symbol,
+            "side": side,
+            "orderType": order_type,
+            "qty": str(qty),
+        }
+
+        # Add marketUnit for market orders if specified
+        if order_type == "Market" and market_unit:
+            body["marketUnit"] = market_unit
+
+        if price and order_type == "Limit":
+            body["price"] = str(price)
+
+        # Use percentage-based TP/SL (like Bybit app)
+        if stop_loss_pct is not None:
+            body["stopLoss"] = str(stop_loss_pct)
+            body["stopLossType"] = "Percentage"
+        elif stop_loss:
+            body["stopLoss"] = str(stop_loss)
+            body["stopLossType"] = "Price"
+
+        if take_profit_pct is not None:
+            body["takeProfit"] = str(take_profit_pct)
+            body["takeProfitType"] = "Percentage"
+        elif take_profit:
+            body["takeProfit"] = str(take_profit)
+            body["takeProfitType"] = "Price"
+
+        if order_link_id:
+            body["orderLinkId"] = order_link_id
+
+        log_event("info", f"Placing order: {side} {qty} {symbol}",
+                  symbol=symbol, side=side, qty=qty, order_type=order_type)
+
+        # Retry logic with fallback approaches
+        max_order_retries = 3
+        for attempt in range(max_order_retries):
+            try:
+                return self._request("POST", "/v5/order/create", body=body)
+            except (requests.exceptions.ConnectionError, 
+                    requests.exceptions.Timeout,
+                    requests.exceptions.RequestException) as e:
+                if attempt < max_order_retries - 1:
+                    # Fallback 1: Remove market_unit if it's a market order
+                    if attempt == 0 and order_type == "Market" and market_unit:
+                        logger.warning(f"Order failed (attempt {attempt + 1}/{max_order_retries}): {e}. Retrying without market_unit...")
+                        body.pop("marketUnit", None)
+                        continue
+                    
+                    # Fallback 2: Try as limit order at current price if market order fails
+                    if attempt == 1 and order_type == "Market":
+                        logger.warning(f"Order failed (attempt {attempt + 1}/{max_order_retries}): {e}. Retrying as limit order...")
+                        body["orderType"] = "Limit"
+                        # Get current price
+                        current_price = self.get_latest_price(symbol)
+                        if current_price > 0:
+                            body["price"] = str(current_price)
+                        continue
+                    
+                    # Fallback 3: General retry with delay
+                    wait_time = 2 ** attempt
+                    logger.warning(f"Order failed (attempt {attempt + 1}/{max_order_retries}): {e}. Retrying in {wait_time}s...")
+                    time.sleep(wait_time)
+                else:
+                    logger.error(f"Order failed after {max_order_retries} attempts: {e}")
+                    raise
+    
+    def cancel_order(
+        self,
+        symbol: str,
+        order_id: Optional[str] = None,
+        order_link_id: Optional[str] = None,
+        category: str = "linear"
+    ) -> Dict:
+        """Cancel an order"""
+        body = {"category": category, "symbol": symbol}
+        if order_id:
+            body["orderId"] = order_id
+        if order_link_id:
+            body["orderLinkId"] = order_link_id
+        
+        return self._request("POST", "/v5/order/cancel", body=body)
+    
+    def get_open_orders(
+        self,
+        symbol: Optional[str] = None,
+        category: str = "linear"
+    ) -> List[Dict]:
+        """Get open orders"""
+        query = f"category={category}"
+        if symbol:
+            query += f"&symbol={symbol}"
+        data = self._request("GET", "/v5/order/realtime", query)
+        return data.get("result", {}).get("list", [])
+    
+    def get_order_history(
+        self,
+        symbol: Optional[str] = None,
+        limit: int = 50,
+        category: str = "linear"
+    ) -> List[Dict]:
+        """Get order history"""
+        query = f"category={category}&limit={limit}"
+        if symbol:
+            query += f"&symbol={symbol}"
+        data = self._request("GET", "/v5/order/history", query)
+        return data.get("result", {}).get("list", [])
+    
+    # ==================== Helpers ====================
+    
+    def get_latest_price(self, symbol: str, category: str = "linear") -> float:
+        """Get latest mark price"""
+        tickers = self.get_tickers(symbol, category)
+        ticker_list = tickers.get("result", {}).get("list", [])
+        if ticker_list:
+            return float(ticker_list[0].get("lastPrice", 0))
+        return 0.0
+    
+    def get_instrument_info(self, symbol: str, category: str = "linear") -> Dict:
+        """Get instrument specifications"""
+        query = f"category={category}&symbol={symbol}"
+        data = self._request("GET", "/v5/market/instruments-info", query)
+        instruments = data.get("result", {}).get("list", [])
+        return instruments[0] if instruments else {}
+    
+    def check_position_state(self, symbol: str) -> Optional[Dict]:
+        """Check actual position state from exchange"""
+        try:
+            positions = self.get_positions(symbol)
+            for pos in positions:
+                size = float(pos.get("size", 0))
+                if size != 0:
+                    avg_price = pos.get("avgPrice", 0)
+                    if avg_price == "" or avg_price is None:
+                        avg_price = 0
+                    else:
+                        avg_price = float(avg_price)
+
+                    unrealised_pnl = pos.get("unrealisedPnl", 0)
+                    if unrealised_pnl == "" or unrealised_pnl is None:
+                        unrealised_pnl = 0
+                    else:
+                        unrealised_pnl = float(unrealised_pnl)
+
+                    liq_price = pos.get("liqPrice", 0)
+                    if liq_price == "" or liq_price is None:
+                        liq_price = 0
+                    else:
+                        liq_price = float(liq_price)
+
+                    return {
+                        "symbol": pos.get("symbol"),
+                        "side": pos.get("side"),  # Buy or Sell
+                        "size": abs(size),
+                        "entry_price": avg_price,
+                        "leverage": int(pos.get("leverage", 1)),
+                        "unrealized_pnl": unrealised_pnl,
+                        "liq_price": liq_price
+                    }
+            return None
+        except Exception as e:
+            logger.error(f"Error checking position state: {e}")
+            return None
