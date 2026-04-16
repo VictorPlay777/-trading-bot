@@ -516,13 +516,13 @@ class TradingBot:
         current_qty = qty
         for attempt in range(max_retries):
             try:
-                # Round qty to avoid floating point precision issues
-                rounded_qty = round(current_qty, 8)
+                # Format qty according to symbol requirements to avoid precision issues
+                formatted_qty = self._format_qty(symbol, current_qty, is_market_order=True)
                 result = self.api.place_order(
                     symbol=symbol,
                     side=side,
                     order_type=order_type,
-                    qty=rounded_qty,
+                    qty=formatted_qty,
                     stop_loss=stop_loss,
                     take_profit=take_profit,
                     market_unit=market_unit
