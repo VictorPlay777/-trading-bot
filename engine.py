@@ -50,7 +50,7 @@ class TradingEngine:
         self.leverage = trading_config.default_leverage  # 100x
         
         # Probe settings
-        self.probability_of_probe = 0.05  # 5% chance to open probe each cycle
+        self.probability_of_probe = 0.50  # 50% chance to open probe each cycle (increased for testing)
         
         # Market data cache
         self.market_data: Dict[str, pd.DataFrame] = {}
@@ -126,16 +126,23 @@ class TradingEngine:
     def _look_for_trades(self, symbol: str, df: pd.DataFrame, current_price: float) -> None:
         """Look for new trade opportunities with priority: LIQUIDATION > MOMENTUM > SIGNAL > PROBE"""
         try:
+            logger.debug(f"Checking for trades for {symbol}")
+            
             # 1. Liquidation cascade hunting (highest priority)
             liquidation_signal = self.liquidation_engine.detect_liquidation_opportunity(df, symbol)
-            if liquidation_signal and liquidation_signal.strength > 0.7:
-                logger.info(f"LIQUIDATION signal for {symbol}: {liquidation_signal.reason}")
-                self._open_liquidation_trade(symbol, liquidation_signal, current_price)
-                return  # Don't open other trades if liquidation detected
+            if liquidation_signal:
+                logger.debug(f"Liquidation signal detected: strength={liquidation_signal.strength:.2f}, state={liquidation_signal.market_state}")
+                if liquidation_signal.strength > 0.7:
+                    logger.info(f"LIQUIDATION signal for {symbol}: {liquidation_signal.reason}")
+                    self._open_liquidation_trade(symbol, liquidation_signal, current_price)
+                    return  # Don't open other trades if liquidation detected
+                else:
+                    logger.debug(f"Liquidation signal too weak: {liquidation_signal.strength:.2f}")
             
             # 2. Momentum detection
             momentum_signal = self.momentum_engine.detect_momentum(df, symbol)
             if momentum_signal:
+                logger.debug(f"Momentum signal detected: {momentum_signal.reason}")
                 # Check liquidity context before momentum trade
                 liquidity_analysis = self.liquidity_engine.analyze_liquidity(df, symbol)
                 
@@ -151,6 +158,7 @@ class TradingEngine:
             # 3. Signal detection (SCOUT trade)
             signal = self.signal_engine.generate_signal(df, symbol)
             if signal:
+                logger.debug(f"Signal detected: {signal.direction}, strength={signal.strength:.2f}")
                 # Check liquidity context before signal trade
                 liquidity_analysis = self.liquidity_engine.analyze_liquidity(df, symbol)
                 
@@ -164,9 +172,13 @@ class TradingEngine:
                 return  # Don't open probe if scout signal found
             
             # 4. Probe logic (random small trade)
-            if random.random() < self.probability_of_probe:
+            probe_roll = random.random()
+            logger.debug(f"Probe roll: {probe_roll:.4f} (threshold: {self.probability_of_probe})")
+            if probe_roll < self.probability_of_probe:
                 logger.info(f"PROBE trade for {symbol}")
                 self._open_probe_trade(symbol, current_price)
+            
+            logger.debug(f"No trade opened for {symbol} this cycle")
             
         except Exception as e:
             logger.error(f"Error looking for trades for {symbol}: {e}")
