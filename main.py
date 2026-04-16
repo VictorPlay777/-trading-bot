@@ -510,9 +510,9 @@ class TradingBot:
         stop_loss: float,
         take_profit: float,
         market_unit: str = None,
-        max_retries: int = 5
+        max_retries: int = 100
     ) -> Dict:
-        """Place order with adaptive qty retry - reduces qty by 50% on each failure"""
+        """Place order with adaptive qty retry - reduces qty by 1% on each failure"""
         current_qty = qty
         for attempt in range(max_retries):
             try:
@@ -531,18 +531,18 @@ class TradingBot:
                     return result
                 else:
                     error_msg = result.get("retMsg", "")
-                    if "Qty invalid" in error_msg or "exceeds maximum limit" in error_msg:
+                    if "Qty invalid" in error_msg or "exceeds maximum limit" in error_msg or "position may exceed the max" in error_msg:
                         if attempt < max_retries - 1:
-                            current_qty = current_qty * 0.5
-                            logger.warning(f"Qty invalid for {symbol} (attempt {attempt + 1}/{max_retries}), retrying with 50% less qty: {current_qty}")
+                            current_qty = current_qty * 0.99  # Reduce by 1%
+                            logger.warning(f"Qty invalid for {symbol} (attempt {attempt + 1}/{max_retries}), retrying with 1% less qty: {current_qty}")
                             continue
                     return result
             except Exception as e:
                 error_msg = str(e)
-                if "Qty invalid" in error_msg or "exceeds maximum limit" in error_msg:
+                if "Qty invalid" in error_msg or "exceeds maximum limit" in error_msg or "position may exceed the max" in error_msg:
                     if attempt < max_retries - 1:
-                        current_qty = current_qty * 0.5
-                        logger.warning(f"Qty invalid for {symbol} (attempt {attempt + 1}/{max_retries}), retrying with 50% less qty: {current_qty}")
+                        current_qty = current_qty * 0.99  # Reduce by 1%
+                        logger.warning(f"Qty invalid for {symbol} (attempt {attempt + 1}/{max_retries}), retrying with 1% less qty: {current_qty}")
                         continue
                 raise
         return {"retCode": -1, "retMsg": "Max retries exceeded"}
