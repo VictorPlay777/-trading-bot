@@ -234,6 +234,25 @@ class StrategyConfig:
     dynamic_symbols_enabled: bool = True  # Enable dynamic symbol fetching from Bybit
     min_volume_24h_usd: float = 1000000.0  # Minimum 24h volume ($1M) for symbol inclusion
     symbol_update_interval_hours: int = 24  # Update symbol list every 24 hours
+    
+    # Liquidity trap detection parameters
+    liquidity_filter_enabled: bool = True  # Enable liquidity trap filtering
+    breakout_threshold_pct: float = 0.003  # 0.3% minimum for breakout
+    reversal_threshold_pct: float = 0.002  # 0.2% reversal to detect fake breakout
+    volume_spike_multiplier: float = 2.0  # Volume must be 2x average for trap
+    trap_lookback_periods: int = 10  # Look back 10 periods for trap detection
+    min_pullback_pct: float = 0.001  # 0.1% minimum pullback for good entry
+    max_impulse_length_pct: float = 0.02  # 2% max impulse before avoiding (anti-FOMO)
+    
+    # Liquidation cascade hunting parameters
+    liquidation_hunting_enabled: bool = True  # Enable liquidation cascade hunting
+    rsi_overbought_threshold: float = 70  # RSI > 70 = long overheated
+    rsi_oversold_threshold: float = 30  # RSI < 30 = short overheated
+    rsi_extreme_threshold: float = 80  # RSI > 80 = extreme long overheated
+    rsi_extreme_oversold: float = 20  # RSI < 20 = extreme short overheated
+    ema_deviation_threshold_pct: float = 0.02  # 2% deviation from EMA
+    ema_extreme_deviation_pct: float = 0.05  # 5% extreme deviation
+    acceleration_threshold: float = 1.5  # Momentum must be 1.5x recent average
 
 
 @dataclass
@@ -249,11 +268,31 @@ class RiskConfig:
     auto_reverse_on_sl: bool = True  # Auto-reverse position on SL closure
     auto_reopen_on_tp: bool = True  # Auto-reopen position on TP closure
 
-    # Position sizing - maximum balance utilization
-    min_position_size_usd: float = 1000000.0  # Minimum position size ($1M USDT)
-    max_position_size_usd: float = 999999999.0  # Maximum position size (unlimited)
-    max_position_pct_of_balance: float = 1.0  # Max 100% of balance per position (unlimited)
+    # Position sizing - adaptive momentum trading
+    min_position_size_usd: float = 5000.0  # Minimum position size ($5k USDT)
+    max_position_size_usd: float = 50000.0  # Maximum position size ($50k USDT)
+    max_position_pct_of_balance: float = 0.5  # Max 50% of balance per position
     kelly_criterion_enabled: bool = False  # Disable Kelly criterion for fixed sizing
+    
+    # Trade type percentages (of max position size)
+    probe_pct: float = 0.05  # 5% of max position for probe trades
+    scout_pct: float = 0.20  # 20% of max position for scout trades
+    momentum_pct_min: float = 0.30  # 30% of max position for momentum trades
+    momentum_pct_max: float = 0.50  # 50% of max position for momentum trades
+    
+    # Pyramiding settings
+    pyramiding_enabled: bool = True  # Enable pyramiding
+    pyramiding_multipliers: list = None  # [1.3, 1.5, 1.7] for levels 1, 2, 3
+    max_pyramiding_levels: int = 3  # Maximum pyramiding levels
+    
+    # Stop loss settings
+    sl_atr_multiplier: float = 1.0  # SL = 1x ATR
+    sl_fixed_pct: float = 0.002  # 0.2% fixed SL fallback
+    
+    # Trailing stop settings
+    trailing_stop_enabled: bool = True  # Enable trailing stop
+    trailing_stop_activation_pct: float = 0.01  # Activate at 1% profit
+    trailing_stop_distance_pct: float = 0.01  # 1% trailing distance
 
     # Loss streak protection (disabled for testing)
     max_consecutive_sl: int = 9999  # Unlimited (disabled for testing)
@@ -284,6 +323,10 @@ class RiskConfig:
         for key, value in data.items():
             if hasattr(self, key):
                 setattr(self, key, value)
+
+    def __post_init__(self):
+        if self.pyramiding_multipliers is None:
+            self.pyramiding_multipliers = [1.3, 1.5, 1.7]
 
 
 @dataclass
