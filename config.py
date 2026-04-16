@@ -51,7 +51,7 @@ class TradingConfig:
     leverage_scaling: bool = False  # Disable scaling, use max leverage
 
     # Reverse trading mode - invert all signals
-    reverse_trading_mode: bool = True  # If True, buy when signal says sell, sell when signal says buy
+    reverse_trading_mode: bool = False  # If True, buy when signal says sell, sell when signal says buy
 
     # Symbol-specific max leverage (Bybit limits)
     symbol_max_leverage: Dict[str, int] = None
@@ -187,8 +187,8 @@ class StrategyConfig:
     sl_atr_multiplier: float = 0.7  # SL = ATR * 0.7
 
     # TP/SL settings - percentage-based (decimal format for API) - Aggressive testing
-    tp_pct: float = 0.05  # 5% take profit (aggressive)
-    sl_pct: float = 0.025  # 2.5% stop loss (aggressive)
+    tp_pct: float = 0.01  # 1% take profit (aggressive)
+    sl_pct: float = 0.005  # 0.5% stop loss (aggressive)
 
     # Legacy ROI-based settings (deprecated, kept for compatibility)
     tp_roi_pct: float = 0.30  # 30% ROI for take profit (0.6% price with 50x leverage)
@@ -248,8 +248,8 @@ class RiskConfig:
     auto_reverse_on_sl: bool = True  # Auto-reverse position on SL closure
     auto_reopen_on_tp: bool = True  # Auto-reopen position on TP closure
 
-    # Position sizing - testing mode (aggressive for faster testing)
-    min_position_size_usd: float = 50000.0  # Minimum position size ($50k USDT)
+    # Position sizing - maximum balance utilization
+    min_position_size_usd: float = 1000000.0  # Minimum position size ($1M USDT)
     max_position_size_usd: float = 999999999.0  # Maximum position size (unlimited)
     max_position_pct_of_balance: float = 1.0  # Max 100% of balance per position (unlimited)
     kelly_criterion_enabled: bool = False  # Disable Kelly criterion for fixed sizing

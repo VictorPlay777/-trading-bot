@@ -607,10 +607,17 @@ class TradingBot:
                         if was_tp:
                             self._record_tp()
 
-                        # Auto-reverse position on SL if enabled
-                        if was_sl and risk_config.auto_reverse_on_sl:
-                            logger.info(f"🔄 Auto-reverse position on SL for {symbol}")
-                            self._open_reverse_position(symbol, pos.direction, exit_price)
+                        # Auto-reopen position on any closure (manual or TP/SL) if enabled
+                        if risk_config.auto_reopen_on_tp:
+                            logger.info(f"🔄 Auto-reopening position for {symbol} (closed manually or TP/SL)")
+                            # Trigger reopen logic using same direction
+                            old_direction = pos.direction if pos else "long"
+                            self._open_same_direction_position(symbol, old_direction, exit_price)
+                        else:
+                            # Auto-reverse position on SL if enabled
+                            if was_sl and risk_config.auto_reverse_on_sl:
+                                logger.info(f"🔄 Auto-reverse position on SL for {symbol}")
+                                self._open_reverse_position(symbol, pos.direction, exit_price)
 
                         # Auto-reopen position on TP if enabled
                         if was_tp and risk_config.auto_reopen_on_tp:
