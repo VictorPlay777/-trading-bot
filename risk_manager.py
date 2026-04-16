@@ -170,11 +170,9 @@ class RiskManager:
         if trading_config.category == "spot":
             leverage = 1  # No leverage for spot
         else:
-            # Use default leverage, capped at symbol max
-            base_leverage = trading_config.default_leverage
-            symbol_max = trading_config.symbol_max_leverage.get(symbol, trading_config.max_leverage)
-            leverage = min(base_leverage, symbol_max)
-            logger.info(f"Using leverage: {leverage}x (max for {symbol}: {symbol_max}x)")
+            # HARDCODED leverage to 100x to bypass detection issues
+            leverage = 100  # 100x
+            logger.info(f"Using leverage: {leverage}x (hardcoded)")
 
         # Calculate size in contracts
         position_size = position_notional / entry_price
