@@ -90,9 +90,9 @@ class RiskManager:
     - Daily limits tracking
     - Kill switch functionality
     """
-    
-    def __init__(self, config: RiskConfig):
-        self.cfg = config
+
+    def __init__(self, config = None):
+        self.cfg = config if config else risk_config
 
         # Daily tracking
         self._daily_pnl = 0.0
