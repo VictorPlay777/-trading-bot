@@ -151,7 +151,7 @@ class PositionManager:
             
             logger.info(f"Position size: ${position_size:.2f}, Quantity: {quantity} BTC, Entry: ${entry_price:.2f}")
             
-            # Calculate stop loss price with correct direction
+            # Calculate stop loss and take profit for position tracking (not for order)
             if atr:
                 sl_distance = atr * self.sl_atr_multiplier
             else:
@@ -164,14 +164,12 @@ class PositionManager:
                 stop_loss = entry_price + sl_distance  # Above entry for short
                 take_profit = entry_price - (sl_distance * 2)  # Below entry for short (2x risk)
             
-            # Place order via API with price-based stop loss/take profit
+            # Place order via API without stop loss/take profit (will add separately)
             result = self.api.place_order(
                 symbol=symbol,
                 side="Buy" if direction == "long" else "Sell",
                 order_type="Market",
-                qty=quantity,
-                stop_loss=stop_loss,
-                take_profit=take_profit
+                qty=quantity
             )
             
             if result.get("retCode") != 0:
