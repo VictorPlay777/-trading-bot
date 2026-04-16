@@ -14,7 +14,7 @@ from position_manager import PositionManager, Position, TradeType
 from learning import LearningModule
 from liquidity_engine import LiquidityEngine, LiquidityAnalysis
 from liquidation_engine import LiquidationEngine, LiquidationSignal
-from api_client import BybitAPIClient
+from api_client import BybitClient
 from config import trading_config, strategy_config
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ class TradingEngine:
     6. Learning -> update weights, record statistics
     """
     
-    def __init__(self, api_client: BybitAPIClient):
+    def __init__(self, api_client: BybitClient):
         self.api = api_client
         
         # Initialize engines

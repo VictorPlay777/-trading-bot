@@ -6,7 +6,7 @@ import sys
 from datetime import datetime
 
 from config import api_config, trading_config
-from api_client import BybitAPIClient
+from api_client import BybitClient
 from engine import TradingEngine
 
 # Configure logging
@@ -30,12 +30,7 @@ def main():
     
     try:
         # Initialize API client
-        api_client = BybitAPIClient(
-            api_key=api_config.key,
-            api_secret=api_config.secret,
-            base_url=api_config.base_url,
-            testnet=api_config.testnet
-        )
+        api_client = BybitClient()
         
         # Initialize trading engine
         engine = TradingEngine(api_client)
