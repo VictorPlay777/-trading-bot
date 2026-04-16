@@ -50,6 +50,9 @@ class TradingConfig:
     min_leverage: int = 50  # Min 50x leverage
     leverage_scaling: bool = False  # Disable scaling, use max leverage
 
+    # Reverse trading mode - invert all signals
+    reverse_trading_mode: bool = True  # If True, buy when signal says sell, sell when signal says buy
+
     # Symbol-specific max leverage (Bybit limits)
     symbol_max_leverage: Dict[str, int] = None
 
@@ -185,7 +188,7 @@ class StrategyConfig:
 
     # TP/SL settings - percentage-based (decimal format for API) - Aggressive testing
     tp_pct: float = 0.05  # 5% take profit (aggressive)
-    sl_pct: float = 1.0  # 100% stop loss (disabled - unlimited losses)
+    sl_pct: float = 0.025  # 2.5% stop loss (aggressive)
 
     # Legacy ROI-based settings (deprecated, kept for compatibility)
     tp_roi_pct: float = 0.30  # 30% ROI for take profit (0.6% price with 50x leverage)

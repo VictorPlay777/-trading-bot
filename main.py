@@ -378,25 +378,26 @@ class TradingBot:
         """Check if trading conditions are met (combines all filters)"""
         reasons = []
 
+        # DISABLED all filters for testing - force trading
         # Check ATR
-        atr_valid, atr_val, atr_msg = self._is_atr_valid(symbol)
-        if not atr_valid:
-            reasons.append(atr_msg)
+        # atr_valid, atr_val, atr_msg = self._is_atr_valid(symbol)
+        # if not atr_valid:
+        #     reasons.append(atr_msg)
 
         # Check ADX
-        adx_valid, adx_val, adx_msg = self._is_adx_valid(symbol)
-        if not adx_valid:
-            reasons.append(adx_msg)
+        # adx_valid, adx_val, adx_msg = self._is_adx_valid(symbol)
+        # if not adx_valid:
+        #     reasons.append(adx_msg)
 
         # Check EMA
-        ema_valid, ema_msg = self._is_ema_trending(symbol)
-        if not ema_valid:
-            reasons.append(ema_msg)
+        # ema_valid, ema_msg = self._is_ema_trending(symbol)
+        # if not ema_valid:
+        #     reasons.append(ema_msg)
 
         # Check volume
-        volume_valid, volume_msg = self._is_volume_valid(symbol)
-        if not volume_valid:
-            reasons.append(volume_msg)
+        # volume_valid, volume_msg = self._is_volume_valid(symbol)
+        # if not volume_valid:
+        #     reasons.append(volume_msg)
 
         # Check loss streak pause
         if self._loss_streak_pause_until:
@@ -409,13 +410,13 @@ class TradingBot:
                 self._consecutive_sl_count = 0
                 logger.info("Loss streak pause expired, resuming trading")
 
-        # Check trade delay
-        if self._last_trade_time:
-            from config import execution_config
-            delay_sec = (datetime.utcnow() - self._last_trade_time).total_seconds()
-            if delay_sec < execution_config.min_trade_delay_sec:
-                remaining = execution_config.min_trade_delay_sec - delay_sec
-                reasons.append(f"Trade delay: {remaining:.1f} sec remaining")
+        # Check trade delay - DISABLED for testing
+        # if self._last_trade_time:
+        #     from config import execution_config
+        #     delay_sec = (datetime.utcnow() - self._last_trade_time).total_seconds()
+        #     if delay_sec < execution_config.min_trade_delay_sec:
+        #         remaining = execution_config.min_trade_delay_sec - delay_sec
+        #         reasons.append(f"Trade delay: {remaining:.1f} sec remaining")
 
         if reasons:
             return False, "; ".join(reasons)
@@ -915,6 +916,13 @@ class TradingBot:
                 side = "Buy"
                 reason = "EMA9 = EMA21 (default to long)"
 
+            # Apply reverse trading mode if enabled
+            from config import trading_config
+            if trading_config.reverse_trading_mode:
+                direction = "short" if direction == "long" else "long"
+                side = "Sell" if direction == "short" else "Buy"
+                reason = f"REVERSE: {reason}"
+
             logger.info(f"🎲 Opening EMA-based first position: {symbol} {direction} at {current_price} ({reason})")
 
             # Calculate position size using risk_manager
@@ -1019,6 +1027,13 @@ class TradingBot:
                     direction = "long"
                     side = "Buy"
                     reason = "EMA9 = EMA21 (default to long)"
+
+                # Apply reverse trading mode if enabled
+                from config import trading_config
+                if trading_config.reverse_trading_mode:
+                    direction = "short" if direction == "long" else "long"
+                    side = "Sell" if direction == "short" else "Buy"
+                    reason = f"REVERSE: {reason}"
 
                 logger.info(f"🎲 Opening EMA position for {symbol}: {direction} at {current_price} ({reason})")
 
