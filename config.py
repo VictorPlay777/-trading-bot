@@ -9,8 +9,8 @@ from typing import List, Dict
 @dataclass
 class APIConfig:
     """Bybit API configuration"""
-    key: str = os.getenv("BYBIT_API_KEY", "")
-    secret: str = os.getenv("BYBIT_API_SECRET", "")
+    key: str = os.getenv("BYBIT_API_KEY", "rRsm08OPN027nk5hgF")
+    secret: str = os.getenv("BYBIT_API_SECRET", "GD1qBUUx1KROqmAKwJLOpAanLNDwG6zr1CyA")
     base_url: str = os.getenv("BYBIT_BASE_URL", "https://api-demo.bybit.com")
     recv_window: int = 30000  # 30 seconds to fix timestamp sync issues
     testnet: bool = os.getenv("BYBIT_TESTNET", "true").lower() == "true"
