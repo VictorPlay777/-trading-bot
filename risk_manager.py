@@ -147,12 +147,13 @@ class RiskManager:
         # Calculate Kelly criterion position size
         kelly_pct = self._calculate_kelly_criterion()
 
-        # Calculate Risk Parity position size
-        risk_parity_pct = self._calculate_risk_parity(symbol, atr)
-
-        # Use the more conservative of Kelly and Risk Parity
-        position_pct = min(kelly_pct, risk_parity_pct, self.cfg.max_position_pct_of_balance)
+        # HARDCODED: Use 100% of available balance for maximum position size
+        position_pct = 1.0  # 100% of available balance
         position_notional = available_balance * position_pct
+
+        # Disable Risk Parity and other constraints
+        # risk_parity_pct = self._calculate_risk_parity(symbol, atr)
+        # position_pct = min(kelly_pct, risk_parity_pct, self.cfg.max_position_pct_of_balance)
 
         # Ensure within min/max limits
         # HARDCODED to bypass config caching: use maximum available balance (no minimum constraint)
