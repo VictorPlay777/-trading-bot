@@ -453,6 +453,16 @@ class BybitClient:
                     leverage_list = leverage_filter.get('leverageList', [])
                     if leverage_list and isinstance(leverage_list, list):
                         return max(int(item.get('leverage', 20)) for item in leverage_list)
+                # Fallback: try to get maxLeverage directly
+                if leverage_filter and isinstance(leverage_filter, dict):
+                    max_lev_str = leverage_filter.get('maxLeverage', '20')
+                    try:
+                        max_lev = int(float(max_lev_str))
+                        if max_lev > 1000:
+                            max_lev = max_lev // 100  # Scale down if API returns 7500 instead of 75
+                        return max_lev
+                    except (ValueError, TypeError):
+                        pass
                 # Fallback: try to get from other fields
                 logger.warning(f"Could not get leverageList for {symbol}, using instruments info")
         except Exception as e:

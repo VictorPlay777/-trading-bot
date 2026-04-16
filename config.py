@@ -73,11 +73,8 @@ class TradingConfig:
     def __post_init__(self):
         if self.symbols is None:
             self.symbols = [
-                "BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT", "XRPUSDT",
-                "BNBUSDT", "ADAUSDT", "AVAXUSDT", "LINKUSDT", "DOTUSDT",
-                "ARBUSDT", "OPUSDT", "INJUSDT", "ATOMUSDT",
-                "NEARUSDT", "LDOUSDT", "APEUSDT", "SANDUSDT", "MANAUSDT"
-            ]  # 18 volatile futures pairs (removed MATICUSDT - closed contract)
+                "BTCUSDT"
+            ]  # Only BTCUSDT for maximum position size
 
         if self.higher_timeframes is None:
             self.higher_timeframes = ["15", "60"]  # 15m and 1h for trend confirmation
