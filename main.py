@@ -817,11 +817,11 @@ class TradingBot:
         try:
             from config import trading_config, strategy_config
 
-            # Check trading filters
-            should_trade, trade_reason = self._should_trade(symbol)
-            if not should_trade:
-                logger.info(f"Trade blocked for {symbol}: {trade_reason}")
-                return
+            # HARDCODED: Disable trading filters for auto-reopen to force position opening
+            # should_trade, trade_reason = self._should_trade(symbol)
+            # if not should_trade:
+            #     logger.info(f"Trade blocked for {symbol}: {trade_reason}")
+            #     return
 
             new_direction = direction  # Same direction
             new_side = "Sell" if new_direction == "short" else "Buy"
