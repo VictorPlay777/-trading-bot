@@ -3,7 +3,7 @@ Engine - Central cycle for Adaptive Momentum Trading Bot
 """
 import logging
 import pandas as pd
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from datetime import datetime
 import time
 import random
@@ -495,6 +495,11 @@ class TradingEngine:
         while True:
             try:
                 self.run_cycle()
+                
+                # Update uptime for dashboard
+                if hasattr(self, 'start_time'):
+                    self.uptime_seconds = int(time.time() - self.start_time)
+                
                 time.sleep(2)  # Run every 2 seconds (faster for testing)
             except KeyboardInterrupt:
                 logger.info("Trading engine stopped by user")

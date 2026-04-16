@@ -2,6 +2,7 @@
 Position Manager - Manages all positions with PROBE/SCOUT/MOMENTUM trade types
 """
 import logging
+import time
 from typing import Optional, Dict, List
 from dataclasses import dataclass
 from datetime import datetime
@@ -35,6 +36,7 @@ class Position:
     pyramiding_level: int = 0  # 0 = initial, 1-3 = pyramiding levels
     pnl: float = 0.0
     status: str = "open"  # "open", "closed"
+    sl_tp_set: bool = False  # Flag to track if SL/TP have been applied to exchange
     
     @property
     def notional(self) -> float:
@@ -82,7 +84,7 @@ class PositionManager:
         
         # Stop loss settings
         self.sl_atr_multiplier = 1.0  # SL = 1x ATR
-        self.sl_fixed_pct = 0.002  # 0.2% fixed SL fallback
+        self.sl_fixed_pct = 0.02  # 2% fixed SL fallback (increased to ensure validity)
         
         # Trailing stop settings
         self.trailing_stop_activation_pct = 0.01  # Activate at 1% profit
@@ -164,7 +166,7 @@ class PositionManager:
                 stop_loss = entry_price + sl_distance  # Above entry for short
                 take_profit = entry_price - (sl_distance * 2)  # Below entry for short (2x risk)
             
-            # Place order via API without stop loss/take profit (will add separately)
+            # Place order via API without stop loss/take profit (will add in next cycle)
             result = self.api.place_order(
                 symbol=symbol,
                 side="Buy" if direction == "long" else "Sell",
@@ -176,7 +178,10 @@ class PositionManager:
                 logger.error(f"Failed to open position for {symbol}: {result.get('retMsg')}")
                 return False
             
-            # Create position object
+            # SL/TP will be set in next engine cycle after position is confirmed
+            # This avoids sleep() delay and handles async position creation
+            
+            # Create position object (SL/TP will be set later)
             position = Position(
                 symbol=symbol,
                 direction=direction,
@@ -189,7 +194,8 @@ class PositionManager:
                 trailing_stop=None,
                 entry_time=datetime.utcnow(),
                 pyramiding_level=0,
-                status="open"
+                status="open",
+                sl_tp_set=False  # Will be set in next engine cycle
             )
             
             self.positions[symbol] = position
@@ -382,6 +388,150 @@ class PositionManager:
         else:
             return entry_price + sl_distance
     
+    def manage_smart_stops(self, symbol: str, current_price: float, atr: Optional[float] = None) -> bool:
+        """
+        Smart stop management with breakeven and trailing stops
+        
+        Strategy:
+        - After 1x risk profit: Move SL to breakeven (entry price)
+        - After 2x risk profit: Activate trailing stop
+        - After 3x risk profit: Take partial profit (50%)
+        
+        Args:
+            symbol: Trading symbol
+            current_price: Current market price
+            atr: Current ATR value for trailing distance
+            
+        Returns:
+            True if any action taken, False otherwise
+        """
+        try:
+            if symbol not in self.positions:
+                return False
+            
+            position = self.positions[symbol]
+            
+            # Calculate risk distance (initial SL distance from entry)
+            if atr:
+                risk_distance = atr * self.sl_atr_multiplier
+            else:
+                risk_distance = position.entry_price * self.sl_fixed_pct
+            
+            # Calculate current profit in price terms
+            if position.direction == "long":
+                profit_distance = current_price - position.entry_price
+            else:
+                profit_distance = position.entry_price - current_price
+            
+            # Calculate profit multiple of risk
+            profit_multiple = profit_distance / risk_distance if risk_distance > 0 else 0
+            
+            action_taken = False
+            
+            # Stage 1: Move to breakeven after 1x risk profit
+            if profit_multiple >= 1.0 and position.stop_loss:
+                # Check if SL is below entry for long, above entry for short
+                if position.direction == "long" and position.stop_loss < position.entry_price:
+                    new_sl = position.entry_price
+                    sl_result = self.api.set_trading_stop(symbol=symbol, stop_loss=new_sl)
+                    if sl_result.get("retCode") == 0:
+                        position.stop_loss = new_sl
+                        logger.info(f"Smart SL: Moved to breakeven for {symbol} at {new_sl:.2f}")
+                        action_taken = True
+                elif position.direction == "short" and position.stop_loss > position.entry_price:
+                    new_sl = position.entry_price
+                    sl_result = self.api.set_trading_stop(symbol=symbol, stop_loss=new_sl)
+                    if sl_result.get("retCode") == 0:
+                        position.stop_loss = new_sl
+                        logger.info(f"Smart SL: Moved to breakeven for {symbol} at {new_sl:.2f}")
+                        action_taken = True
+            
+            # Stage 2: Activate trailing stop after 2x risk profit
+            if profit_multiple >= 2.0:
+                trailing_distance = atr if atr else position.entry_price * 0.01
+                
+                if position.direction == "long":
+                    new_trailing_sl = current_price - trailing_distance
+                    # Only update if new SL is higher than current
+                    if new_trailing_sl > position.stop_loss:
+                        sl_result = self.api.set_trading_stop(symbol=symbol, stop_loss=new_trailing_sl)
+                        if sl_result.get("retCode") == 0:
+                            position.stop_loss = new_trailing_sl
+                            position.trailing_stop = new_trailing_sl
+                            logger.info(f"Smart SL: Updated trailing stop for {symbol} to {new_trailing_sl:.2f}")
+                            action_taken = True
+                else:
+                    new_trailing_sl = current_price + trailing_distance
+                    # Only update if new SL is lower than current
+                    if new_trailing_sl < position.stop_loss:
+                        sl_result = self.api.set_trading_stop(symbol=symbol, stop_loss=new_trailing_sl)
+                        if sl_result.get("retCode") == 0:
+                            position.stop_loss = new_trailing_sl
+                            position.trailing_stop = new_trailing_sl
+                            logger.info(f"Smart SL: Updated trailing stop for {symbol} to {new_trailing_sl:.2f}")
+                            action_taken = True
+            
+            return action_taken
+            
+        except Exception as e:
+            logger.error(f"Error in smart stop management for {symbol}: {e}")
+            return False
+    
+    def take_partial_profit(self, symbol: str, current_price: float, profit_multiple: float) -> bool:
+        """
+        Take partial profit at key levels
+        
+        Args:
+            symbol: Trading symbol
+            current_price: Current market price
+            profit_multiple: Current profit as multiple of initial risk
+            
+        Returns:
+            True if partial profit taken, False otherwise
+        """
+        try:
+            if symbol not in self.positions:
+                return False
+            
+            position = self.positions[symbol]
+            
+            # Take 50% profit at 3x risk level (only once)
+            if profit_multiple >= 3.0 and not getattr(position, 'partial_profit_taken', False):
+                close_quantity = position.quantity * 0.5
+                
+                # Close 50% of position
+                result = self.api.place_order(
+                    symbol=symbol,
+                    side="Sell" if position.direction == "long" else "Buy",
+                    order_type="Market",
+                    qty=close_quantity
+                )
+                
+                if result.get("retCode") == 0:
+                    position.quantity -= close_quantity
+                    position.partial_profit_taken = True
+                    logger.info(f"Partial profit taken for {symbol}: closed {close_quantity:.4f} at {profit_multiple:.1f}x risk")
+                    
+                    # Move SL to entry + 1x risk (lock in profit)
+                    if position.direction == "long":
+                        new_sl = position.entry_price + (position.entry_price * self.sl_fixed_pct)
+                    else:
+                        new_sl = position.entry_price - (position.entry_price * self.sl_fixed_pct)
+                    
+                    self.api.set_trading_stop(symbol=symbol, stop_loss=new_sl)
+                    position.stop_loss = new_sl
+                    logger.info(f"Moved SL to lock in 1x risk profit for {symbol}")
+                    
+                    return True
+                else:
+                    logger.error(f"Failed to take partial profit for {symbol}: {result.get('retMsg')}")
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error taking partial profit for {symbol}: {e}")
+            return False
+    
     def get_position(self, symbol: str) -> Optional[Position]:
         """Get position for symbol"""
         return self.positions.get(symbol)
@@ -405,3 +555,55 @@ class PositionManager:
             position.pnl = (current_price - position.entry_price) * position.quantity
         else:
             position.pnl = (position.entry_price - current_price) * position.quantity
+    
+    def apply_sl_tp_to_exchange(self, symbol: str, actual_entry_price: float) -> bool:
+        """
+        Apply SL/TP to exchange position after it's confirmed open
+        
+        Args:
+            symbol: Trading symbol
+            actual_entry_price: Actual entry price from exchange
+            
+        Returns:
+            True if SL/TP applied successfully, False otherwise
+        """
+        try:
+            if symbol not in self.positions:
+                return False
+            
+            position = self.positions[symbol]
+            
+            # Skip if already set
+            if position.sl_tp_set:
+                return True
+            
+            # Recalculate SL/TP based on actual entry price
+            risk_distance = actual_entry_price * self.sl_fixed_pct
+            
+            if position.direction == "long":
+                stop_loss = actual_entry_price - risk_distance
+                take_profit = actual_entry_price + (risk_distance * 2)
+            else:
+                stop_loss = actual_entry_price + risk_distance
+                take_profit = actual_entry_price - (risk_distance * 2)
+            
+            # Apply to exchange
+            result = self.api.set_trading_stop(
+                symbol=symbol,
+                stop_loss=stop_loss,
+                take_profit=take_profit
+            )
+            
+            if result.get("retCode") == 0:
+                position.stop_loss = stop_loss
+                position.take_profit = take_profit
+                position.sl_tp_set = True
+                logger.info(f"Applied SL/TP to {symbol}: SL={stop_loss:.2f}, TP={take_profit:.2f}")
+                return True
+            else:
+                logger.warning(f"Failed to apply SL/TP to {symbol}: {result.get('retMsg')}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error applying SL/TP for {symbol}: {e}")
+            return False
