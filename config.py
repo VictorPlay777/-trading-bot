@@ -73,8 +73,17 @@ class TradingConfig:
     def __post_init__(self):
         if self.symbols is None:
             self.symbols = [
-                "BTCUSDT"
-            ]  # Only BTCUSDT for maximum position size
+                "BTCUSDT",
+                "ETHUSDT",
+                "SOLUSDT",
+                "DOGEUSDT",
+                "XRPUSDT",
+                "BNBUSDT",
+                "ADAUSDT",
+                "AVAXUSDT",
+                "LINKUSDT",
+                "DOTUSDT"
+            ]  # Multiple symbols for diversified trading
 
         if self.higher_timeframes is None:
             self.higher_timeframes = ["15", "60"]  # 15m and 1h for trend confirmation
