@@ -147,24 +147,24 @@ class PositionManager:
             
             logger.info(f"Position size: ${position_size:.2f}, Quantity: {quantity} BTC, Entry: ${entry_price:.2f}")
             
-            # Calculate stop loss
-            stop_loss = self._calculate_stop_loss(entry_price, direction, atr)
-            
-            # Calculate take profit (2x risk for risk-reward ratio)
-            if stop_loss:
-                risk_pct = abs(stop_loss - entry_price) / entry_price
-                take_profit = entry_price * (1 + risk_pct * 2) if direction == "long" else entry_price * (1 - risk_pct * 2)
+            # Calculate stop loss percentage
+            if atr:
+                sl_distance = atr * self.sl_atr_multiplier
+                stop_loss_pct = (sl_distance / entry_price) * 100
             else:
-                take_profit = None
+                stop_loss_pct = self.sl_fixed_pct * 100  # 0.2% -> 0.2
             
-            # Place order via API
+            # Calculate take profit percentage (2x risk for risk-reward ratio)
+            take_profit_pct = stop_loss_pct * 2 if stop_loss_pct else None
+            
+            # Place order via API with percentage-based stop loss
             result = self.api.place_order(
                 symbol=symbol,
                 side="Buy" if direction == "long" else "Sell",
                 order_type="Market",
                 qty=quantity,
-                stop_loss=stop_loss,
-                take_profit=take_profit
+                stop_loss_pct=stop_loss_pct,
+                take_profit_pct=take_profit_pct
             )
             
             if result.get("retCode") != 0:
