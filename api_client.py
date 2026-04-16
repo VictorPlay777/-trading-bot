@@ -217,6 +217,22 @@ class BybitClient:
                 logger.warning(f"Leverage already set to {buy_leverage}x for {symbol}")
                 return {"retCode": 0, "retMsg": "Leverage already set"}
             raise
+
+    def set_margin_mode(self, symbol: str, margin_mode: str = "cross", category: str = "linear") -> Dict:
+        """Set margin mode (cross or isolated) for a symbol"""
+        body = {
+            "category": category,
+            "symbol": symbol,
+            "marginMode": margin_mode
+        }
+        try:
+            return self._request("POST", "/v5/position/switch-margin-mode", body=body)
+        except BybitAPIError as e:
+            # Error 110028: margin mode not modified (already set to this value)
+            if e.code == 110028:
+                logger.warning(f"Margin mode already set to {margin_mode} for {symbol}")
+                return {"retCode": 0, "retMsg": "Margin mode already set"}
+            raise
     
     # ==================== Order ====================
     

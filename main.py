@@ -80,13 +80,15 @@ class TradingBot:
         # Load instruments info for all symbols (lot size requirements)
         self._load_instruments_info()
 
-        # Set leverage for all symbols (use default leverage from config)
+        # Set margin mode and leverage for each symbol
         for symbol in self.symbols:
             try:
-                if symbol in self._instruments_info:
-                    max_lev = self._instruments_info[symbol].get("max_leverage", trading_config.default_leverage)
-                else:
-                    max_lev = trading_config.symbol_max_leverage.get(symbol, trading_config.default_leverage)
+                # Switch to Cross margin mode for larger position limits
+                self.api.set_margin_mode(symbol, margin_mode="cross")
+                logger.info(f"Margin mode set to cross for {symbol}")
+
+                # Get symbol max leverage
+                max_lev = trading_config.symbol_max_leverage.get(symbol, trading_config.default_leverage)
 
                 # Use default leverage from config, capped at symbol max
                 target_leverage = min(trading_config.default_leverage, max_lev)
