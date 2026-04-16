@@ -155,7 +155,9 @@ class RiskManager:
         position_notional = available_balance * position_pct
 
         # Ensure within min/max limits
-        position_notional = max(self.cfg.min_position_size_usd, position_notional)
+        # HARDCODED to bypass config caching: min $1M position size
+        position_notional = max(1000000.0, position_notional)  # $1M minimum
+        # position_notional = max(self.cfg.min_position_size_usd, position_notional)
         position_notional = min(self.cfg.max_position_size_usd, position_notional)
 
         logger.info(f"Available balance: ${available_balance:.2f} (total: ${account_balance:.2f}, open: ${open_positions_notional:.2f})")
