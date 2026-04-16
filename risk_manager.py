@@ -147,7 +147,7 @@ class RiskManager:
         # Calculate Kelly criterion position size
         kelly_pct = self._calculate_kelly_criterion()
 
-        # HARDCODED: Use 100% of available balance multiplied by leverage for maximum position size
+        # HARDCODED: Use 100% of available balance multiplied by leverage for position size (relies on actual account balance)
         position_pct = 1.0  # 100% of available balance
         # HARDCODED leverage to 100x to bypass detection issues
         leverage = 100  # 100x
