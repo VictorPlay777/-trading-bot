@@ -138,12 +138,16 @@ class PositionManager:
             # Calculate quantity
             quantity = position_size / entry_price
             
-            # Round quantity to qty_step precision
+            # Round quantity to qty_step precision with better precision handling
             quantity = round(quantity / qty_step) * qty_step
+            quantity = round(quantity, 8)  # Round to 8 decimal places to avoid floating point issues
             
             # Ensure quantity meets minimum order requirement
             if quantity < min_qty:
                 quantity = min_qty
+            
+            # Log the final quantity for debugging
+            logger.debug(f"Calculated quantity: {quantity}, qty_step: {qty_step}, min_qty: {min_qty}")
             
             logger.info(f"Position size: ${position_size:.2f}, Quantity: {quantity} BTC, Entry: ${entry_price:.2f}")
             
@@ -156,6 +160,16 @@ class PositionManager:
             
             # Calculate take profit percentage (2x risk for risk-reward ratio)
             take_profit_pct = stop_loss_pct * 2 if stop_loss_pct else None
+            
+            # Set correct signs for direction
+            if direction == "long":
+                # For long: stop loss is negative (below entry), take profit is positive (above entry)
+                stop_loss_pct = -abs(stop_loss_pct) if stop_loss_pct else None
+                take_profit_pct = abs(take_profit_pct) if take_profit_pct else None
+            else:
+                # For short: stop loss is positive (above entry), take profit is negative (below entry)
+                stop_loss_pct = abs(stop_loss_pct) if stop_loss_pct else None
+                take_profit_pct = -abs(take_profit_pct) if take_profit_pct else None
             
             # Place order via API with percentage-based stop loss
             result = self.api.place_order(
