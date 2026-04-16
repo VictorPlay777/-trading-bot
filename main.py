@@ -56,6 +56,10 @@ class TradingBot:
         logger.info(f"Max Positions: {trading_config.max_positions}")
         logger.info("-" * 60)
 
+        # Initialize positions tracking for each symbol
+        for symbol in self.symbols:
+            self._current_positions[symbol] = None
+
         # Test API connection
         try:
             balance = self.api.get_wallet_balance()
