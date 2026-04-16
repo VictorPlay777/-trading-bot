@@ -209,6 +209,9 @@ class RiskManager:
         Kelly formula: f = (bp - q) / b
         Where: b = avg_win/avg_loss, p = win_rate, q = 1-p
         """
+        # HARDCODED to bypass config caching: return 100% for maximum position size
+        return 1.0  # 100% of available balance for maximum position
+
         from portfolio import portfolio
 
         # Get historical trades

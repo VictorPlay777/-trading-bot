@@ -104,7 +104,7 @@ class TradingBot:
                 logger.info(f"Updated {symbol} max leverage: {max_lev}x")
             except Exception as e:
                 logger.warning(f"Failed to get leverage for {symbol}: {e}")
-                trading_config.symbol_max_leverage[symbol] = 20  # Default fallback
+                trading_config.symbol_max_leverage[symbol] = 100  # HARDCODED: 100x default fallback
 
         # Dynamic symbol fetching - disabled for now
         # if trading_config.dynamic_symbols_enabled:
