@@ -53,6 +53,10 @@ class TradingConfig:
     # Reverse trading mode - invert all signals
     reverse_trading_mode: bool = False  # If True, buy when signal says sell, sell when signal says buy
 
+    # Probability-based entry - use multiple indicators for smarter entries
+    probability_based_entry: bool = True  # Use probability scores for entry decisions
+    min_entry_probability: float = 0.51  # Minimum probability to enter trade (51% - more active)
+
     # Symbol-specific max leverage (Bybit limits)
     symbol_max_leverage: Dict[str, int] = None
 
@@ -186,9 +190,9 @@ class StrategyConfig:
     tp_atr_multiplier: float = 1.5  # TP = ATR * 1.5
     sl_atr_multiplier: float = 0.7  # SL = ATR * 0.7
 
-    # TP/SL settings - percentage-based (decimal format for API) - Aggressive testing
-    tp_pct: float = 0.01  # 1% take profit (aggressive)
-    sl_pct: float = 0.005  # 0.5% stop loss (aggressive)
+    # TP/SL settings - percentage-based (decimal format for API) - Balanced scalping
+    tp_pct: float = 0.002  # 0.2% take profit (20% PnL, 8% after fees with 100x lev)
+    sl_pct: float = 0.0008  # 0.08% stop loss (8% PnL loss with 100x lev)
 
     # Legacy ROI-based settings (deprecated, kept for compatibility)
     tp_roi_pct: float = 0.30  # 30% ROI for take profit (0.6% price with 50x leverage)

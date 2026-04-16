@@ -37,6 +37,9 @@ class IndicatorValues:
     ema_50: float = 0.0
     rsi_5: float = 50.0
     vwap: float = 0.0
+    # Probability scores
+    long_probability: float = 0.5  # 0.0 to 1.0
+    short_probability: float = 0.5  # 0.0 to 1.0
 
 
 def calculate_ema(prices: np.ndarray, period: int) -> float:
@@ -406,6 +409,9 @@ def calculate_all_indicators(
         # Fallback if no volume data
         values.vwap = closes[-1]
 
+    # Calculate entry probabilities
+    values.long_probability, values.short_probability = calculate_entry_probability(values, closes[-1])
+
     return values
 
 
@@ -429,6 +435,67 @@ def get_ema_alignment(
         "ema20_above_50": ema_fast > ema_medium,
         "trend_strength": abs(ema_fast - ema_medium) / ema_medium * 100
     }
+
+
+def calculate_entry_probability(values: IndicatorValues, current_price: float) -> Tuple[float, float]:
+    """
+    Calculate long/short probability based on multiple indicators
+    Returns (long_probability, short_probability) - both between 0.0 and 1.0
+    """
+    long_score = 0.0
+    short_score = 0.0
+
+    # EMA crossover signal (weight: 0.3)
+    if values.ema_9 > values.ema_21:
+        long_score += 0.3
+    else:
+        short_score += 0.3
+
+    # EMA trend alignment (weight: 0.2)
+    if values.ema_9 > values.ema_21 > values.ema_50:
+        long_score += 0.2
+    elif values.ema_9 < values.ema_21 < values.ema_50:
+        short_score += 0.2
+
+    # RSI (weight: 0.15)
+    if values.rsi < 30:  # Oversold - long signal
+        long_score += 0.15
+    elif values.rsi > 70:  # Overbought - short signal
+        short_score += 0.15
+    elif values.rsi > 50:  # Above neutral - slight long bias
+        long_score += 0.075
+    else:  # Below neutral - slight short bias
+        short_score += 0.075
+
+    # MACD (weight: 0.15)
+    if values.macd > values.macd_signal:
+        long_score += 0.15
+    else:
+        short_score += 0.15
+
+    # Bollinger Bands (weight: 0.1)
+    if current_price < values.bb_lower:  # Below lower band - oversold - long
+        long_score += 0.1
+    elif current_price > values.bb_upper:  # Above upper band - overbought - short
+        short_score += 0.1
+
+    # ADX trend strength (weight: 0.1)
+    if values.adx > 25:  # Strong trend - reinforce direction
+        if values.ema_9 > values.ema_21:
+            long_score += 0.1
+        else:
+            short_score += 0.1
+
+    # Normalize to probabilities
+    total_score = long_score + short_score
+    if total_score > 0:
+        long_probability = long_score / total_score
+        short_probability = short_score / total_score
+    else:
+        long_probability = 0.5
+        short_probability = 0.5
+
+    return long_probability, short_probability
 
 
 def detect_whipsaw(

@@ -742,7 +742,7 @@ class TradingBot:
             position_size = risk_manager.calculate_position_size(
                 account_balance=portfolio.get_account_balance(),
                 entry_price=current_price,
-                stop_loss_price=current_price * 0.98,  # 2% SL for position sizing
+                stop_loss_price=current_price * (1 - strategy_config.sl_pct),  # Use config SL for position sizing
                 atr=current_price * 0.01,
                 signal_confidence=0.7,
                 volatility_pct=1.0,
@@ -751,8 +751,11 @@ class TradingBot:
             qty = position_size.size
 
             # Calculate TP/SL from config (price-based)
-            tp_pct = strategy_config.tp_pct  # 0.6%
-            sl_pct = strategy_config.sl_pct  # 0.2%
+            # HARDCODED for scalping to bypass config caching: TP 0.2%, SL 0.08%
+            tp_pct = 0.002  # 0.2% take profit (20% PnL, 8% after fees with 100x lev)
+            sl_pct = 0.0008  # 0.08% stop loss (8% PnL loss with 100x lev)
+            # tp_pct = strategy_config.tp_pct  # 0.6%
+            # sl_pct = strategy_config.sl_pct  # 0.2%
 
             # Calculate price levels
             # For long: SL below entry, TP above entry
@@ -824,7 +827,7 @@ class TradingBot:
             position_size = risk_manager.calculate_position_size(
                 account_balance=portfolio.get_account_balance(),
                 entry_price=current_price,
-                stop_loss_price=current_price * 0.98,  # 2% SL for position sizing
+                stop_loss_price=current_price * (1 - strategy_config.sl_pct),  # Use config SL for position sizing
                 atr=current_price * 0.01,
                 signal_confidence=0.7,
                 volatility_pct=1.0,
@@ -833,8 +836,11 @@ class TradingBot:
             qty = position_size.size
 
             # Calculate TP/SL from config (price-based)
-            tp_pct = strategy_config.tp_pct  # 0.6%
-            sl_pct = strategy_config.sl_pct  # 0.2%
+            # HARDCODED for scalping to bypass config caching: TP 0.2%, SL 0.08%
+            tp_pct = 0.002  # 0.2% take profit (20% PnL, 8% after fees with 100x lev)
+            sl_pct = 0.0008  # 0.08% stop loss (8% PnL loss with 100x lev)
+            # tp_pct = strategy_config.tp_pct  # 0.6%
+            # sl_pct = strategy_config.sl_pct  # 0.2%
 
             # Calculate price levels
             sl = current_price * (1 - sl_pct if new_direction == "long" else 1 + sl_pct)
@@ -908,23 +914,45 @@ class TradingBot:
                 atr_period=strategy_config.atr_period
             )
 
-            # Determine direction based on EMA crossover
-            if ind.ema_9 > ind.ema_21:
-                direction = "long"
-                side = "Buy"
-                reason = "EMA9 > EMA21 (bullish crossover)"
-            elif ind.ema_9 < ind.ema_21:
-                direction = "short"
-                side = "Sell"
-                reason = "EMA9 < EMA21 (bearish crossover)"
+            # Determine direction based on probability scores
+            from config import trading_config
+            if trading_config.probability_based_entry:
+                # Use probability-based entry
+                if ind.long_probability >= trading_config.min_entry_probability:
+                    direction = "long"
+                    side = "Buy"
+                    reason = f"Long prob: {ind.long_probability:.2f} >= {trading_config.min_entry_probability}"
+                elif ind.short_probability >= trading_config.min_entry_probability:
+                    direction = "short"
+                    side = "Sell"
+                    reason = f"Short prob: {ind.short_probability:.2f} >= {trading_config.min_entry_probability}"
+                else:
+                    # If neither probability meets threshold, use EMA crossover as fallback
+                    if ind.ema_9 > ind.ema_21:
+                        direction = "long"
+                        side = "Buy"
+                        reason = f"EMA fallback (Long prob: {ind.long_probability:.2f})"
+                    else:
+                        direction = "short"
+                        side = "Sell"
+                        reason = f"EMA fallback (Short prob: {ind.short_probability:.2f})"
             else:
-                # If equal, default to long
-                direction = "long"
-                side = "Buy"
-                reason = "EMA9 = EMA21 (default to long)"
+                # Use EMA crossover only
+                if ind.ema_9 > ind.ema_21:
+                    direction = "long"
+                    side = "Buy"
+                    reason = "EMA9 > EMA21 (bullish crossover)"
+                elif ind.ema_9 < ind.ema_21:
+                    direction = "short"
+                    side = "Sell"
+                    reason = "EMA9 < EMA21 (bearish crossover)"
+                else:
+                    # If equal, default to long
+                    direction = "long"
+                    side = "Buy"
+                    reason = "EMA9 = EMA21 (default to long)"
 
             # Apply reverse trading mode if enabled
-            from config import trading_config
             if trading_config.reverse_trading_mode:
                 direction = "short" if direction == "long" else "long"
                 side = "Sell" if direction == "short" else "Buy"
@@ -936,7 +964,7 @@ class TradingBot:
             position_size = risk_manager.calculate_position_size(
                 account_balance=portfolio.get_account_balance(),
                 entry_price=current_price,
-                stop_loss_price=current_price * 0.96,  # 4% SL
+                stop_loss_price=current_price * (1 - strategy_config.sl_pct),  # Use config SL
                 atr=current_price * 0.01,
                 signal_confidence=0.7,
                 volatility_pct=1.0,
@@ -945,8 +973,11 @@ class TradingBot:
             qty = position_size.size
 
             # Calculate TP/SL from config (price-based)
-            tp_pct = strategy_config.tp_pct  # 0.6%
-            sl_pct = strategy_config.sl_pct  # 0.2%
+            # HARDCODED for scalping to bypass config caching: TP 0.2%, SL 0.08%
+            tp_pct = 0.002  # 0.2% take profit (20% PnL, 8% after fees with 100x lev)
+            sl_pct = 0.0008  # 0.08% stop loss (8% PnL loss with 100x lev)
+            # tp_pct = strategy_config.tp_pct  # 0.6%
+            # sl_pct = strategy_config.sl_pct  # 0.2%
 
             # Calculate price levels
             sl = current_price * (1 - sl_pct if direction == "long" else 1 + sl_pct)
@@ -1020,23 +1051,45 @@ class TradingBot:
                     atr_period=strategy_config.atr_period
                 )
 
-                # Determine direction based on EMA crossover
-                if ind.ema_9 > ind.ema_21:
-                    direction = "long"
-                    side = "Buy"
-                    reason = "EMA9 > EMA21 (bullish crossover)"
-                elif ind.ema_9 < ind.ema_21:
-                    direction = "short"
-                    side = "Sell"
-                    reason = "EMA9 < EMA21 (bearish crossover)"
+                # Determine direction based on probability scores
+                from config import trading_config
+                if trading_config.probability_based_entry:
+                    # Use probability-based entry
+                    if ind.long_probability >= trading_config.min_entry_probability:
+                        direction = "long"
+                        side = "Buy"
+                        reason = f"Long prob: {ind.long_probability:.2f} >= {trading_config.min_entry_probability}"
+                    elif ind.short_probability >= trading_config.min_entry_probability:
+                        direction = "short"
+                        side = "Sell"
+                        reason = f"Short prob: {ind.short_probability:.2f} >= {trading_config.min_entry_probability}"
+                    else:
+                        # If neither probability meets threshold, use EMA crossover as fallback
+                        if ind.ema_9 > ind.ema_21:
+                            direction = "long"
+                            side = "Buy"
+                            reason = f"EMA fallback (Long prob: {ind.long_probability:.2f})"
+                        else:
+                            direction = "short"
+                            side = "Sell"
+                            reason = f"EMA fallback (Short prob: {ind.short_probability:.2f})"
                 else:
-                    # If equal, default to long
-                    direction = "long"
-                    side = "Buy"
-                    reason = "EMA9 = EMA21 (default to long)"
+                    # Use EMA crossover only
+                    if ind.ema_9 > ind.ema_21:
+                        direction = "long"
+                        side = "Buy"
+                        reason = "EMA9 > EMA21 (bullish crossover)"
+                    elif ind.ema_9 < ind.ema_21:
+                        direction = "short"
+                        side = "Sell"
+                        reason = "EMA9 < EMA21 (bearish crossover)"
+                    else:
+                        # If equal, default to long
+                        direction = "long"
+                        side = "Buy"
+                        reason = "EMA9 = EMA21 (default to long)"
 
                 # Apply reverse trading mode if enabled
-                from config import trading_config
                 if trading_config.reverse_trading_mode:
                     direction = "short" if direction == "long" else "long"
                     side = "Sell" if direction == "short" else "Buy"
@@ -1048,7 +1101,7 @@ class TradingBot:
                 position_size = risk_manager.calculate_position_size(
                     account_balance=portfolio.get_account_balance(),
                     entry_price=current_price,
-                    stop_loss_price=current_price * 0.98,  # 2% SL (0.2% price with 50x leverage)
+                    stop_loss_price=current_price * (1 - strategy_config.sl_pct),  # Use config SL
                     atr=current_price * 0.01,
                     signal_confidence=0.7,
                     volatility_pct=1.0,
@@ -1057,8 +1110,11 @@ class TradingBot:
                 qty = position_size.size
 
                 # Calculate TP/SL from config (price-based)
-                tp_pct = strategy_config.tp_pct  # 0.6%
-                sl_pct = strategy_config.sl_pct  # 0.2%
+                # HARDCODED for scalping to bypass config caching: TP 0.2%, SL 0.08%
+                tp_pct = 0.002  # 0.2% take profit (20% PnL, 8% after fees with 100x lev)
+                sl_pct = 0.0008  # 0.08% stop loss (8% PnL loss with 100x lev)
+                # tp_pct = strategy_config.tp_pct  # 0.6%
+                # sl_pct = strategy_config.sl_pct  # 0.2%
 
                 # Calculate price levels
                 sl = current_price * (1 - sl_pct if direction == "long" else 1 + sl_pct)
