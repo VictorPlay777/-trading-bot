@@ -1,8 +1,9 @@
 """
-Main Trading Bot - Simple Synchronous Version for GitHub Actions
+Main Trading Bot - Simple Synchronous Version
 """
 import sys
 import time
+import threading
 from datetime import datetime, timedelta
 from typing import Optional, Dict
 
@@ -79,13 +80,7 @@ class TradingBot:
         # Load instruments info for all symbols (lot size requirements)
         self._load_instruments_info()
 
-        # Set leverage for all symbols (use max leverage from API)
-        # Some symbols have risk limits that require lower leverage
-        risk_limit_leverage = {
-            "SOLUSDT": 75,
-            "XRPUSDT": 75,
-            "ATOMUSDT": 45
-        }
+        # Set leverage for all symbols (use default leverage from config)
         for symbol in self.symbols:
             try:
                 if symbol in self._instruments_info:
@@ -93,12 +88,11 @@ class TradingBot:
                 else:
                     max_lev = trading_config.symbol_max_leverage.get(symbol, trading_config.default_leverage)
 
-                # Apply risk limit if exists
-                if symbol in risk_limit_leverage:
-                    max_lev = min(max_lev, risk_limit_leverage[symbol])
+                # Use default leverage from config, capped at symbol max
+                target_leverage = min(trading_config.default_leverage, max_lev)
 
-                self.api.set_leverage(symbol, max_lev, max_lev)
-                logger.info(f"Leverage set to {max_lev}x for {symbol} (max from API)")
+                self.api.set_leverage(symbol, target_leverage, target_leverage)
+                logger.info(f"Leverage set to {target_leverage}x for {symbol} (config default: {trading_config.default_leverage}x)")
             except Exception as e:
                 logger.warning(f"Failed to set leverage for {symbol}: {e}")
 
@@ -534,6 +528,9 @@ class TradingBot:
             if actual:
                 self._current_positions[symbol] = "long" if actual["side"] == "Buy" else "short"
                 logger.info(f"Position synced for {symbol}: {self._current_positions[symbol]}")
+
+                # Check for partial exit and trailing stop
+                self._check_tp_sl_actions(symbol, actual)
             else:
                 # Position closed on exchange - close in portfolio
                 if self._current_positions[symbol] is not None:
@@ -593,6 +590,97 @@ class TradingBot:
                             logger.info(f"🔄 Auto-reopen position on TP for {symbol}")
                             self._open_same_direction_position(symbol, pos.direction, exit_price)
                 self._current_positions[symbol] = None
+
+    def _check_tp_sl_actions(self, symbol: str, position_info: dict):
+        """Check for partial exit and trailing stop actions"""
+        from config import strategy_config
+
+        pos = portfolio.get_position(symbol)
+        if not pos:
+            return
+
+        current_price = float(position_info.get("mark_price", 0) or position_info.get("last_price", 0))
+        if not current_price:
+            return
+
+        entry_price = pos.entry_price
+        sl_pct = strategy_config.sl_pct  # 1%
+        tp_pct = strategy_config.tp_pct  # 2%
+        partial_exit_tp_pct = strategy_config.partial_exit_tp_pct  # 1%
+        trailing_activation_pct = strategy_config.trailing_stop_activation_pct  # 1.5%
+        trailing_distance_pct = strategy_config.trailing_stop_distance_pct  # 0.5%
+
+        # Calculate profit percentage
+        if pos.direction == "long":
+            profit_pct = (current_price - entry_price) / entry_price
+        else:
+            profit_pct = (entry_price - current_price) / entry_price
+
+        # Check for partial exit at 1R (1% profit)
+        if (strategy_config.partial_exit_enabled and
+            not pos.partial_exit_done and
+            profit_pct >= partial_exit_tp_pct):
+
+            try:
+                # Calculate partial exit size (50% of position)
+                partial_size = pos.size * strategy_config.partial_exit_pct
+
+                # Place partial exit order
+                side = "Sell" if pos.direction == "long" else "Buy"
+                result = self.api.place_order(
+                    symbol=symbol,
+                    side=side,
+                    order_type="Market",
+                    qty=partial_size
+                )
+
+                if result.get("retCode") == 0:
+                    logger.info(f"✅ Partial exit executed: {partial_size} {symbol} at ${current_price:.2f} (profit: {profit_pct*100:.2f}%)")
+
+                    # Update position tracking
+                    pos.partial_exit_done = True
+                    pos.partial_exit_size = partial_size
+                    pos.size -= partial_size
+                    pos.notional = pos.size * current_price
+                else:
+                    logger.warning(f"Partial exit failed: {result.get('retMsg')}")
+            except Exception as e:
+                logger.error(f"Error executing partial exit: {e}")
+
+        # Check for trailing stop activation at 1.5R (1.5% profit)
+        if (strategy_config.trailing_stop_enabled and
+            not pos.trailing_stop_active and
+            profit_pct >= trailing_activation_pct):
+
+            try:
+                # Calculate trailing stop price
+                if pos.direction == "long":
+                    trailing_stop_price = current_price * (1 - trailing_distance_pct)
+                else:
+                    trailing_stop_price = current_price * (1 + trailing_distance_pct)
+
+                # Update stop loss on exchange
+                side = "Buy" if pos.direction == "long" else "Sell"
+                result = self.api.place_order(
+                    symbol=symbol,
+                    side=side,
+                    order_type="StopMarket",
+                    qty=pos.size,
+                    stop_price=trailing_stop_price
+                )
+
+                if result.get("retCode") == 0:
+                    logger.info(f"✅ Trailing stop activated: {symbol} at ${trailing_stop_price:.2f} (profit: {profit_pct*100:.2f}%)")
+
+                    # Update position tracking
+                    pos.trailing_stop_active = True
+                    pos.trailing_stop_price = trailing_stop_price
+                    pos.stop_loss = trailing_stop_price
+                else:
+                    logger.warning(f"Trailing stop activation failed: {result.get('retMsg')}")
+            except Exception as e:
+                logger.error(f"Error activating trailing stop: {e}")
+
 
     def _open_reverse_position(self, symbol: str, old_direction: str, current_price: float):
         """Open position in opposite direction after SL closure"""
@@ -1244,14 +1332,14 @@ class TradingBot:
                    f"Прибыль за день: ${risk_status.daily_pnl:.2f}")
     
     def run(self):
-        """Main event loop - deprecated for GitHub Actions"""
+        """Main event loop with error handling for stability"""
         self.initialize()
 
         self._running = True
         logger.info("Starting main loop...")
 
-        try:
-            while self._running:
+        while self._running:
+            try:
                 if self._paused:
                     logger.info("⏸ Бот на паузе")
                     time.sleep(5)
@@ -1266,15 +1354,18 @@ class TradingBot:
                 self._run_cycle()
                 time.sleep(5)  # Check every 5 seconds
 
-        except KeyboardInterrupt:
-            logger.info("Shutdown requested")
-        except Exception as e:
-            logger.error(f"Fatal error: {e}", exc_info=True)
-        finally:
-            self.shutdown()
+            except KeyboardInterrupt:
+                logger.info("Shutdown requested")
+                self._running = False
+            except Exception as e:
+                logger.error(f"Error in main loop (continuing): {e}", exc_info=True)
+                time.sleep(10)  # Wait 10 seconds before retrying
+                continue
+
+        self.shutdown()
 
     def shutdown(self):
-        """Graceful shutdown - deprecated for GitHub Actions"""
+        """Graceful shutdown"""
         self._running = False
         logger.info("Shutting down...")
         logger.info("Bot stopped")
@@ -1311,23 +1402,19 @@ class TradingBot:
 
 
 def main():
-    """Entry point - run once and exit for GitHub Actions"""
+    """Entry point - run infinite loop for Yandex Cloud"""
     bot = TradingBot()
 
+    # Start web server in separate thread
+    from web_server import set_bot_instance, run_web_server
+    set_bot_instance(bot)
+    import threading
+    web_thread = threading.Thread(target=run_web_server, daemon=True)
+    web_thread.start()
+    logger.info("Web dashboard started at http://127.0.0.1:5000")
+
     try:
-        # Initialize bot
-        bot.initialize()
-
-        # Check API credentials
-        if not api_config.key or not api_config.secret:
-            logger.error("BYBIT_API_KEY and BYBIT_API_SECRET environment variables must be set")
-            sys.exit(1)
-
-        # Run single cycle
-        bot._run_cycle()
-
-        logger.info("Bot cycle completed successfully")
-        sys.exit(0)
+        bot.run()
     except Exception as e:
         logger.error(f"Bot crashed: {e}", exc_info=True)
         sys.exit(1)

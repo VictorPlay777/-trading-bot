@@ -91,25 +91,35 @@ class RiskManager:
     - Kill switch functionality
     """
     
-    def __init__(self):
-        self.cfg = risk_config
+    def __init__(self, config: RiskConfig):
+        self.cfg = config
+
+        # Daily tracking
         self._daily_pnl = 0.0
         self._daily_trades = 0
         self._consecutive_losses = 0
-        self._last_reset_date = datetime.utcnow().date()
+        self._last_trade_time = None
+        self._daily_reset_date = datetime.utcnow().date()
+
+        # Trading pause
         self._trading_paused = False
-        self._pause_until: Optional[datetime] = None
+        self._pause_until = None
+        self._pause_reason = ""
+
+        # Trading psychology protection
+        self._hourly_trades = {}  # Track trades per hour
         self._trade_history: list = []
     
     def _check_daily_reset(self):
         """Reset daily counters if new day"""
         current_date = datetime.utcnow().date()
-        if current_date != self._last_reset_date:
+        if current_date != self._daily_reset_date:
             self._daily_pnl = 0.0
             self._daily_trades = 0
-            self._last_reset_date = current_date
+            self._daily_reset_date = current_date
             self._trading_paused = False
             self._pause_until = None
+            self._hourly_trades = {}  # Reset hourly trades
             log_event("info", "Daily risk counters reset")
     
     def calculate_position_size(
@@ -123,13 +133,33 @@ class RiskManager:
         symbol: str = "BTCUSDT"
     ) -> PositionSize:
         """
-        Calculate position size - FIXED 100k USDT for futures mad mode
+        Calculate position size - Professional risk management with Kelly criterion
         """
         self._check_daily_reset()
 
-        # FIXED POSITION SIZE: 100,000 USDT notional for futures
-        position_notional = 100000.0  # Fixed 100k USDT
-        logger.info(f"Fixed position size: ${position_notional:.2f} (mad mode)")
+        # Get open positions notional value from portfolio
+        from portfolio import portfolio
+        open_positions_notional = portfolio.get_total_notional()
+
+        # Calculate available balance (total - open positions)
+        available_balance = account_balance - open_positions_notional
+
+        # Calculate Kelly criterion position size
+        kelly_pct = self._calculate_kelly_criterion()
+
+        # Calculate Risk Parity position size
+        risk_parity_pct = self._calculate_risk_parity(symbol, atr)
+
+        # Use the more conservative of Kelly and Risk Parity
+        position_pct = min(kelly_pct, risk_parity_pct, self.cfg.max_position_pct_of_balance)
+        position_notional = available_balance * position_pct
+
+        # Ensure within min/max limits
+        position_notional = max(self.cfg.min_position_size_usd, position_notional)
+        position_notional = min(self.cfg.max_position_size_usd, position_notional)
+
+        logger.info(f"Available balance: ${available_balance:.2f} (total: ${account_balance:.2f}, open: ${open_positions_notional:.2f})")
+        logger.info(f"Kelly criterion: {kelly_pct*100:.2f}%, Position size: ${position_notional:.2f} ({position_pct*100:.1f}% of available balance)")
 
         # Calculate leverage based on symbol max leverage (use default leverage)
         if trading_config.category == "spot":
@@ -150,8 +180,8 @@ class RiskManager:
         # Recalculate notional with formatted size
         position_notional = position_size * entry_price
 
-        # Calculate risk amount (4% loss = 4000 USDT on 100k position)
-        risk_amount = position_notional * 0.04
+        # Calculate risk amount (1% loss = $10k on $1M position)
+        risk_amount = position_notional * self.cfg.risk_per_trade_pct
 
         log_event("info", f"Position calculated: ${position_notional:.2f} notional, {leverage}x lev",
                   size=position_size,
@@ -167,10 +197,131 @@ class RiskManager:
             stop_loss_price=stop_loss_price,
             take_profit_1=stop_loss_price,  # Not used - TP/SL from strategy
             take_profit_2=stop_loss_price,  # Not used - TP/SL from strategy
-            rr_ratio=2.5,  # 10% profit / 4% loss = 2.5:1
+            rr_ratio=2.0,  # 2% profit / 1% loss = 2:1
             confidence=signal_confidence
         )
-    
+
+    def _calculate_kelly_criterion(self) -> float:
+        """
+        Calculate Kelly criterion for optimal position sizing
+        Kelly formula: f = (bp - q) / b
+        Where: b = avg_win/avg_loss, p = win_rate, q = 1-p
+        """
+        from portfolio import portfolio
+
+        # Get historical trades
+        trades = portfolio.closed_trades
+
+        if len(trades) < 20:
+            # Not enough data - use conservative 1%
+            return 0.01
+
+        # Calculate win rate and average win/loss
+        winning_trades = [t for t in trades if t.current_pnl_net > 0]
+        losing_trades = [t for t in trades if t.current_pnl_net <= 0]
+
+        if not winning_trades or not losing_trades:
+            # No complete data - use conservative 1%
+            return 0.01
+
+        win_rate = len(winning_trades) / len(trades)
+        avg_win = sum(t.current_pnl_net for t in winning_trades) / len(winning_trades)
+        avg_loss = abs(sum(t.current_pnl_net for t in losing_trades) / len(losing_trades))
+
+        # Kelly criterion formula
+        # b = avg_win / avg_loss (odds)
+        # p = win_rate
+        # q = 1 - win_rate
+        # f = (bp - q) / b
+
+        b = avg_win / avg_loss if avg_loss > 0 else 1.0
+        p = win_rate
+        q = 1 - win_rate
+
+        kelly = (b * p - q) / b if b > 0 else 0
+
+        # Use half-Kelly for safety (more conservative)
+        half_kelly = kelly * 0.5
+
+        # Clamp to reasonable range: 0.5% to 5%
+        kelly_pct = max(0.005, min(0.05, half_kelly))
+
+        logger.info(f"Kelly criterion: win_rate={win_rate:.2%}, avg_win=${avg_win:.2f}, avg_loss=${avg_loss:.2f}, kelly={kelly:.2%}, half_kelly={half_kelly:.2%}")
+
+        return kelly_pct
+
+    def _calculate_risk_parity(self, symbol: str, atr: float) -> float:
+        """
+        Calculate Risk Parity position size
+        Risk Parity: allocate position size inversely proportional to volatility
+        """
+        try:
+            from api_client import BybitClient
+            from config import trading_config
+
+            api = BybitClient()
+
+            # Get historical volatility for all symbols
+            volatilities = {}
+            for sym in trading_config.symbols:
+                try:
+                    # Get historical data for volatility calculation
+                    klines = api.get_klines(sym, "1", limit=100)
+                    if klines and len(klines) >= 50:
+                        closes = [float(k[4]) for k in klines]  # Close prices
+                        # Calculate daily volatility (std dev of returns)
+                        returns = [(closes[i] - closes[i-1]) / closes[i-1] for i in range(1, len(closes))]
+                        volatility = np.std(returns[-30:]) if len(returns) >= 30 else np.std(returns)
+                        volatilities[sym] = volatility
+                except:
+                    continue
+
+            if not volatilities or symbol not in volatilities:
+                # Fallback to 2% if volatility calculation fails
+                return 0.02
+
+            # Calculate inverse volatility weights
+            inv_volatilities = {sym: 1.0/vol if vol > 0 else 1.0 for sym, vol in volatilities.items()}
+            total_inv_vol = sum(inv_volatilities.values())
+
+            # Risk Parity weight for this symbol
+            risk_parity_weight = inv_volatilities.get(symbol, 0.05) / total_inv_vol if total_inv_vol > 0 else 0.05
+
+            # Scale to reasonable position size (0.5% to 5%)
+            risk_parity_pct = max(0.005, min(0.05, risk_parity_weight * 10))
+
+            logger.info(f"Risk Parity: symbol={symbol}, volatility={volatilities.get(symbol, 0):.4f}, weight={risk_parity_weight:.4f}, position_pct={risk_parity_pct*100:.2f}%")
+
+            return risk_parity_pct
+
+        except Exception as e:
+            logger.warning(f"Error calculating Risk Parity: {e}")
+            return 0.02  # Fallback to 2%
+
+    def can_trade_psychology(self) -> Tuple[bool, str]:
+        """Check if trading is allowed based on psychology protection"""
+        now = datetime.utcnow()
+
+        # Check minimum time between trades (FOMO protection)
+        if self.cfg.fomo_protection_enabled and self._last_trade_time:
+            time_since_last_trade = (now - self._last_trade_time).total_seconds()
+            if time_since_last_trade < self.cfg.min_time_between_trades_sec:
+                return False, f"FOMO protection: Wait {self.cfg.min_time_between_trades_sec - time_since_last_trade:.0f}s"
+
+        # Check max trades per hour (overtrading protection)
+        if self._hourly_trades:
+            current_hour = now.hour
+            trades_this_hour = self._hourly_trades.get(current_hour, 0)
+            if trades_this_hour >= self.cfg.max_trades_per_hour:
+                return False, f"Overtrading protection: Max {self.cfg.max_trades_per_hour} trades/hour reached"
+
+        # Check revenge trading (after consecutive losses)
+        if self.cfg.revenge_trading_protection:
+            if self._consecutive_losses >= 3:
+                return False, f"Revenge trading protection: {self._consecutive_losses} consecutive losses"
+
+        return True, "OK"
+
     def can_trade(self, account_balance: float) -> Tuple[bool, str]:
         """
         Check if trading is allowed based on risk limits
@@ -226,6 +377,10 @@ class RiskManager:
         self._daily_pnl += pnl_net
         self._daily_trades += 1
         
+        # Track hourly trades for psychology protection
+        current_hour = datetime.utcnow().hour
+        self._hourly_trades[current_hour] = self._hourly_trades.get(current_hour, 0) + 1
+
         if pnl_net < 0:
             self._consecutive_losses += 1
         else:

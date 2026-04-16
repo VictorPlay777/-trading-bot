@@ -43,6 +43,12 @@ class Position:
     take_profit_1: float = 0.0
     take_profit_2: float = 0.0
     tp1_hit: bool = False
+
+    # Partial exit and trailing stop tracking
+    partial_exit_done: bool = False
+    partial_exit_size: float = 0.0  # Size that was partially exited
+    trailing_stop_active: bool = False
+    trailing_stop_price: float = 0.0
     
     # Tracking
     entry_reason: str = ""
@@ -301,6 +307,10 @@ class Portfolio:
     def get_total_exposure(self) -> float:
         """Get total notional exposure"""
         return sum(p.notional * p.leverage for p in self.positions.values())
+
+    def get_total_notional(self) -> float:
+        """Get total notional value of open positions (without leverage)"""
+        return sum(p.notional for p in self.positions.values())
     
     def get_unrealized_pnl(self) -> float:
         """Get total unrealized PnL"""
@@ -339,6 +349,7 @@ class Portfolio:
                 "exit": t.exit_price or 0,
                 "pnl_net": t.current_pnl_net,
                 "duration_min": t.duration_minutes,
+                "entry_reason": t.entry_reason,
                 "exit_reason": t.exit_reason
             }
             for t in reversed(trades)

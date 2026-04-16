@@ -18,9 +18,9 @@ class APIConfig:
 
 @dataclass
 class TradingConfig:
-    """Trading parameters"""
+    """Trading parameters - Professional mode"""
     # Bot name
-    bot_name: str = "ChatGPT Bot"  # Default bot name
+    bot_name: str = "Pro Trading Bot"  # Default bot name
 
     # Symbol settings
     symbol: str = "BTCUSDT"
@@ -31,18 +31,23 @@ class TradingConfig:
     timeframe: str = "1"  # Default timeframe (for backward compatibility)
     main_timeframe: str = "1"  # 1 minute for entries
     context_timeframe: str = "5"  # 5 minutes for trend context
+    higher_timeframes: List[str] = None  # Higher timeframes for trend confirmation (15m, 1h)
 
-    # Position limits
-    max_positions: int = 20  # Max 20 positions for 20 coins (mad mode)
-    max_daily_trades: int = 999999  # Unlimited trades
+    # Multi-timeframe analysis settings
+    multi_timeframe_enabled: bool = True  # Enable multi-timeframe analysis
+    min_higher_timeframe_trend_agreement: int = 1  # Minimum number of higher timeframes that must agree
+
+    # Position limits - professional mode
+    max_positions: int = 8  # Max 8 positions (focused trading)
+    max_daily_trades: int = 50  # Max 50 trades per day (avoid overtrading)
 
     # Template/preset selection (persistent)
-    selected_template: str = "mad"  # Default: mad mode
+    selected_template: str = "professional"  # Default: professional mode
 
-    # Leverage (for futures) - mad mode with max leverage
-    max_leverage: int = 100  # Max 100x leverage (mad mode)
-    default_leverage: int = 50  # Default 50x leverage
-    min_leverage: int = 10  # Min 10x leverage
+    # Leverage (for futures) - professional mode with conservative leverage
+    max_leverage: int = 20  # Max 20x leverage (professional)
+    default_leverage: int = 10  # Default 10x leverage
+    min_leverage: int = 5  # Min 5x leverage
     leverage_scaling: bool = True  # Scale leverage based on volatility
 
     # Symbol-specific max leverage (Bybit limits)
@@ -66,6 +71,9 @@ class TradingConfig:
                 "ARBUSDT", "OPUSDT", "INJUSDT", "ATOMUSDT",
                 "NEARUSDT", "LDOUSDT", "APEUSDT", "SANDUSDT", "MANAUSDT"
             ]  # 18 volatile futures pairs (removed MATICUSDT - closed contract)
+
+        if self.higher_timeframes is None:
+            self.higher_timeframes = ["15", "60"]  # 15m and 1h for trend confirmation
 
         if self.symbol_max_leverage is None:
             self.symbol_max_leverage = {
@@ -121,33 +129,45 @@ class StrategyConfig:
     ema_medium_period: int = 21  # EMA21 (entry trigger)
     ema_slow_period: int = 50  # EMA50 (5m context)
 
-    # RSI settings - smart scalping
-    rsi_period: int = 5  # RSI(5) for fast reaction
-    rsi_oversold: int = 40
-    rsi_overbought: int = 60
+    # RSI settings - improved entry logic
+    rsi_period: int = 14  # RSI(14) for better signal
+    rsi_oversold: int = 30  # More extreme oversold
+    rsi_overbought: int = 70  # More extreme overbought
+    rsi_filter_enabled: bool = True  # Enable RSI filter
 
     # ATR settings (volatility filter)
     atr_period: int = 14
     min_atr_pct: float = 0.001  # 0.1% minimum ATR (avoid flat)
     max_atr_pct: float = 0.05  # 5% maximum ATR (avoid chaos)
 
+    # News avoidance settings
+    news_avoidance_enabled: bool = True  # Avoid trading during high volatility (news)
+    high_volatility_threshold_pct: float = 0.03  # 3% ATR = high volatility (likely news)
+    news_hours_utc: List[int] = None  # Hours to avoid (UTC) - major news releases
+
+    # Macro factors settings
+    macro_factors_enabled: bool = True  # Enable macro factors filtering
+    avoid_fed_meetings: bool = True  # Avoid trading during FED meetings
+    avoid_cpi_releases: bool = True  # Avoid trading during CPI releases
+    avoid_nfp_releases: bool = True  # Avoid trading during Non-Farm Payroll releases
+
     # ATR filter for market conditions (anti-sideways)
     atr_filter_enabled: bool = True
     atr_min_threshold_pct: float = 0.002  # 0.2% minimum ATR to trade
     atr_timeframe: str = "5"  # 5m timeframe for ATR filter
 
-    # ADX filter for trend strength
+    # ADX filter for trend strength - Professional mode (strict)
     adx_filter_enabled: bool = True
-    adx_min_threshold: float = 20.0  # ADX < 20 = no trading (flat market)
-    adx_reverse_threshold: float = 25.0  # ADX > 25 = allow reversal
+    adx_min_threshold: float = 25.0  # ADX < 25 = no trading (only strong trends)
+    adx_reverse_threshold: float = 30.0  # ADX > 30 = allow reversal
     adx_period: int = 14
     adx_timeframe: str = "5"  # 5m timeframe for ADX filter
 
-    # EMA trend confirmation
+    # EMA trend confirmation - Professional mode (strict)
     ema_filter_enabled: bool = True
     ema_fast_period: int = 50
     ema_slow_period: int = 200
-    ema_min_distance_pct: float = 0.005  # 0.5% minimum distance between EMAs
+    ema_min_distance_pct: float = 0.01  # 1% minimum distance between EMAs (stronger trend)
     ema_timeframe: str = "5"  # 5m timeframe for EMA filter
 
     # Volume filter
@@ -157,27 +177,35 @@ class StrategyConfig:
     volume_timeframe: str = "5"  # 5m timeframe for volume filter
 
     # Dynamic TP/SL based on ATR
-    dynamic_tp_sl_enabled: bool = False  # Disabled by default, use fixed TP/SL
+    dynamic_tp_sl_enabled: bool = True  # Enabled for professional trading
+    atr_tp_multiplier: float = 2.0  # TP = 2x ATR
+    atr_sl_multiplier: float = 1.0  # SL = 1x ATR
     tp_atr_multiplier: float = 1.5  # TP = ATR * 1.5
     sl_atr_multiplier: float = 0.7  # SL = ATR * 0.7
 
-    # TP/SL settings - percentage-based (decimal format for API)
-    tp_pct: float = 0.004  # 0.4% take profit
-    sl_pct: float = 0.0015  # 0.15% stop loss
+    # TP/SL settings - percentage-based (decimal format for API) - Professional mode
+    tp_pct: float = 0.02  # 2% take profit (professional)
+    sl_pct: float = 0.01  # 1% stop loss (professional)
 
     # Legacy ROI-based settings (deprecated, kept for compatibility)
     tp_roi_pct: float = 0.30  # 30% ROI for take profit (0.6% price with 50x leverage)
     sl_roi_pct: float = 0.10  # 10% ROI for stop loss (0.2% price with 50x leverage)
 
-    # TP/SL settings - price-based (not ROI)
-    tp_min_pct: float = 0.002  # 0.2% minimum TP
-    tp_max_pct: float = 0.008  # 0.8% maximum TP
-    sl_min_pct: float = 0.0025  # 0.25% minimum SL
-    sl_max_pct: float = 0.005  # 0.5% maximum SL
+    # TP/SL settings - price-based (not ROI) - Professional mode
+    tp_min_pct: float = 0.01  # 1% minimum TP
+    tp_max_pct: float = 0.05  # 5% maximum TP
+    sl_min_pct: float = 0.005  # 0.5% minimum SL
+    sl_max_pct: float = 0.02  # 2% maximum SL
 
-    # Partial exit settings
+    # Partial exit settings - Professional mode
     partial_exit_pct: float = 0.5  # 50% partial exit
-    partial_exit_tp_pct: float = 0.0025  # 0.25% TP for partial exit
+    partial_exit_tp_pct: float = 0.01  # 1% TP for partial exit
+    partial_exit_enabled: bool = True  # Enable partial exit at 1R
+
+    # Trailing stop settings - Professional mode
+    trailing_stop_enabled: bool = True  # Enable trailing stop
+    trailing_stop_activation_pct: float = 0.015  # Activate trailing stop at 1.5% profit (1.5R)
+    trailing_stop_distance_pct: float = 0.005  # Trailing stop distance 0.5% (0.5R)
 
     # Micro-movement detection
     min_price_change_pct: float = 0.001  # 0.1% minimum price movement
@@ -185,8 +213,9 @@ class StrategyConfig:
     # Commission check
     min_profit_multiple: float = 2.0  # Profit must be ≥ 2× commission
 
-    # VWAP settings
+    # VWAP settings - improved entry logic
     vwap_period: int = 20
+    vwap_filter_enabled: bool = True  # Enable VWAP filter
 
     def update_from_dict(self, data: dict):
         """Update config from dictionary (for API updates)"""
@@ -200,25 +229,47 @@ class StrategyConfig:
 
 @dataclass
 class RiskConfig:
-    """Risk management parameters"""
-    # Risk management - smart scalping
-    risk_per_trade_pct: float = 1.0  # 100% risk per trade (disabled, TP/SL controls risk)
-    max_risk_per_trade_pct: float = 1.0  # 100% maximum risk per trade (disabled)
-    max_daily_loss_pct: float = 1.0  # 100% max daily loss (disabled, won't trigger)
-    max_consecutive_losses: int = 9999  # Very high limit (effectively disabled)
+    """Risk management parameters - Professional mode"""
+    # Risk management - professional trading (testing mode - no daily limits)
+    risk_per_trade_pct: float = 0.01  # 1% risk per trade ($10k on $1M account)
+    max_risk_per_trade_pct: float = 0.02  # 2% maximum risk per trade
+    max_daily_loss_pct: float = 1.0  # 100% max daily loss (disabled for testing)
+    max_consecutive_losses: int = 9999  # Unlimited consecutive losses (disabled for testing)
     atr_position_scaling: bool = True  # Scale position size by ATR
     max_atr_pct_for_full_size: float = 0.02  # 2% ATR for full position size
     auto_reverse_on_sl: bool = True  # Auto-reverse position on SL closure
     auto_reopen_on_tp: bool = True  # Auto-reopen position on TP closure
 
-    # Position sizing
-    min_position_size_usd: float = 100000.0  # Minimum position size (100k USDT) for mad mode
-    max_position_size_usd: float = 5000000.0  # Maximum position size (5M USDT)
-    max_position_pct_of_balance: float = 0.5  # Max 50% of balance per position
+    # Position sizing - professional mode (Kelly criterion)
+    min_position_size_usd: float = 10000.0  # Minimum position size ($10k USDT)
+    max_position_size_usd: float = 200000.0  # Maximum position size ($200k USDT)
+    max_position_pct_of_balance: float = 0.05  # Max 5% of balance per position (Kelly criterion)
+    kelly_criterion_enabled: bool = True  # Enable Kelly criterion for position sizing
+    half_kelly: bool = True  # Use half-Kelly for safety (more conservative)
 
-    # Loss streak protection
-    max_consecutive_sl: int = 3  # Pause after 3 consecutive SLs
-    loss_streak_pause_minutes: int = 30  # Pause for 30 minutes after loss streak
+    # Loss streak protection (disabled for testing)
+    max_consecutive_sl: int = 9999  # Unlimited (disabled for testing)
+    loss_streak_pause_minutes: int = 0  # No pause (disabled for testing)
+
+    # Trading psychology protection
+    fomo_protection_enabled: bool = True  # Prevent FOMO trading
+    min_time_between_trades_sec: int = 60  # Minimum time between trades (prevent overtrading)
+    revenge_trading_protection: bool = True  # Prevent revenge trading after losses
+    max_trades_per_hour: int = 5  # Max trades per hour (prevent overtrading)
+
+    # Order book analysis
+    order_book_enabled: bool = True  # Enable order book depth analysis
+    min_order_book_depth: float = 100000.0  # Minimum order book depth ($100k)
+    bid_ask_spread_threshold_pct: float = 0.001  # 0.1% max spread (avoid illiquid markets)
+
+    # Asset correlation analysis
+    correlation_enabled: bool = True  # Enable correlation analysis
+    max_correlation_threshold: float = 0.8  # Max correlation to avoid (0.8 = 80%)
+    correlation_lookback_days: int = 30  # Days to calculate correlation
+
+    # Risk Parity position sizing
+    risk_parity_enabled: bool = True  # Enable Risk Parity position sizing
+    risk_parity_lookback_days: int = 30  # Days to calculate volatility for Risk Parity
 
     def update_from_dict(self, data: dict):
         """Update config from dictionary (for API updates)"""

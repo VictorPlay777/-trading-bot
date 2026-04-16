@@ -280,11 +280,11 @@ class Backtester:
 if __name__ == "__main__":
     # Test backtest
     from api_client import BybitClient
-    from strategy import ScalpingStrategy
+    from strategy import SmartScalpingStrategy
     from config import trading_config
     
     api = BybitClient()
-    strategy = ScalpingStrategy()
+    strategy = SmartScalpingStrategy()
     
-    backtester = Backtester(strategy, api, trading_config.symbols, trading_config.timeframe)
+    backtester = Backtester(strategy, api, trading_config.symbols, trading_config.main_timeframe)
     results = backtester.run_all_backtests(days=7)  # 7 days for quick test
