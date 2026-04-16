@@ -35,6 +35,7 @@ class BybitClient:
         self._last_request_time = 0.0
         self._min_interval = 0.05  # 50ms between requests
         self.max_retries = 3  # Max retry attempts for connection errors
+        self.category = "linear"  # Default category for futures
     
     def _generate_signature(self, timestamp: str, query_string: str = "", body_str: str = "") -> str:
         """Generate V5 API signature - EXACT format as working bot.py"""
@@ -445,9 +446,11 @@ class BybitClient:
                 'symbol': symbol
             })
             if response and 'result' in response and 'list' in response['result']:
-                leverage_list = response['result']['list'][0].get('leverageFilter', {}).get('leverageList', [])
-                if leverage_list:
-                    return max(int(item.get('leverage', 20)) for item in leverage_list)
+                leverage_filter = response['result']['list'][0].get('leverageFilter', {})
+                if isinstance(leverage_filter, dict):
+                    leverage_list = leverage_filter.get('leverageList', [])
+                    if leverage_list:
+                        return max(int(item.get('leverage', 20)) for item in leverage_list)
         except Exception as e:
             logger.error(f"Error getting leverage limit for {symbol}: {e}")
         return 20  # Default fallback
