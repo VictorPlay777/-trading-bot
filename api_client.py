@@ -174,6 +174,52 @@ class BybitClient:
         data = self._request("GET", "/v5/market/instruments-info", query)
         return data.get("result", {}).get("list", [])
     
+    def get_all_trading_symbols(self, min_volume_24h: float = 1000000, category: str = "linear") -> List[str]:
+        """
+        Get all active trading symbols with minimum volume
+        
+        Args:
+            min_volume_24h: Minimum 24h volume in USDT (default 1M)
+            category: Market category (linear for USDT perpetual)
+            
+        Returns:
+            List of trading symbols (e.g., ["BTCUSDT", "ETHUSDT", ...])
+        """
+        try:
+            # Get all instruments
+            instruments = self.get_instruments_info(category=category)
+            symbols = []
+            
+            # Get tickers for volume info
+            tickers = self.get_tickers(category=category)
+            ticker_map = {t.get("symbol"): t for t in tickers if t.get("symbol")}
+            
+            for instrument in instruments:
+                symbol = instrument.get("symbol", "")
+                
+                # Skip non-perpetual and inverse contracts
+                if not symbol.endswith("USDT"):
+                    continue
+                
+                # Check status
+                status = instrument.get("status", "")
+                if status != "Trading":
+                    continue
+                
+                # Check volume
+                ticker = ticker_map.get(symbol, {})
+                volume_24h = float(ticker.get("turnover24h", 0))
+                
+                if volume_24h >= min_volume_24h:
+                    symbols.append(symbol)
+            
+            logger.info(f"Found {len(symbols)} active trading symbols with volume >= ${min_volume_24h:,.0f}")
+            return sorted(symbols)
+            
+        except Exception as e:
+            logger.error(f"Error getting trading symbols: {e}")
+            return ["BTCUSDT", "ETHUSDT"]  # Fallback to major pairs
+    
     # ==================== Account ====================
     
     def get_wallet_balance(self, account_type: str = "UNIFIED") -> Dict:
@@ -417,6 +463,31 @@ class BybitClient:
         except Exception as e:
             logger.error(f"Error checking position state: {e}")
             return None
+
+    def set_trading_stop(
+        self,
+        symbol: str,
+        stop_loss: Optional[float] = None,
+        take_profit: Optional[float] = None,
+        trailing_stop: Optional[float] = None,
+        category: str = "linear"
+    ) -> Dict:
+        """Set stop loss, take profit, or trailing stop for an existing position"""
+        body = {
+            "category": category,
+            "symbol": symbol,
+        }
+        
+        if stop_loss is not None:
+            body["stopLoss"] = str(stop_loss)
+        
+        if take_profit is not None:
+            body["takeProfit"] = str(take_profit)
+        
+        if trailing_stop is not None:
+            body["trailingStop"] = str(trailing_stop)
+        
+        return self._request("POST", "/v5/position/trading-stop", body=body)
 
     def get_orderbook(self, symbol: str, limit: int = 20) -> Optional[Dict]:
         """Get order book for a symbol"""

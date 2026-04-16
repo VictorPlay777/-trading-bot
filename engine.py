@@ -45,7 +45,7 @@ class TradingEngine:
         self.liquidation_engine = LiquidationEngine(strategy_config)
         
         # Trading parameters
-        self.symbols = trading_config.symbols
+        self.symbols = self._load_symbols()
         self.max_position_size = 100000.0  # $100k max position per trade (will be adjusted based on balance)
         self.leverage = trading_config.default_leverage  # 100x
         
@@ -55,13 +55,60 @@ class TradingEngine:
         # Market data cache
         self.market_data: Dict[str, pd.DataFrame] = {}
         
+        # Symbol statistics tracking
+        self.symbol_stats: Dict[str, Dict] = {}
+        
         logger.info("Trading Engine initialized")
+    
+    def _load_symbols(self) -> List[str]:
+        """Load all trading symbols from Bybit API"""
+        try:
+            symbols = self.api.get_all_trading_symbols(min_volume_24h=500000)  # Min 500K volume
+            logger.info(f"Loaded {len(symbols)} symbols: {', '.join(symbols[:10])}{'...' if len(symbols) > 10 else ''}")
+            return symbols
+        except Exception as e:
+            logger.error(f"Failed to load symbols, using defaults: {e}")
+            return ["BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT", "XRPUSDT", "BNBUSDT", "ADAUSDT", "AVAXUSDT", "LINKUSDT", "DOTUSDT"]
+    
+    def _update_symbol_stats(self, symbol: str, trade_result: str, pnl: float = 0) -> None:
+        """Update per-symbol statistics"""
+        if symbol not in self.symbol_stats:
+            self.symbol_stats[symbol] = {
+                "total_trades": 0,
+                "winning_trades": 0,
+                "losing_trades": 0,
+                "total_pnl": 0.0,
+                "avg_pnl": 0.0,
+                "win_rate": 0.0,
+                "last_updated": datetime.utcnow()
+            }
+        
+        stats = self.symbol_stats[symbol]
+        stats["total_trades"] += 1
+        stats["total_pnl"] += pnl
+        
+        if trade_result == "win":
+            stats["winning_trades"] += 1
+        elif trade_result == "loss":
+            stats["losing_trades"] += 1
+        
+        if stats["total_trades"] > 0:
+            stats["win_rate"] = stats["winning_trades"] / stats["total_trades"]
+            stats["avg_pnl"] = stats["total_pnl"] / stats["total_trades"]
+        
+        stats["last_updated"] = datetime.utcnow()
     
     def run_cycle(self) -> None:
         """Run one complete trading cycle"""
         try:
             # 1. Get market data
             self._fetch_market_data()
+            
+            # Log active positions count periodically
+            open_positions = len(self.position_manager.get_all_positions())
+            if open_positions > 0:
+                position_symbols = [p.symbol for p in self.position_manager.get_all_positions()]
+                logger.info(f"Active positions: {open_positions}/{len(self.symbols)} - {position_symbols}")
             
             # 2. Process each symbol
             for symbol in self.symbols:
@@ -273,6 +320,17 @@ class TradingEngine:
             if not position:
                 return
             
+            # Apply SL/TP if not yet set (happens in cycle after position opens)
+            if not position.sl_tp_set:
+                # Get actual position info from exchange
+                actual_position = self.api.check_position_state(symbol)
+                if actual_position and actual_position.get("entry_price", 0) > 0:
+                    actual_entry = actual_position["entry_price"]
+                    self.position_manager.apply_sl_tp_to_exchange(symbol, actual_entry)
+                else:
+                    # Use estimated price if exchange data not available
+                    self.position_manager.apply_sl_tp_to_exchange(symbol, position.entry_price)
+            
             # Update PnL
             self.position_manager.update_pnl(symbol, current_price)
             
@@ -301,6 +359,21 @@ class TradingEngine:
             # Update trailing stop
             self.position_manager.update_trailing_stop(symbol, current_price)
             
+            # Smart stop management (breakeven, trailing, partial profits)
+            atr = self._calculate_atr(df)
+            self.position_manager.manage_smart_stops(symbol, current_price, atr)
+            
+            # Check for partial profit opportunity
+            if position.stop_loss:
+                risk_distance = abs(position.entry_price - position.stop_loss)
+                if risk_distance > 0:
+                    if position.direction == "long":
+                        profit_distance = current_price - position.entry_price
+                    else:
+                        profit_distance = position.entry_price - current_price
+                    profit_multiple = profit_distance / risk_distance
+                    self.position_manager.take_partial_profit(symbol, current_price, profit_multiple)
+            
             # Pyramiding (add to profitable position)
             if position.pnl > 0:
                 account_balance = self._get_account_balance()
@@ -323,6 +396,12 @@ class TradingEngine:
             if not position:
                 return
             
+            # Calculate PnL
+            if position.direction == "long":
+                pnl = (current_price - position.entry_price) * position.quantity
+            else:
+                pnl = (position.entry_price - current_price) * position.quantity
+            
             # Record trade for learning
             self.learning_module.record_trade(
                 symbol=symbol,
@@ -334,6 +413,13 @@ class TradingEngine:
                 entry_time=position.entry_time,
                 exit_time=datetime.utcnow()
             )
+            
+            # Update per-symbol statistics
+            trade_result = "win" if pnl > 0 else "loss"
+            self._update_symbol_stats(symbol, trade_result, pnl)
+            
+            # Log symbol-specific PnL
+            logger.info(f"Closed {symbol}: {reason}, PnL: ${pnl:.2f}")
             
             # Close position
             self.position_manager.close_position(symbol, reason)
@@ -382,10 +468,22 @@ class TradingEngine:
                           f"win rate: {stats['win_rate']*100:.1f}%, "
                           f"avg PnL: {stats['avg_pnl_pct']*100:.2f}%")
             
-            # Get best performing symbols
+            # Get best performing symbols from learning module
             best_symbols = self.learning_module.get_best_performing_symbols(top_n=3)
             if best_symbols:
                 logger.info(f"Best performing symbols: {best_symbols}")
+            
+            # Log per-symbol statistics
+            if self.symbol_stats:
+                logger.info("--- Per-Symbol Statistics ---")
+                sorted_symbols = sorted(self.symbol_stats.items(), 
+                                      key=lambda x: x[1].get("win_rate", 0), 
+                                      reverse=True)
+                for symbol, sym_stats in sorted_symbols[:10]:  # Top 10 by win rate
+                    logger.info(f"{symbol}: {sym_stats['total_trades']} trades, "
+                              f"win rate: {sym_stats['win_rate']*100:.1f}%, "
+                              f"avg PnL: ${sym_stats['avg_pnl']:.2f}, "
+                              f"total PnL: ${sym_stats['total_pnl']:.2f}")
             
         except Exception as e:
             logger.error(f"Error in periodic learning: {e}")
@@ -397,10 +495,10 @@ class TradingEngine:
         while True:
             try:
                 self.run_cycle()
-                time.sleep(5)  # Run every 5 seconds
+                time.sleep(2)  # Run every 2 seconds (faster for testing)
             except KeyboardInterrupt:
                 logger.info("Trading engine stopped by user")
                 break
             except Exception as e:
                 logger.error(f"Error in trading loop: {e}")
-                time.sleep(10)  # Wait before retrying
+                time.sleep(5)  # Wait before retrying
