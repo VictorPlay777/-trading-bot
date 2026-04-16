@@ -89,15 +89,21 @@ class TradingEngine:
         """Fetch market data for all symbols"""
         try:
             for symbol in self.symbols:
-                # Get candles (1m timeframe)
-                candles = self.api.get_candles(symbol, interval="1", limit=200)
+                # Get klines (1m timeframe)
+                klines = self.api.get_klines(symbol, interval="1", limit=200)
                 
-                if candles:
-                    df = pd.DataFrame(candles)
-                    df['timestamp'] = pd.to_datetime(df['timestamp'])
-                    df.set_index('timestamp', inplace=True)
-                    self.market_data[symbol] = df
-                    logger.debug(f"Fetched market data for {symbol}: {len(df)} candles")
+                if klines and klines.get("retCode") == 0:
+                    candles = klines.get("result", {}).get("list", [])
+                    if candles:
+                        df = pd.DataFrame(candles)
+                        df.columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'turnover']
+                        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+                        df.set_index('timestamp', inplace=True)
+                        df = df.astype({'open': float, 'high': float, 'low': float, 'close': float, 'volume': float})
+                        self.market_data[symbol] = df
+                        logger.debug(f"Fetched market data for {symbol}: {len(df)} candles")
+                    else:
+                        logger.warning(f"No candles in response for {symbol}")
                 else:
                     logger.warning(f"Failed to fetch market data for {symbol}")
             
