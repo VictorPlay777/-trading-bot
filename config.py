@@ -37,9 +37,9 @@ class TradingConfig:
     multi_timeframe_enabled: bool = True  # Enable multi-timeframe analysis
     min_higher_timeframe_trend_agreement: int = 1  # Minimum number of higher timeframes that must agree
 
-    # Position limits - professional mode
-    max_positions: int = 8  # Max 8 positions (focused trading)
-    max_daily_trades: int = 50  # Max 50 trades per day (avoid overtrading)
+    # Trading limits - testing mode (unlimited)
+    max_positions: int = 999  # Unlimited concurrent positions for testing
+    max_daily_trades: int = 999  # Unlimited trades per day for testing
 
     # Template/preset selection (persistent)
     selected_template: str = "professional"  # Default: professional mode
@@ -240,22 +240,22 @@ class RiskConfig:
     auto_reverse_on_sl: bool = True  # Auto-reverse position on SL closure
     auto_reopen_on_tp: bool = True  # Auto-reopen position on TP closure
 
-    # Position sizing - professional mode (Kelly criterion)
-    min_position_size_usd: float = 10000.0  # Minimum position size ($10k USDT)
-    max_position_size_usd: float = 200000.0  # Maximum position size ($200k USDT)
-    max_position_pct_of_balance: float = 0.05  # Max 5% of balance per position (Kelly criterion)
+    # Position sizing - testing mode (aggressive for faster testing)
+    min_position_size_usd: float = 5000.0  # Minimum position size ($5k USDT)
+    max_position_size_usd: float = 500000.0  # Maximum position size ($500k USDT)
+    max_position_pct_of_balance: float = 0.10  # Max 10% of balance per position (aggressive for testing)
     kelly_criterion_enabled: bool = True  # Enable Kelly criterion for position sizing
-    half_kelly: bool = True  # Use half-Kelly for safety (more conservative)
+    half_kelly: bool = False  # Use full Kelly for testing
 
     # Loss streak protection (disabled for testing)
     max_consecutive_sl: int = 9999  # Unlimited (disabled for testing)
     loss_streak_pause_minutes: int = 0  # No pause (disabled for testing)
 
-    # Trading psychology protection
-    fomo_protection_enabled: bool = True  # Prevent FOMO trading
-    min_time_between_trades_sec: int = 60  # Minimum time between trades (prevent overtrading)
-    revenge_trading_protection: bool = True  # Prevent revenge trading after losses
-    max_trades_per_hour: int = 5  # Max trades per hour (prevent overtrading)
+    # Trading psychology protection (relaxed for testing)
+    fomo_protection_enabled: bool = False  # Disabled for testing
+    min_time_between_trades_sec: int = 10  # Reduced to 10 seconds for testing
+    revenge_trading_protection: bool = False  # Disabled for testing
+    max_trades_per_hour: int = 20  # Increased to 20 trades/hour for testing
 
     # Order book analysis
     order_book_enabled: bool = True  # Enable order book depth analysis
@@ -270,6 +270,11 @@ class RiskConfig:
     # Risk Parity position sizing
     risk_parity_enabled: bool = True  # Enable Risk Parity position sizing
     risk_parity_lookback_days: int = 30  # Days to calculate volatility for Risk Parity
+
+    # Dynamic symbol fetching
+    dynamic_symbols_enabled: bool = True  # Enable dynamic symbol fetching from Bybit
+    min_volume_24h_usd: float = 1000000.0  # Minimum 24h volume ($1M) for symbol inclusion
+    symbol_update_interval_hours: int = 24  # Update symbol list every 24 hours
 
     def update_from_dict(self, data: dict):
         """Update config from dictionary (for API updates)"""

@@ -400,3 +400,54 @@ class BybitClient:
         except Exception as e:
             logger.error(f"Error checking position state: {e}")
             return None
+
+    def get_orderbook(self, symbol: str, limit: int = 20) -> Optional[Dict]:
+        """Get order book for a symbol"""
+        try:
+            response = self._request('GET', '/v5/market/orderbook', {
+                'category': self.category,
+                'symbol': symbol,
+                'limit': limit
+            })
+            if response and 'result' in response and 'list' in response['result']:
+                return response['result']['list'][0] if response['result']['list'] else None
+        except Exception as e:
+            logger.error(f"Error getting orderbook for {symbol}: {e}")
+        return None
+
+    def get_available_symbols(self, min_volume_24h: float = 1000000) -> List[str]:
+        """Get available symbols with minimum 24h volume"""
+        try:
+            response = self._request('GET', '/v5/market/tickers', {
+                'category': self.category
+            })
+            if response and 'result' in response and 'list' in response['result']:
+                symbols = []
+                for item in response['result']['list']:
+                    symbol = item.get('symbol', '')
+                    volume_24h = float(item.get('volume24h', 0)) * float(item.get('lastPrice', 0))
+
+                    # Filter by volume and only include USDT pairs
+                    if symbol.endswith('USDT') and volume_24h >= min_volume_24h:
+                        symbols.append(symbol)
+
+                logger.info(f"Found {len(symbols)} symbols with 24h volume >= ${min_volume_24h:.0f}")
+                return symbols
+        except Exception as e:
+            logger.error(f"Error getting available symbols: {e}")
+        return []
+
+    def get_symbol_leverage_limit(self, symbol: str) -> int:
+        """Get max leverage for a symbol"""
+        try:
+            response = self._request('GET', '/v5/market/instruments-info', {
+                'category': self.category,
+                'symbol': symbol
+            })
+            if response and 'result' in response and 'list' in response['result']:
+                leverage_list = response['result']['list'][0].get('leverageFilter', {}).get('leverageList', [])
+                if leverage_list:
+                    return max(int(item.get('leverage', 20)) for item in leverage_list)
+        except Exception as e:
+            logger.error(f"Error getting leverage limit for {symbol}: {e}")
+        return 20  # Default fallback

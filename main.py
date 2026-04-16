@@ -96,6 +96,32 @@ class TradingBot:
             except Exception as e:
                 logger.warning(f"Failed to set leverage for {symbol}: {e}")
 
+        # Update symbol max leverage limits
+        for symbol in trading_config.symbols:
+            try:
+                max_lev = self.api.get_symbol_leverage_limit(symbol)
+                trading_config.symbol_max_leverage[symbol] = max_lev
+                logger.info(f"Updated {symbol} max leverage: {max_lev}x")
+            except Exception as e:
+                logger.warning(f"Failed to get leverage for {symbol}: {e}")
+                trading_config.symbol_max_leverage[symbol] = 20  # Default fallback
+
+        # Dynamic symbol fetching
+        if trading_config.dynamic_symbols_enabled:
+            logger.info("Fetching dynamic symbols from Bybit...")
+            dynamic_symbols = self.api.get_available_symbols(trading_config.min_volume_24h_usd)
+            if dynamic_symbols:
+                trading_config.symbols = dynamic_symbols
+                logger.info(f"Updated symbols list: {len(dynamic_symbols)} symbols")
+
+                # Update leverage limits for new symbols
+                for symbol in dynamic_symbols[:50]:  # Limit to first 50 to avoid rate limits
+                    try:
+                        max_lev = self.api.get_symbol_leverage_limit(symbol)
+                        trading_config.symbol_max_leverage[symbol] = max_lev
+                    except Exception as e:
+                        trading_config.symbol_max_leverage[symbol] = 20  # Default fallback
+
         # Sync positions from API for stateless operation
         self._sync_positions()
 
