@@ -147,9 +147,11 @@ class RiskManager:
         # Calculate Kelly criterion position size
         kelly_pct = self._calculate_kelly_criterion()
 
-        # HARDCODED: Use 100% of available balance for maximum position size
+        # HARDCODED: Use 100% of available balance multiplied by leverage for maximum position size
         position_pct = 1.0  # 100% of available balance
-        position_notional = available_balance * position_pct
+        # Get leverage for this symbol
+        leverage = trading_config.default_leverage  # 100x
+        position_notional = available_balance * position_pct * leverage  # Multiply by leverage for max position
 
         # Disable Risk Parity and other constraints
         # risk_parity_pct = self._calculate_risk_parity(symbol, atr)
