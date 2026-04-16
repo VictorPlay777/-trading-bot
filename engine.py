@@ -94,9 +94,25 @@ class TradingEngine:
                 
                 # get_klines returns a list directly
                 if klines and isinstance(klines, list) and len(klines) > 0:
-                    df = pd.DataFrame(klines)
-                    df.columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'turnover']
-                    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+                    # Check if data is in expected format
+                    if isinstance(klines[0], list):
+                        # Data is list of lists
+                        df = pd.DataFrame(klines)
+                        df.columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'turnover']
+                    elif isinstance(klines[0], dict):
+                        # Data is list of dicts
+                        df = pd.DataFrame(klines)
+                    else:
+                        logger.warning(f"Unexpected data format for {symbol}")
+                        continue
+                    
+                    # Convert timestamp safely
+                    try:
+                        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms', errors='coerce')
+                    except Exception as e:
+                        logger.warning(f"Error parsing timestamp for {symbol}: {e}")
+                        continue
+                    
                     df.set_index('timestamp', inplace=True)
                     df = df.astype({'open': float, 'high': float, 'low': float, 'close': float, 'volume': float})
                     self.market_data[symbol] = df
