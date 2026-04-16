@@ -257,7 +257,7 @@ class RiskConfig:
 
     # Trading psychology protection (relaxed for testing)
     fomo_protection_enabled: bool = False  # Disabled for testing
-    min_time_between_trades_sec: int = 1  # Reduced to 1 second for more active trading
+    min_time_between_trades_sec: int = 0  # No delay between trades
     revenge_trading_protection: bool = False  # Disabled for testing
     max_trades_per_hour: int = 999  # Unlimited trades per hour for testing
 
