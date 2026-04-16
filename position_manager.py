@@ -119,6 +119,11 @@ class PositionManager:
                 logger.warning(f"Position already exists for {symbol}")
                 return False
             
+            # Get instrument info for qty_step and min_qty
+            instrument_info = self.api.get_instrument_info(symbol)
+            qty_step = float(instrument_info.get("lotSizeFilter", {}).get("qtyStep", 0.001))
+            min_qty = float(instrument_info.get("lotSizeFilter", {}).get("minOrderQty", 0.001))
+            
             # Calculate position size based on trade type
             if trade_type == TradeType.PROBE:
                 position_size = max_position_size * self.probe_pct
@@ -132,6 +137,15 @@ class PositionManager:
             
             # Calculate quantity
             quantity = position_size / entry_price
+            
+            # Round quantity to qty_step precision
+            quantity = round(quantity / qty_step) * qty_step
+            
+            # Ensure quantity meets minimum order requirement
+            if quantity < min_qty:
+                quantity = min_qty
+            
+            logger.info(f"Position size: ${position_size:.2f}, Quantity: {quantity} BTC, Entry: ${entry_price:.2f}")
             
             # Calculate stop loss
             stop_loss = self._calculate_stop_loss(entry_price, direction, atr)
