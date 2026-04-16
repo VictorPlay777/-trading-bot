@@ -446,11 +446,15 @@ class BybitClient:
                 'symbol': symbol
             })
             if response and 'result' in response and 'list' in response['result']:
-                leverage_filter = response['result']['list'][0].get('leverageFilter', {})
-                if isinstance(leverage_filter, dict):
+                instrument = response['result']['list'][0]
+                # Try to get leverageFilter from the response
+                leverage_filter = instrument.get('leverageFilter')
+                if leverage_filter and isinstance(leverage_filter, dict):
                     leverage_list = leverage_filter.get('leverageList', [])
-                    if leverage_list:
+                    if leverage_list and isinstance(leverage_list, list):
                         return max(int(item.get('leverage', 20)) for item in leverage_list)
+                # Fallback: try to get from other fields
+                logger.warning(f"Could not get leverageList for {symbol}, using instruments info")
         except Exception as e:
             logger.error(f"Error getting leverage limit for {symbol}: {e}")
         return 20  # Default fallback

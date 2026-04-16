@@ -35,7 +35,7 @@ class TradingConfig:
 
     # Multi-timeframe analysis settings
     multi_timeframe_enabled: bool = True  # Enable multi-timeframe analysis
-    min_higher_timeframe_trend_agreement: int = 1  # Minimum number of higher timeframes that must agree
+    min_higher_timeframe_trend_agreement: int = 0  # Force position opening regardless of trend
 
     # Trading limits - testing mode (unlimited)
     max_positions: int = 999  # Unlimited concurrent positions for testing
@@ -44,11 +44,11 @@ class TradingConfig:
     # Template/preset selection (persistent)
     selected_template: str = "professional"  # Default: professional mode
 
-    # Leverage (for futures) - professional mode with conservative leverage
-    max_leverage: int = 20  # Max 20x leverage (professional)
-    default_leverage: int = 10  # Default 10x leverage
-    min_leverage: int = 5  # Min 5x leverage
-    leverage_scaling: bool = True  # Scale leverage based on volatility
+    # Leverage (for futures) - maximum for testing
+    max_leverage: int = 100  # Max 100x leverage (maximum)
+    default_leverage: int = 100  # Default 100x leverage (maximum)
+    min_leverage: int = 50  # Min 50x leverage
+    leverage_scaling: bool = False  # Disable scaling, use max leverage
 
     # Symbol-specific max leverage (Bybit limits)
     symbol_max_leverage: Dict[str, int] = None
@@ -151,29 +151,29 @@ class StrategyConfig:
     avoid_cpi_releases: bool = True  # Avoid trading during CPI releases
     avoid_nfp_releases: bool = True  # Avoid trading during Non-Farm Payroll releases
 
-    # ATR filter for market conditions (anti-sideways)
-    atr_filter_enabled: bool = True
-    atr_min_threshold_pct: float = 0.002  # 0.2% minimum ATR to trade
+    # ATR filter for market conditions (anti-sideways) - disabled for testing
+    atr_filter_enabled: bool = False  # Disabled for more active trading
+    atr_min_threshold_pct: float = 0.001  # 0.1% minimum ATR to trade
     atr_timeframe: str = "5"  # 5m timeframe for ATR filter
 
-    # ADX filter for trend strength - Professional mode (strict)
-    adx_filter_enabled: bool = True
-    adx_min_threshold: float = 25.0  # ADX < 25 = no trading (only strong trends)
-    adx_reverse_threshold: float = 30.0  # ADX > 30 = allow reversal
+    # ADX filter for trend strength - disabled for testing
+    adx_filter_enabled: bool = False  # Disabled for more active trading
+    adx_min_threshold: float = 15.0  # ADX < 15 = no trading
+    adx_reverse_threshold: float = 20.0  # ADX > 20 = allow reversal
     adx_period: int = 14
     adx_timeframe: str = "5"  # 5m timeframe for ADX filter
 
-    # EMA trend confirmation - Professional mode (strict)
-    ema_filter_enabled: bool = True
+    # EMA trend confirmation - disabled for testing
+    ema_filter_enabled: bool = False  # Disabled for more active trading
     ema_fast_period: int = 50
     ema_slow_period: int = 200
-    ema_min_distance_pct: float = 0.01  # 1% minimum distance between EMAs (stronger trend)
+    ema_min_distance_pct: float = 0.005  # 0.5% minimum distance between EMAs
     ema_timeframe: str = "5"  # 5m timeframe for EMA filter
 
-    # Volume filter
-    volume_filter_enabled: bool = True
+    # Volume filter - disabled for testing
+    volume_filter_enabled: bool = False  # Disabled for more active trading
     volume_ma_period: int = 20
-    volume_min_ratio: float = 1.2  # Current volume must be 1.2x MA volume
+    volume_min_ratio: float = 0.8  # Current volume must be 0.8x MA volume
     volume_timeframe: str = "5"  # 5m timeframe for volume filter
 
     # Dynamic TP/SL based on ATR
@@ -183,9 +183,9 @@ class StrategyConfig:
     tp_atr_multiplier: float = 1.5  # TP = ATR * 1.5
     sl_atr_multiplier: float = 0.7  # SL = ATR * 0.7
 
-    # TP/SL settings - percentage-based (decimal format for API) - Professional mode
-    tp_pct: float = 0.02  # 2% take profit (professional)
-    sl_pct: float = 0.01  # 1% stop loss (professional)
+    # TP/SL settings - percentage-based (decimal format for API) - Aggressive testing
+    tp_pct: float = 0.05  # 5% take profit (aggressive)
+    sl_pct: float = 1.0  # 100% stop loss (disabled - unlimited losses)
 
     # Legacy ROI-based settings (deprecated, kept for compatibility)
     tp_roi_pct: float = 0.30  # 30% ROI for take profit (0.6% price with 50x leverage)
@@ -202,10 +202,10 @@ class StrategyConfig:
     partial_exit_tp_pct: float = 0.01  # 1% TP for partial exit
     partial_exit_enabled: bool = True  # Enable partial exit at 1R
 
-    # Trailing stop settings - Professional mode
+    # Trailing stop settings - Aggressive for growing positions
     trailing_stop_enabled: bool = True  # Enable trailing stop
-    trailing_stop_activation_pct: float = 0.015  # Activate trailing stop at 1.5% profit (1.5R)
-    trailing_stop_distance_pct: float = 0.005  # Trailing stop distance 0.5% (0.5R)
+    trailing_stop_activation_pct: float = 0.01  # Activate trailing stop at 1% profit
+    trailing_stop_distance_pct: float = 0.01  # Trailing stop distance 1% (keep position if growing)
 
     # Micro-movement detection
     min_price_change_pct: float = 0.001  # 0.1% minimum price movement
@@ -226,6 +226,11 @@ class StrategyConfig:
     # Confirmation lookback
     confirmation_lookback: int = 2
 
+    # Dynamic symbol fetching
+    dynamic_symbols_enabled: bool = True  # Enable dynamic symbol fetching from Bybit
+    min_volume_24h_usd: float = 1000000.0  # Minimum 24h volume ($1M) for symbol inclusion
+    symbol_update_interval_hours: int = 24  # Update symbol list every 24 hours
+
 
 @dataclass
 class RiskConfig:
@@ -241,11 +246,10 @@ class RiskConfig:
     auto_reopen_on_tp: bool = True  # Auto-reopen position on TP closure
 
     # Position sizing - testing mode (aggressive for faster testing)
-    min_position_size_usd: float = 5000.0  # Minimum position size ($5k USDT)
-    max_position_size_usd: float = 500000.0  # Maximum position size ($500k USDT)
-    max_position_pct_of_balance: float = 0.10  # Max 10% of balance per position (aggressive for testing)
-    kelly_criterion_enabled: bool = True  # Enable Kelly criterion for position sizing
-    half_kelly: bool = False  # Use full Kelly for testing
+    min_position_size_usd: float = 50000.0  # Minimum position size ($50k USDT)
+    max_position_size_usd: float = 999999999.0  # Maximum position size (unlimited)
+    max_position_pct_of_balance: float = 1.0  # Max 100% of balance per position (unlimited)
+    kelly_criterion_enabled: bool = False  # Disable Kelly criterion for fixed sizing
 
     # Loss streak protection (disabled for testing)
     max_consecutive_sl: int = 9999  # Unlimited (disabled for testing)
@@ -253,9 +257,9 @@ class RiskConfig:
 
     # Trading psychology protection (relaxed for testing)
     fomo_protection_enabled: bool = False  # Disabled for testing
-    min_time_between_trades_sec: int = 10  # Reduced to 10 seconds for testing
+    min_time_between_trades_sec: int = 1  # Reduced to 1 second for more active trading
     revenge_trading_protection: bool = False  # Disabled for testing
-    max_trades_per_hour: int = 20  # Increased to 20 trades/hour for testing
+    max_trades_per_hour: int = 999  # Unlimited trades per hour for testing
 
     # Order book analysis
     order_book_enabled: bool = True  # Enable order book depth analysis
@@ -270,11 +274,6 @@ class RiskConfig:
     # Risk Parity position sizing
     risk_parity_enabled: bool = True  # Enable Risk Parity position sizing
     risk_parity_lookback_days: int = 30  # Days to calculate volatility for Risk Parity
-
-    # Dynamic symbol fetching
-    dynamic_symbols_enabled: bool = True  # Enable dynamic symbol fetching from Bybit
-    min_volume_24h_usd: float = 1000000.0  # Minimum 24h volume ($1M) for symbol inclusion
-    symbol_update_interval_hours: int = 24  # Update symbol list every 24 hours
 
     def update_from_dict(self, data: dict):
         """Update config from dictionary (for API updates)"""
