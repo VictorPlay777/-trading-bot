@@ -1,0 +1,7 @@
+BTan6unG8bpEkT4uhn апи ключ
+QcLbqo8zrHSkNicV7jjYsBo0793CgWiC2mtS секретный ключ апи
+
+Реальный аккаунт
+API_KEY = "BevhIVAKAJatKxCIsw"
+API_SECRET = "IFwCDWpTPC3MaHN6iSdpI6cAWsDxgCI89nxA"
+
