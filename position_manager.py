@@ -151,34 +151,27 @@ class PositionManager:
             
             logger.info(f"Position size: ${position_size:.2f}, Quantity: {quantity} BTC, Entry: ${entry_price:.2f}")
             
-            # Calculate stop loss percentage
+            # Calculate stop loss price with correct direction
             if atr:
                 sl_distance = atr * self.sl_atr_multiplier
-                stop_loss_pct = (sl_distance / entry_price) * 100
             else:
-                stop_loss_pct = self.sl_fixed_pct * 100  # 0.2% -> 0.2
+                sl_distance = entry_price * self.sl_fixed_pct
             
-            # Calculate take profit percentage (2x risk for risk-reward ratio)
-            take_profit_pct = stop_loss_pct * 2 if stop_loss_pct else None
-            
-            # Set correct signs for direction
             if direction == "long":
-                # For long: stop loss is negative (below entry), take profit is positive (above entry)
-                stop_loss_pct = -abs(stop_loss_pct) if stop_loss_pct else None
-                take_profit_pct = abs(take_profit_pct) if take_profit_pct else None
+                stop_loss = entry_price - sl_distance  # Below entry for long
+                take_profit = entry_price + (sl_distance * 2)  # Above entry for long (2x risk)
             else:
-                # For short: stop loss is positive (above entry), take profit is negative (below entry)
-                stop_loss_pct = abs(stop_loss_pct) if stop_loss_pct else None
-                take_profit_pct = -abs(take_profit_pct) if take_profit_pct else None
+                stop_loss = entry_price + sl_distance  # Above entry for short
+                take_profit = entry_price - (sl_distance * 2)  # Below entry for short (2x risk)
             
-            # Place order via API with percentage-based stop loss
+            # Place order via API with price-based stop loss/take profit
             result = self.api.place_order(
                 symbol=symbol,
                 side="Buy" if direction == "long" else "Sell",
                 order_type="Market",
                 qty=quantity,
-                stop_loss_pct=stop_loss_pct,
-                take_profit_pct=take_profit_pct
+                stop_loss=stop_loss,
+                take_profit=take_profit
             )
             
             if result.get("retCode") != 0:
