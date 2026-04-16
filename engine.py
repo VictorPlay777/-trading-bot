@@ -49,6 +49,9 @@ class TradingEngine:
         self.max_position_size = 100000.0  # $100k max position per trade (will be adjusted based on balance)
         self.leverage = trading_config.default_leverage  # 100x
         
+        # Setup leverage for all symbols (Bybit API requirement)
+        self._setup_leverage()
+        
         # Probe settings
         self.probability_of_probe = 0.50  # 50% chance to open probe each cycle (increased for testing)
         
@@ -69,6 +72,19 @@ class TradingEngine:
         except Exception as e:
             logger.error(f"Failed to load symbols, using defaults: {e}")
             return ["BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT", "XRPUSDT", "BNBUSDT", "ADAUSDT", "AVAXUSDT", "LINKUSDT", "DOTUSDT"]
+    
+    def _setup_leverage(self) -> None:
+        """Set leverage for all symbols during initialization"""
+        logger.info(f"Setting up {self.leverage}x leverage for all symbols...")
+        for symbol in self.symbols:
+            try:
+                result = self.api.set_leverage(symbol, self.leverage)
+                if result.get("retCode") == 0:
+                    logger.debug(f"Leverage set to {self.leverage}x for {symbol}")
+                else:
+                    logger.warning(f"Failed to set leverage for {symbol}: {result.get('retMsg')}")
+            except Exception as e:
+                logger.error(f"Error setting leverage for {symbol}: {e}")
     
     def _update_symbol_stats(self, symbol: str, trade_result: str, pnl: float = 0) -> None:
         """Update per-symbol statistics"""

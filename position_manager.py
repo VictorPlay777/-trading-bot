@@ -225,12 +225,13 @@ class PositionManager:
             
             position = self.positions[symbol]
             
-            # Place closing order
+            # Place closing order with reduceOnly to ensure we only close, not open new position
             result = self.api.place_order(
                 symbol=symbol,
                 side="Sell" if position.direction == "long" else "Buy",
                 order_type="Market",
-                qty=position.quantity
+                qty=position.quantity,
+                reduce_only=True  # Bybit API: only reduce position, don't open new
             )
             
             if result.get("retCode") != 0:

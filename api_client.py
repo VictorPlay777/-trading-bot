@@ -295,9 +295,16 @@ class BybitClient:
         take_profit_pct: Optional[float] = None,  # Percentage-based TP
         category: str = "linear",
         order_link_id: Optional[str] = None,
-        market_unit: Optional[str] = None  # "qty" (baseCoin) or "quoteCoin" (USDT) for market orders
+        market_unit: Optional[str] = None,  # "qty" (baseCoin) or "quoteCoin" (USDT) for market orders
+        reduce_only: bool = False,  # Only reduce position, don't open new
+        close_on_trigger: bool = False  # Close position on trigger (for stop orders)
     ) -> Dict:
-        """Place an order"""
+        """Place an order
+        
+        Args:
+            reduce_only: True to only reduce position size (close position)
+            close_on_trigger: True for stop orders that close position
+        """
         body = {
             "category": category,
             "symbol": symbol,
@@ -305,6 +312,12 @@ class BybitClient:
             "orderType": order_type,
             "qty": str(qty),
         }
+        
+        # Add reduceOnly and closeOnTrigger for position closing
+        if reduce_only:
+            body["reduceOnly"] = True
+        if close_on_trigger:
+            body["closeOnTrigger"] = True
 
         # Add marketUnit for market orders if specified
         if order_type == "Market" and market_unit:
@@ -470,12 +483,18 @@ class BybitClient:
         stop_loss: Optional[float] = None,
         take_profit: Optional[float] = None,
         trailing_stop: Optional[float] = None,
-        category: str = "linear"
+        category: str = "linear",
+        position_idx: int = 0
     ) -> Dict:
-        """Set stop loss, take profit, or trailing stop for an existing position"""
+        """Set stop loss, take profit, or trailing stop for an existing position
+        
+        Args:
+            position_idx: 0=one-way mode, 1=hedge-mode Buy, 2=hedge-mode Sell
+        """
         body = {
             "category": category,
             "symbol": symbol,
+            "positionIdx": position_idx,  # One-way mode default
         }
         
         if stop_loss is not None:
@@ -488,6 +507,40 @@ class BybitClient:
             body["trailingStop"] = str(trailing_stop)
         
         return self._request("POST", "/v5/position/trading-stop", body=body)
+
+    def set_leverage(
+        self,
+        symbol: str,
+        buy_leverage: int,
+        sell_leverage: Optional[int] = None,
+        category: str = "linear"
+    ) -> Dict:
+        """Set leverage for a symbol
+        
+        Args:
+            symbol: Trading symbol
+            buy_leverage: Leverage for buy orders (1-100)
+            sell_leverage: Leverage for sell orders (defaults to buy_leverage)
+            category: Market category
+            
+        Returns:
+            API response
+        """
+        body = {
+            "category": category,
+            "symbol": symbol,
+            "buyLeverage": str(buy_leverage),
+            "sellLeverage": str(sell_leverage if sell_leverage else buy_leverage),
+        }
+        
+        try:
+            return self._request("POST", "/v5/position/set-leverage", body=body)
+        except BybitAPIError as e:
+            # Error 110043: leverage not modified (already set to this value)
+            if e.code == 110043:
+                logger.info(f"Leverage already set to {buy_leverage}x for {symbol}")
+                return {"retCode": 0, "retMsg": "Leverage already set"}
+            raise
 
     def get_orderbook(self, symbol: str, limit: int = 20) -> Optional[Dict]:
         """Get order book for a symbol"""
