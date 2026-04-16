@@ -1,9 +1,8 @@
 """
-Main Trading Bot - Simple Synchronous Version
+Main Trading Bot - Simple Synchronous Version for GitHub Actions
 """
 import sys
 import time
-import threading
 from datetime import datetime, timedelta
 from typing import Optional, Dict
 
@@ -34,20 +33,20 @@ class TradingBot:
         self._paused = False  # Pause state
         self._last_check_time: Optional[datetime] = None
         self._check_interval_seconds = 5  # Check every 5 seconds (within API limits)
-        self._current_positions = {}  # Track positions per symbol: {symbol: "long"/"short"/None}
+        self._current_positions = {}  # Track positions per symbol: {symbol: "long"/"short"/None} - populated from API each run
         self._current_symbol_index = 0  # For cycling through symbols
         self._pending_signal = None
         self._last_config_reload: Optional[datetime] = None
         self._config_reload_interval = 30  # Reload config every 30 seconds
         self._instruments_info = {}  # Cache instruments info: {symbol: {min_qty, max_qty, qty_step}}
 
-        # Smart filter tracking
+        # Smart filter tracking - stateless for GitHub Actions
         self._last_trade_time: Optional[datetime] = None  # Track last trade time for delay
         self._consecutive_sl_count = 0  # Track consecutive stop losses
         self._loss_streak_pause_until: Optional[datetime] = None  # Pause end time
     
     def initialize(self):
-        """Initialize bot - connect, set leverage, etc."""
+        """Initialize bot - connect, set leverage, sync positions from API"""
         logger.info("=" * 60)
         logger.info("INITIALIZING TRADING BOT")
         logger.info("=" * 60)
@@ -56,10 +55,6 @@ class TradingBot:
         logger.info(f"Timeframe: {self.interval}m")
         logger.info(f"Max Positions: {trading_config.max_positions}")
         logger.info("-" * 60)
-
-        # Initialize positions tracking for each symbol
-        for symbol in self.symbols:
-            self._current_positions[symbol] = None
 
         # Test API connection
         try:
@@ -93,15 +88,18 @@ class TradingBot:
                     max_lev = self._instruments_info[symbol].get("max_leverage", trading_config.default_leverage)
                 else:
                     max_lev = trading_config.symbol_max_leverage.get(symbol, trading_config.default_leverage)
-                
+
                 # Apply risk limit if exists
                 if symbol in risk_limit_leverage:
                     max_lev = min(max_lev, risk_limit_leverage[symbol])
-                
+
                 self.api.set_leverage(symbol, max_lev, max_lev)
                 logger.info(f"Leverage set to {max_lev}x for {symbol} (max from API)")
             except Exception as e:
                 logger.warning(f"Failed to set leverage for {symbol}: {e}")
+
+        # Sync positions from API for stateless operation
+        self._sync_positions()
 
         # Load initial market data for all symbols
         for symbol in self.symbols:
@@ -110,9 +108,6 @@ class TradingBot:
                 logger.info(f"Market data loaded for {symbol}")
             except Exception as e:
                 logger.warning(f"Failed to load market data for {symbol}: {e}")
-
-        # Sync position state for all symbols
-        self._sync_positions()
 
         # Open EMA-based positions for symbols that don't have positions
         symbols_without_positions = [s for s, pos in self._current_positions.items() if pos is None]
@@ -1245,7 +1240,7 @@ class TradingBot:
                    f"Прибыль за день: ${risk_status.daily_pnl:.2f}")
     
     def run(self):
-        """Main event loop"""
+        """Main event loop - deprecated for GitHub Actions"""
         self.initialize()
 
         self._running = True
@@ -1273,9 +1268,9 @@ class TradingBot:
             logger.error(f"Fatal error: {e}", exc_info=True)
         finally:
             self.shutdown()
-    
+
     def shutdown(self):
-        """Graceful shutdown"""
+        """Graceful shutdown - deprecated for GitHub Actions"""
         self._running = False
         logger.info("Shutting down...")
         logger.info("Bot stopped")
@@ -1312,18 +1307,23 @@ class TradingBot:
 
 
 def main():
-    """Entry point"""
+    """Entry point - run once and exit for GitHub Actions"""
     bot = TradingBot()
-    
-    # Start web server in separate thread
-    from web_server import set_bot_instance, run_web_server
-    set_bot_instance(bot)
-    web_thread = threading.Thread(target=run_web_server, daemon=True)
-    web_thread.start()
-    logger.info("Web dashboard started at http://127.0.0.1:5000")
-    
+
     try:
-        bot.run()
+        # Initialize bot
+        bot.initialize()
+
+        # Check API credentials
+        if not api_config.key or not api_config.secret:
+            logger.error("BYBIT_API_KEY and BYBIT_API_SECRET environment variables must be set")
+            sys.exit(1)
+
+        # Run single cycle
+        bot._run_cycle()
+
+        logger.info("Bot cycle completed successfully")
+        sys.exit(0)
     except Exception as e:
         logger.error(f"Bot crashed: {e}", exc_info=True)
         sys.exit(1)
