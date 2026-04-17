@@ -195,10 +195,14 @@ class BybitClient:
             ticker_map = {t.get("symbol"): t for t in tickers if t.get("symbol")}
             
             for instrument in instruments:
+                # Skip if instrument is not a dict
+                if not isinstance(instrument, dict):
+                    continue
+                
                 symbol = instrument.get("symbol", "")
                 
                 # Skip non-perpetual and inverse contracts
-                if not symbol.endswith("USDT"):
+                if not symbol or not symbol.endswith("USDT"):
                     continue
                 
                 # Check status
