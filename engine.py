@@ -77,15 +77,43 @@ class TradingEngine:
             return default_symbols
     
     def _setup_leverage(self) -> None:
-        """Set optimal leverage for all symbols based on Bybit limits"""
+        """Set optimal leverage for all symbols based on Bybit limits (with caching)"""
+        import json
+        import os
+        from datetime import datetime, timedelta
+        
+        cache_file = "leverage_cache.json"
+        leverage_cache = {}
+        cache_valid = False
+        
+        # Try to load cached leverage data
+        if os.path.exists(cache_file):
+            try:
+                with open(cache_file, 'r') as f:
+                    cache_data = json.load(f)
+                    cache_time = datetime.fromisoformat(cache_data.get('timestamp', '2000-01-01'))
+                    # Cache valid for 24 hours
+                    if datetime.now() - cache_time < timedelta(hours=24):
+                        leverage_cache = cache_data.get('leverage', {})
+                        cache_valid = True
+                        logger.info(f"Loaded leverage cache: {len(leverage_cache)} symbols (cached {(datetime.now() - cache_time).hours} hours ago)")
+            except Exception as e:
+                logger.warning(f"Could not load leverage cache: {e}")
+        
         logger.info(f"Setting up optimal leverage for all symbols (target: {self.leverage}x)...")
         success_count = 0
         adjusted_count = 0
+        new_cache = {}
         
         for symbol in self.symbols:
             try:
-                # Get max available leverage for this symbol
-                max_leverage = self.api.get_max_leverage(symbol)
+                # Use cached leverage if available
+                if cache_valid and symbol in leverage_cache:
+                    max_leverage = leverage_cache[symbol]
+                else:
+                    # Get max available leverage from API
+                    max_leverage = self.api.get_max_leverage(symbol)
+                    new_cache[symbol] = max_leverage
                 
                 # Use minimum of desired leverage and max available
                 target_leverage = min(self.leverage, max_leverage)
@@ -104,6 +132,21 @@ class TradingEngine:
             except Exception as e:
                 if "maxLeverage" not in str(e):
                     logger.error(f"Error setting leverage for {symbol}: {e}")
+        
+        # Save cache with new data
+        try:
+            if new_cache:
+                # Merge with existing cache
+                leverage_cache.update(new_cache)
+            cache_data = {
+                'timestamp': datetime.now().isoformat(),
+                'leverage': leverage_cache
+            }
+            with open(cache_file, 'w') as f:
+                json.dump(cache_data, f, indent=2)
+            logger.info(f"Saved leverage cache: {len(leverage_cache)} symbols")
+        except Exception as e:
+            logger.warning(f"Could not save leverage cache: {e}")
         
         logger.info(f"Leverage setup complete: {success_count} symbols at {self.leverage}x, {adjusted_count} symbols at lower leverage (Bybit limit)")
     
