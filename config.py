@@ -296,7 +296,7 @@ class RiskConfig:
     
     # Stop loss settings
     sl_atr_multiplier: float = 1.0  # SL = 1x ATR
-    sl_fixed_pct: float = 0.002  # 0.2% fixed SL fallback
+    sl_fixed_pct: float = 0.02  # 2% fixed SL
     
     # Trailing stop settings
     trailing_stop_enabled: bool = True  # Enable trailing stop
