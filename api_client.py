@@ -210,12 +210,16 @@ class BybitClient:
             symbols = []
             
             # Get tickers for volume info
-            tickers = self.get_tickers(category=category)
+            tickers_response = self.get_tickers(category=category)
             
-            # Check if tickers is valid
-            if not isinstance(tickers, list):
-                logger.error(f"Invalid tickers data type: {type(tickers)}")
-                tickers = []
+            # Extract list from response (API returns dict with result.list)
+            tickers = []
+            if isinstance(tickers_response, dict):
+                tickers = tickers_response.get("result", {}).get("list", [])
+            elif isinstance(tickers_response, list):
+                tickers = tickers_response
+            
+            logger.debug(f"Got {len(tickers)} tickers")
             
             ticker_map = {t.get("symbol"): t for t in tickers if isinstance(t, dict) and t.get("symbol")}
             logger.debug(f"Created ticker map with {len(ticker_map)} entries")
