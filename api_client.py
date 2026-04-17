@@ -188,11 +188,25 @@ class BybitClient:
         try:
             # Get all instruments
             instruments = self.get_instruments_info(category=category)
+            logger.debug(f"Got {len(instruments)} instruments from API")
+            
+            # Check if instruments is valid
+            if not isinstance(instruments, list):
+                logger.error(f"Invalid instruments data type: {type(instruments)}")
+                return ["BTCUSDT", "ETHUSDT"]
+            
             symbols = []
             
             # Get tickers for volume info
             tickers = self.get_tickers(category=category)
-            ticker_map = {t.get("symbol"): t for t in tickers if t.get("symbol")}
+            
+            # Check if tickers is valid
+            if not isinstance(tickers, list):
+                logger.error(f"Invalid tickers data type: {type(tickers)}")
+                tickers = []
+            
+            ticker_map = {t.get("symbol"): t for t in tickers if isinstance(t, dict) and t.get("symbol")}
+            logger.debug(f"Created ticker map with {len(ticker_map)} entries")
             
             for instrument in instruments:
                 # Skip if instrument is not a dict

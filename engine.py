@@ -66,12 +66,15 @@ class TradingEngine:
     def _load_symbols(self) -> List[str]:
         """Load all trading symbols from Bybit API"""
         try:
+            logger.info("Loading symbols from Bybit API...")
             symbols = self.api.get_all_trading_symbols(min_volume_24h=500000)  # Min 500K volume
-            logger.info(f"Loaded {len(symbols)} symbols: {', '.join(symbols[:10])}{'...' if len(symbols) > 10 else ''}")
+            logger.info(f"Successfully loaded {len(symbols)} symbols: {', '.join(symbols[:10])}{'...' if len(symbols) > 10 else ''}")
             return symbols
         except Exception as e:
-            logger.error(f"Failed to load symbols, using defaults: {e}")
-            return ["BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT", "XRPUSDT", "BNBUSDT", "ADAUSDT", "AVAXUSDT", "LINKUSDT", "DOTUSDT"]
+            logger.error(f"Failed to load symbols from API: {e}")
+            default_symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT", "XRPUSDT", "BNBUSDT", "ADAUSDT", "AVAXUSDT", "LINKUSDT", "DOTUSDT"]
+            logger.warning(f"Using {len(default_symbols)} default symbols: {', '.join(default_symbols)}")
+            return default_symbols
     
     def _setup_leverage(self) -> None:
         """Set leverage for all symbols during initialization"""
