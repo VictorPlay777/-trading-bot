@@ -166,13 +166,25 @@ class BybitClient:
             query += f"&symbol={symbol}"
         return self._request("GET", "/v5/market/tickers", query)
 
-    def get_instruments_info(self, symbol: Optional[str] = None, category: str = "linear") -> Dict:
+    def get_instruments_info(self, symbol: Optional[str] = None, category: str = "linear") -> List:
         """Get instruments info (including lot size requirements)"""
         query = f"category={category}"
         if symbol:
             query += f"&symbol={symbol}"
         data = self._request("GET", "/v5/market/instruments-info", query)
-        return data.get("result", {}).get("list", [])
+        
+        # Debug logging
+        logger.debug(f"get_instruments_info raw data type: {type(data)}")
+        if isinstance(data, dict):
+            result = data.get("result", {})
+            if isinstance(result, dict):
+                return result.get("list", [])
+            else:
+                logger.error(f"Unexpected result type: {type(result)}")
+                return []
+        else:
+            logger.error(f"Unexpected data type from API: {type(data)}, value: {str(data)[:100]}")
+            return []
     
     def get_all_trading_symbols(self, min_volume_24h: float = 1000000, category: str = "linear") -> List[str]:
         """

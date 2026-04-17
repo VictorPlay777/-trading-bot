@@ -3,11 +3,13 @@ Adaptive Momentum Trading Bot - Main Entry Point
 """
 import logging
 import sys
+import time
 from datetime import datetime
 
 from config import api_config, trading_config
 from api_client import BybitClient
 from engine import TradingEngine
+from web_dashboard import start_dashboard
 
 # Configure logging
 logging.basicConfig(
@@ -35,8 +37,20 @@ def main():
         # Initialize trading engine
         engine = TradingEngine(api_client)
         
+        # Start web dashboard
+        start_dashboard(engine, host='0.0.0.0', port=5000)
+        logger.info("=" * 60)
+        logger.info("WEB DASHBOARD STARTED")
+        logger.info("Access at: http://111.88.150.44:5000")
+        logger.info("=" * 60)
+        
+        # Track uptime
+        start_time = time.time()
+        
         # Run the engine
         logger.info("Starting trading engine...")
+        engine.uptime_seconds = 0
+        engine.start_time = start_time
         engine.run()
         
     except KeyboardInterrupt:

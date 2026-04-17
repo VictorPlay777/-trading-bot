@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Deploy Bot",
+      "type": "shell",
+      "command": "ssh svy1990@111.88.150.44 'cd ~/-trading-bot && git pull origin main && pkill -f main_new.py && source venv/bin/activate && nohup python main_new.py > bot.log 2>&1 &'",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "View Bot Logs",
+      "type": "shell",
+      "command": "ssh svy1990@111.88.150.44 'tail -50 ~/-trading-bot/bot.log'",
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
