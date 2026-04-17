@@ -1,4 +1,4 @@
-Е"""
+"""
 Position Manager - Manages all positions with PROBE/SCOUT/MOMENTUM trade types
 """
 import logging
