@@ -121,10 +121,11 @@ class PositionManager:
                 logger.warning(f"Position already exists for {symbol}")
                 return False
             
-            # Get instrument info for qty_step and min_qty
+            # Get instrument info for qty_step, min_qty, and price filters
             instrument_info = self.api.get_instrument_info(symbol)
             qty_step = float(instrument_info.get("lotSizeFilter", {}).get("qtyStep", 0.001))
             min_qty = float(instrument_info.get("lotSizeFilter", {}).get("minOrderQty", 0.001))
+            tick_size = float(instrument_info.get("priceFilter", {}).get("tickSize", 0.01))
             
             # Calculate position size based on trade type
             if trade_type == TradeType.PROBE:
@@ -153,25 +154,53 @@ class PositionManager:
             
             logger.info(f"Position size: ${position_size:.2f}, Quantity: {quantity} BTC, Entry: ${entry_price:.2f}")
             
-            # Calculate stop loss and take profit for position tracking
-            if atr:
-                sl_distance = atr * self.sl_atr_multiplier
-            else:
-                sl_distance = entry_price * self.sl_fixed_pct
+            # Get current market price for SL/TP calculation
+            current_price = self.api.get_latest_price(symbol)
+            if current_price <= 0:
+                current_price = entry_price
+                logger.warning(f"Using entry price as fallback for SL/TP calculation: {current_price}")
+            
+            # Calculate SL/TP prices from current market price (2% SL, 4% TP)
+            sl_pct = 0.02  # 2%
+            tp_pct = 0.04  # 4%
             
             if direction == "long":
-                stop_loss = entry_price - sl_distance  # Below entry for long
-                take_profit = entry_price + (sl_distance * 2)  # Above entry for long (2x risk)
+                stop_loss = current_price * (1 - sl_pct)   # 2% below current price
+                take_profit = current_price * (1 + tp_pct)  # 4% above current price
             else:
-                stop_loss = entry_price + sl_distance  # Above entry for short
-                take_profit = entry_price - (sl_distance * 2)  # Below entry for short (2x risk)
+                stop_loss = current_price * (1 + sl_pct)   # 2% above current price
+                take_profit = current_price * (1 - tp_pct)  # 4% below current price
             
-            # Place order via API without stop loss/take profit (will add in next cycle)
+            # Round SL/TP to tick size
+            stop_loss = round(stop_loss / tick_size) * tick_size
+            take_profit = round(take_profit / tick_size) * tick_size
+            
+            # Validate SL/TP logic before sending
+            if direction == "long":
+                if stop_loss >= current_price:
+                    logger.error(f"Invalid SL for long: SL {stop_loss} >= price {current_price}")
+                    stop_loss = current_price * 0.98  # Force 2% below
+                if take_profit <= current_price:
+                    logger.error(f"Invalid TP for long: TP {take_profit} <= price {current_price}")
+                    take_profit = current_price * 1.04  # Force 4% above
+            else:  # short
+                if stop_loss <= current_price:
+                    logger.error(f"Invalid SL for short: SL {stop_loss} <= price {current_price}")
+                    stop_loss = current_price * 1.02  # Force 2% above
+                if take_profit >= current_price:
+                    logger.error(f"Invalid TP for short: TP {take_profit} >= price {current_price}")
+                    take_profit = current_price * 0.96  # Force 4% below
+            
+            logger.info(f"SL/TP calculated for {symbol}: SL={stop_loss:.4f}, TP={take_profit:.4f}, Current={current_price:.4f}")
+            
+            # Place order via API with SL/TP set immediately (single API call)
             result = self.api.place_order(
                 symbol=symbol,
                 side="Buy" if direction == "long" else "Sell",
                 order_type="Market",
-                qty=quantity
+                qty=quantity,
+                stop_loss=stop_loss,
+                take_profit=take_profit
             )
             
             if result.get("retCode") != 0:
@@ -203,20 +232,13 @@ class PositionManager:
                 logger.warning(f"Could not get actual entry price for {symbol}: {e}, using estimated: {entry_price}")
                 actual_entry_price = entry_price
             
-            # Calculate SL/TP based on actual entry price (for position tracking)
-            if atr:
-                actual_sl_distance = atr * self.sl_atr_multiplier
-            else:
-                actual_sl_distance = actual_entry_price * self.sl_fixed_pct
+            # SL/TP already set in the order - use the same values for tracking
+            # Log slippage between expected and actual entry price
+            slippage_pct = abs(actual_entry_price - current_price) / current_price * 100 if current_price > 0 else 0
+            if slippage_pct > 0.5:
+                logger.warning(f"High slippage for {symbol}: {slippage_pct:.2f}% (expected {current_price:.4f}, got {actual_entry_price:.4f})")
             
-            if direction == "long":
-                actual_stop_loss = actual_entry_price - actual_sl_distance
-                actual_take_profit = actual_entry_price + (actual_sl_distance * 2)
-            else:
-                actual_stop_loss = actual_entry_price + actual_sl_distance
-                actual_take_profit = actual_entry_price - (actual_sl_distance * 2)
-            
-            # Create position object - SL/TP will be applied by engine after confirmation
+            # Create position object - SL/TP already set via API
             position = Position(
                 symbol=symbol,
                 direction=direction,
@@ -224,17 +246,17 @@ class PositionManager:
                 quantity=quantity,
                 trade_type=trade_type,
                 leverage=leverage,
-                stop_loss=actual_stop_loss,
-                take_profit=actual_take_profit,
+                stop_loss=stop_loss,  # Same as sent to API
+                take_profit=take_profit,  # Same as sent to API
                 trailing_stop=None,
                 entry_time=datetime.utcnow(),
                 pyramiding_level=0,
                 status="open",
-                sl_tp_set=False  # SL/TP will be set in next engine cycle
+                sl_tp_set=True  # SL/TP already set in place_order
             )
             
             self.positions[symbol] = position
-            logger.info(f"Opened {trade_type.value} position: {direction} {quantity:.4f} {symbol} @ {actual_entry_price:.2f} (SL: {actual_stop_loss:.2f}, TP: {actual_take_profit:.2f})")
+            logger.info(f"Opened {trade_type.value} position: {direction} {quantity:.4f} {symbol} @ {actual_entry_price:.2f} (SL: {stop_loss:.4f}, TP: {take_profit:.4f})")
             
             return True
             
