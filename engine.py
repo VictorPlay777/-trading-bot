@@ -58,10 +58,17 @@ class TradingEngine:
         # Market data cache
         self.market_data: Dict[str, pd.DataFrame] = {}
         
-        # Symbol statistics tracking
+        # Symbol statistics tracking - PER SESSION (resets on each restart)
         self.symbol_stats: Dict[str, Dict] = {}
+        self.session_id = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        self.session_start_time = datetime.utcnow()
+        self.session_trades = 0
+        self.session_wins = 0
+        self.session_losses = 0
+        self.session_pnl = 0.0
         
-        logger.info("Trading Engine initialized")
+        logger.info(f"🚀 NEW SESSION STARTED: {self.session_id}")
+        logger.info("Trading Engine initialized - fresh session statistics")
     
     def _load_symbols(self) -> List[str]:
         """Load all trading symbols from Bybit API"""
@@ -151,7 +158,8 @@ class TradingEngine:
         logger.info(f"Leverage setup complete: {success_count} symbols at {self.leverage}x, {adjusted_count} symbols at lower leverage (Bybit limit)")
     
     def _update_symbol_stats(self, symbol: str, trade_result: str, pnl: float = 0) -> None:
-        """Update per-symbol statistics"""
+        """Update per-symbol and per-session statistics"""
+        # Per-symbol stats
         if symbol not in self.symbol_stats:
             self.symbol_stats[symbol] = {
                 "total_trades": 0,
@@ -177,6 +185,14 @@ class TradingEngine:
             stats["avg_pnl"] = stats["total_pnl"] / stats["total_trades"]
         
         stats["last_updated"] = datetime.utcnow()
+        
+        # Session-wide stats
+        self.session_trades += 1
+        self.session_pnl += pnl
+        if trade_result == "win":
+            self.session_wins += 1
+        elif trade_result == "loss":
+            self.session_losses += 1
     
     def run_cycle(self) -> None:
         """Run one complete trading cycle"""
@@ -555,23 +571,24 @@ class TradingEngine:
             return None
     
     def _periodic_learning(self) -> None:
-        """Periodic learning updates"""
+        """Periodic learning updates - PER SESSION stats"""
         try:
-            # Get trade statistics
-            stats = self.learning_module.get_trade_statistics()
-            if stats.get("total_trades", 0) > 0:
-                logger.info(f"Trade stats: {stats['total_trades']} trades, "
-                          f"win rate: {stats['win_rate']*100:.1f}%, "
-                          f"avg PnL: {stats['avg_pnl_pct']*100:.2f}%")
+            # Log SESSION statistics (resets on each restart)
+            if self.session_trades > 0:
+                session_win_rate = self.session_wins / self.session_trades if self.session_trades > 0 else 0
+                logger.info(f"📊 SESSION [{self.session_id}] STATS: {self.session_trades} trades, "
+                          f"win rate: {session_win_rate*100:.1f}%, "
+                          f"PnL: ${self.session_pnl:.2f} "
+                          f"(wins: {self.session_wins}, losses: {self.session_losses})")
             
             # Get best performing symbols from learning module
             best_symbols = self.learning_module.get_best_performing_symbols(top_n=3)
             if best_symbols:
                 logger.info(f"Best performing symbols: {best_symbols}")
             
-            # Log per-symbol statistics
+            # Log per-symbol statistics for THIS SESSION
             if self.symbol_stats:
-                logger.info("--- Per-Symbol Statistics ---")
+                logger.info("--- Session Per-Symbol Statistics ---")
                 sorted_symbols = sorted(self.symbol_stats.items(), 
                                       key=lambda x: x[1].get("win_rate", 0), 
                                       reverse=True)

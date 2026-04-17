@@ -5,7 +5,11 @@ echo     Deploying Trading Bot to Server
 echo =========================================
 echo.
 
-ssh svy1990@111.88.150.44 "cd ~/-trading-bot && ./restart_bot.sh"
+echo === Updating code on server... ===
+ssh svy1990@111.88.150.44 "cd ~/-trading-bot && git pull origin main"
+
+echo === Running restart script... ===
+ssh svy1990@111.88.150.44 "cd ~/-trading-bot && bash restart_bot.sh"
 
 echo.
 echo =========================================

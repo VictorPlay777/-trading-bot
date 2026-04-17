@@ -193,7 +193,7 @@ class PositionManager:
             
             logger.info(f"SL/TP calculated for {symbol}: SL={stop_loss:.4f}, TP={take_profit:.4f}, Current={current_price:.4f}")
             
-            # Place order via API with SL/TP set immediately (single API call)
+            # Strategy: Open ONLY if SL/TP can be set immediately
             result = self.api.place_order(
                 symbol=symbol,
                 side="Buy" if direction == "long" else "Sell",
@@ -203,8 +203,32 @@ class PositionManager:
                 take_profit=take_profit
             )
             
+            # Check result
+            ret_msg = str(result.get('retMsg', ''))
+            
             if result.get("retCode") != 0:
-                logger.error(f"Failed to open position for {symbol}: {result.get('retMsg')}")
+                # Check if SL/TP specific error
+                sl_tp_error = any(err in ret_msg for err in [
+                    'StopLoss', 'TakeProfit', 'base_price', 'can not set tp/sl', 'sl/ts'
+                ])
+                
+                if sl_tp_error:
+                    logger.error(f" SL/TP rejected for {symbol}: {ret_msg}. SAFETY FIRST - closing position!")
+                    # Market order may have executed - close position immediately
+                    try:
+                        close_side = "Sell" if direction == "long" else "Buy"
+                        self.api.place_order(
+                            symbol=symbol,
+                            side=close_side,
+                            order_type="Market",
+                            qty=quantity,
+                            reduce_only=True
+                        )
+                        logger.info(f"Closed {symbol} immediately due to SL/TP rejection")
+                    except Exception as e:
+                        logger.error(f"Failed to close {symbol} after SL/TP rejection: {e}")
+                else:
+                    logger.error(f"Failed to open position for {symbol}: {ret_msg}")
                 return False
             
             # Get actual entry price from executed order (handle slippage)
@@ -658,14 +682,7 @@ class PositionManager:
     
     def apply_sl_tp_to_exchange(self, symbol: str, actual_entry_price: float) -> bool:
         """
-        Apply SL/TP to exchange position after it's confirmed open
-        
-        Args:
-            symbol: Trading symbol
-            actual_entry_price: Actual entry price from exchange
-            
-        Returns:
-            True if SL/TP applied successfully, False otherwise
+        Apply SL/TP to exchange position using setTradingStop with validation and retry
         """
         try:
             if symbol not in self.positions:
@@ -677,10 +694,20 @@ class PositionManager:
             if position.sl_tp_set:
                 return True
             
-            # Validate actual_entry_price, fallback to position.entry_price if invalid
+            # CRITICAL: Check if position actually exists on exchange
+            try:
+                exchange_pos = self.api.check_position_state(symbol)
+                if not exchange_pos or exchange_pos.get("size", 0) == 0:
+                    logger.warning(f"Cannot apply SL/TP to {symbol}: position is zero or closed")
+                    # Mark as set to avoid repeated attempts
+                    position.sl_tp_set = True
+                    return False
+            except Exception as e:
+                logger.debug(f"Could not verify position state for {symbol}: {e}")
+            
+            # Validate entry price
             if not actual_entry_price or actual_entry_price <= 0:
                 actual_entry_price = position.entry_price
-                logger.warning(f"Using estimated entry price for {symbol}: {actual_entry_price}")
             
             # Recalculate SL/TP based on actual entry price
             risk_distance = actual_entry_price * self.sl_fixed_pct
@@ -688,34 +715,49 @@ class PositionManager:
             if position.direction == "long":
                 stop_loss = actual_entry_price - risk_distance
                 take_profit = actual_entry_price + (risk_distance * 2)
-                # Validate: SL must be below entry for long
                 if stop_loss >= actual_entry_price:
-                    logger.error(f"Invalid SL for long {symbol}: SL={stop_loss} >= entry={actual_entry_price}")
+                    logger.error(f"Invalid SL for long {symbol}: SL={stop_loss:.4f} >= entry={actual_entry_price:.4f}")
                     return False
             else:
                 stop_loss = actual_entry_price + risk_distance
                 take_profit = actual_entry_price - (risk_distance * 2)
-                # Validate: SL must be above entry for short
                 if stop_loss <= actual_entry_price:
-                    logger.error(f"Invalid SL for short {symbol}: SL={stop_loss} <= entry={actual_entry_price}")
+                    logger.error(f"Invalid SL for short {symbol}: SL={stop_loss:.4f} <= entry={actual_entry_price:.4f}")
                     return False
             
-            # Apply to exchange
-            result = self.api.set_trading_stop(
-                symbol=symbol,
-                stop_loss=stop_loss,
-                take_profit=take_profit
-            )
+            # Apply with retry
+            for attempt in range(3):
+                try:
+                    result = self.api.set_trading_stop(
+                        symbol=symbol,
+                        stop_loss=stop_loss,
+                        take_profit=take_profit
+                    )
+                    
+                    if result.get("retCode") == 0:
+                        position.stop_loss = stop_loss
+                        position.take_profit = take_profit
+                        position.sl_tp_set = True
+                        logger.info(f"✅ SL/TP applied to {symbol}: SL={stop_loss:.4f}, TP={take_profit:.4f}")
+                        return True
+                    
+                    error_msg = str(result.get('retMsg', ''))
+                    if 'zero position' in error_msg.lower():
+                        logger.warning(f"Position {symbol} closed, skipping SL/TP")
+                        position.sl_tp_set = True  # Mark to avoid retries
+                        return False
+                    
+                    logger.warning(f"Attempt {attempt+1}/3 failed for {symbol}: {error_msg}")
+                    if attempt < 2:
+                        time.sleep(0.5)
+                        
+                except Exception as e:
+                    logger.warning(f"Attempt {attempt+1}/3 error for {symbol}: {e}")
+                    if attempt < 2:
+                        time.sleep(0.5)
             
-            if result.get("retCode") == 0:
-                position.stop_loss = stop_loss
-                position.take_profit = take_profit
-                position.sl_tp_set = True
-                logger.info(f"Applied SL/TP to {symbol}: SL={stop_loss:.2f}, TP={take_profit:.2f}")
-                return True
-            else:
-                logger.warning(f"Failed to apply SL/TP to {symbol}: {result.get('retMsg')}")
-                return False
+            logger.error(f"Failed to apply SL/TP to {symbol} after 3 attempts")
+            return False
                 
         except Exception as e:
             logger.error(f"Error applying SL/TP for {symbol}: {e}")
