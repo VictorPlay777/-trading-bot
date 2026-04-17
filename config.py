@@ -37,9 +37,9 @@ class TradingConfig:
     multi_timeframe_enabled: bool = True  # Enable multi-timeframe analysis
     min_higher_timeframe_trend_agreement: int = 0  # Force position opening regardless of trend
 
-    # Trading limits - testing mode (unlimited)
-    max_positions: int = 999  # Unlimited concurrent positions for testing
-    max_daily_trades: int = 999  # Unlimited trades per day for testing
+    # Trading limits - practically infinite
+    max_positions: int = 999_999_999  # Practically unlimited positions
+    max_daily_trades: int = 999_999_999  # Practically unlimited daily trades
 
     # Template/preset selection (persistent)
     selected_template: str = "professional"  # Default: professional mode
@@ -303,15 +303,15 @@ class RiskConfig:
     trailing_stop_activation_pct: float = 0.01  # Activate at 1% profit
     trailing_stop_distance_pct: float = 0.01  # 1% trailing distance
 
-    # Loss streak protection (disabled for testing)
-    max_consecutive_sl: int = 9999  # Unlimited (disabled for testing)
-    loss_streak_pause_minutes: int = 0  # No pause (disabled for testing)
+    # Loss streak protection - practically infinite
+    max_consecutive_sl: int = 999_999_999  # Practically unlimited
+    loss_streak_pause_minutes: int = 0  # No pause
 
-    # Trading psychology protection (relaxed for testing)
-    fomo_protection_enabled: bool = False  # Disabled for testing
-    min_time_between_trades_sec: int = 0  # No delay between trades
-    revenge_trading_protection: bool = False  # Disabled for testing
-    max_trades_per_hour: int = 999  # Unlimited trades per hour for testing
+    # Trading psychology protection - disabled
+    fomo_protection_enabled: bool = False
+    min_time_between_trades_sec: int = 0  # No delay
+    revenge_trading_protection: bool = False
+    max_trades_per_hour: int = 999_999_999  # Practically unlimited
 
     # Order book analysis
     order_book_enabled: bool = True  # Enable order book depth analysis
