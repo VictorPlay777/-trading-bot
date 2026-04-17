@@ -295,6 +295,21 @@ class PositionManager:
                 logger.warning(f"Pyramiding would exceed max position size for {symbol}")
                 return False
             
+            # Get instrument info for proper quantity formatting
+            instrument = self.api.get_instrument_info(symbol)
+            lot_size_filter = instrument.get("lotSizeFilter", {})
+            qty_step = float(lot_size_filter.get("qtyStep", 0.001))
+            min_qty = float(lot_size_filter.get("minOrderQty", 0.001))
+            
+            # Round quantity to qty_step precision
+            additional_quantity = round(additional_quantity / qty_step) * qty_step
+            additional_quantity = round(additional_quantity, 8)
+            
+            # Ensure minimum quantity
+            if additional_quantity < min_qty:
+                logger.warning(f"Pyramid quantity {additional_quantity} below minimum {min_qty} for {symbol}")
+                return False
+            
             # Place addition order
             result = self.api.place_order(
                 symbol=symbol,
