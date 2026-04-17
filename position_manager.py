@@ -166,18 +166,15 @@ class PositionManager:
                 stop_loss = entry_price + sl_distance  # Above entry for short
                 take_profit = entry_price - (sl_distance * 2)  # Below entry for short (2x risk)
             
-            # Place order via API with SL/TP in percentages (like Bybit app)
-            # SL = 2%, TP = 4% (2x risk-reward)
-            sl_pct = self.sl_fixed_pct * 100  # Convert to percentage (e.g., 0.02 -> 2.0)
-            tp_pct = sl_pct * 2  # TP is 2x SL (e.g., 4.0%)
-            
+            # Place order via API with price-based SL/TP set immediately
+            # SL/TP calculated from expected entry price (small slippage risk)
             result = self.api.place_order(
                 symbol=symbol,
                 side="Buy" if direction == "long" else "Sell",
                 order_type="Market",
                 qty=quantity,
-                stop_loss_pct=sl_pct,
-                take_profit_pct=tp_pct
+                stop_loss=stop_loss,
+                take_profit=take_profit
             )
             
             if result.get("retCode") != 0:
@@ -233,11 +230,11 @@ class PositionManager:
                 entry_time=datetime.utcnow(),
                 pyramiding_level=0,
                 status="open",
-                sl_tp_set=True  # SL/TP set immediately via place_order
+                sl_tp_set=True  # SL/TP already set in place_order
             )
             
             self.positions[symbol] = position
-            logger.info(f"Opened {trade_type.value} position: {direction} {quantity:.4f} {symbol} @ {actual_entry_price:.2f} (SL: {sl_pct:.1f}%, TP: {tp_pct:.1f}%)")
+            logger.info(f"Opened {trade_type.value} position: {direction} {quantity:.4f} {symbol} @ {actual_entry_price:.2f} (SL: {stop_loss:.2f}, TP: {take_profit:.2f})")
             
             return True
             
