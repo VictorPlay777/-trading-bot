@@ -470,17 +470,33 @@ class TradingEngine:
             logger.error(f"Error managing position for {symbol}: {e}")
     
     def _close_position(self, symbol: str, reason: str, current_price: float) -> None:
-        """Close position and record for learning"""
+        """Close position and record for learning with accurate fee calculation"""
         try:
             position = self.position_manager.get_position(symbol)
             if not position:
                 return
             
-            # Calculate PnL
+            # Calculate gross PnL (before fees)
+            entry_price = position.entry_price
+            exit_price = current_price
+            quantity = position.quantity
+            
             if position.direction == "long":
-                pnl = (current_price - position.entry_price) * position.quantity
+                gross_pnl = (exit_price - entry_price) * quantity
             else:
-                pnl = (position.entry_price - current_price) * position.quantity
+                gross_pnl = (entry_price - exit_price) * quantity
+            
+            # Calculate trading fees separately for entry and exit
+            fee_rate = 0.00055  # 0.055% taker fee
+            entry_notional = quantity * entry_price   # Комиссия на входе
+            exit_notional = quantity * exit_price     # Комиссия на выходе
+            
+            entry_fee = entry_notional * fee_rate
+            exit_fee = exit_notional * fee_rate
+            total_fees = entry_fee + exit_fee
+            
+            # Calculate net PnL (after fees)
+            net_pnl = gross_pnl - total_fees
             
             # Record trade for learning
             self.learning_module.record_trade(
@@ -488,18 +504,18 @@ class TradingEngine:
                 trade_type=position.trade_type.value,
                 direction=position.direction,
                 signals_used=["momentum", "signal"],  # Simplified for now
-                entry_price=position.entry_price,
-                exit_price=current_price,
+                entry_price=entry_price,
+                exit_price=exit_price,
                 entry_time=position.entry_time,
                 exit_time=datetime.utcnow()
             )
             
-            # Update per-symbol statistics
-            trade_result = "win" if pnl > 0 else "loss"
-            self._update_symbol_stats(symbol, trade_result, pnl)
+            # Update per-symbol statistics with NET PnL
+            trade_result = "win" if net_pnl > 0 else "loss"
+            self._update_symbol_stats(symbol, trade_result, net_pnl)
             
-            # Log symbol-specific PnL
-            logger.info(f"Closed {symbol}: {reason}, PnL: ${pnl:.2f}")
+            # Log detailed PnL with fees
+            logger.info(f"Closed {symbol}: {reason}, Gross: ${gross_pnl:.2f}, Fees: ${total_fees:.2f} (entry:${entry_fee:.2f}+exit:${exit_fee:.2f}), Net PnL: ${net_pnl:.2f}")
             
             # Close position
             self.position_manager.close_position(symbol, reason)
