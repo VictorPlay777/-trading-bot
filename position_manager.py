@@ -153,7 +153,7 @@ class PositionManager:
             
             logger.info(f"Position size: ${position_size:.2f}, Quantity: {quantity} BTC, Entry: ${entry_price:.2f}")
             
-            # Calculate stop loss and take profit for position tracking (not for order)
+            # Calculate stop loss and take profit for position tracking
             if atr:
                 sl_distance = atr * self.sl_atr_multiplier
             else:
@@ -166,15 +166,12 @@ class PositionManager:
                 stop_loss = entry_price + sl_distance  # Above entry for short
                 take_profit = entry_price - (sl_distance * 2)  # Below entry for short (2x risk)
             
-            # Place order via API with price-based SL/TP set immediately
-            # SL/TP calculated from expected entry price (small slippage risk)
+            # Place order via API without stop loss/take profit (will add in next cycle)
             result = self.api.place_order(
                 symbol=symbol,
                 side="Buy" if direction == "long" else "Sell",
                 order_type="Market",
-                qty=quantity,
-                stop_loss=stop_loss,
-                take_profit=take_profit
+                qty=quantity
             )
             
             if result.get("retCode") != 0:
@@ -206,17 +203,20 @@ class PositionManager:
                 logger.warning(f"Could not get actual entry price for {symbol}: {e}, using estimated: {entry_price}")
                 actual_entry_price = entry_price
             
-            # Calculate SL/TP prices for position tracking (Bybit handles the actual orders)
-            risk_distance = actual_entry_price * self.sl_fixed_pct
+            # Calculate SL/TP based on actual entry price (for position tracking)
+            if atr:
+                actual_sl_distance = atr * self.sl_atr_multiplier
+            else:
+                actual_sl_distance = actual_entry_price * self.sl_fixed_pct
             
             if direction == "long":
-                actual_stop_loss = actual_entry_price - risk_distance
-                actual_take_profit = actual_entry_price + (risk_distance * 2)
+                actual_stop_loss = actual_entry_price - actual_sl_distance
+                actual_take_profit = actual_entry_price + (actual_sl_distance * 2)
             else:
-                actual_stop_loss = actual_entry_price + risk_distance
-                actual_take_profit = actual_entry_price - (risk_distance * 2)
+                actual_stop_loss = actual_entry_price + actual_sl_distance
+                actual_take_profit = actual_entry_price - (actual_sl_distance * 2)
             
-            # Create position object with SL/TP already set via API
+            # Create position object - SL/TP will be applied by engine after confirmation
             position = Position(
                 symbol=symbol,
                 direction=direction,
@@ -230,11 +230,11 @@ class PositionManager:
                 entry_time=datetime.utcnow(),
                 pyramiding_level=0,
                 status="open",
-                sl_tp_set=True  # SL/TP already set in place_order
+                sl_tp_set=False  # SL/TP will be set in next engine cycle
             )
             
             self.positions[symbol] = position
-            logger.info(f"Opened {trade_type.value} position: {direction} {quantity:.4f} {symbol} @ {actual_entry_price:.2f} (SL: {stop_loss:.2f}, TP: {take_profit:.2f})")
+            logger.info(f"Opened {trade_type.value} position: {direction} {quantity:.4f} {symbol} @ {actual_entry_price:.2f} (SL: {actual_stop_loss:.2f}, TP: {actual_take_profit:.2f})")
             
             return True
             
