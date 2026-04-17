@@ -15,7 +15,7 @@ echo.
 echo [Recent log entries:]
 echo.
 
-ssh svy1990@111.88.150.44 "cd ~/-trading-bot && ./show_logs.sh"
+ssh svy1990@111.88.150.44 "cd ~/-trading-bot && bash show_logs.sh"
 
 echo.
 set /p viewlogs="Watch live logs? (y/n): "
@@ -23,6 +23,6 @@ if /i "%viewlogs%"=="y" (
     echo.
     echo [Press Ctrl+C to stop watching logs]
     echo.
-    ssh svy1990@111.88.150.44 "cd ~/-trading-bot && ./tail_logs.sh"
+    ssh svy1990@111.88.150.44 "cd ~/-trading-bot && bash tail_logs.sh"
 )
 pause
