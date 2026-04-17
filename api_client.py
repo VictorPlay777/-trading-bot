@@ -186,6 +186,32 @@ class BybitClient:
             logger.error(f"Unexpected data type from API: {type(data)}, value: {str(data)[:100]}")
             return []
     
+    def get_max_leverage(self, symbol: str, category: str = "linear") -> int:
+        """
+        Get maximum available leverage for a symbol from Bybit
+        
+        Args:
+            symbol: Trading symbol
+            category: Market category
+            
+        Returns:
+            Maximum leverage as integer (e.g., 100, 50, 25, etc.)
+        """
+        try:
+            instruments = self.get_instruments_info(symbol=symbol, category=category)
+            if instruments and len(instruments) > 0:
+                instrument = instruments[0]
+                leverage_filter = instrument.get("leverageFilter", {})
+                max_leverage = leverage_filter.get("maxLeverage", "100")
+                # Convert from string like "100" or "50.00" to int
+                return int(float(max_leverage))
+            else:
+                logger.warning(f"No instrument info found for {symbol}, defaulting to 100x")
+                return 100
+        except Exception as e:
+            logger.error(f"Error getting max leverage for {symbol}: {e}")
+            return 100
+    
     def get_all_trading_symbols(self, min_volume_24h: float = 1000000, category: str = "linear") -> List[str]:
         """
         Get all active trading symbols with minimum volume

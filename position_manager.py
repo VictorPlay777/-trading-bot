@@ -166,40 +166,78 @@ class PositionManager:
                 stop_loss = entry_price + sl_distance  # Above entry for short
                 take_profit = entry_price - (sl_distance * 2)  # Below entry for short (2x risk)
             
-            # Place order via API without stop loss/take profit (will add in next cycle)
+            # Place order via API with SL/TP in percentages (like Bybit app)
+            # SL = 2%, TP = 4% (2x risk-reward)
+            sl_pct = self.sl_fixed_pct * 100  # Convert to percentage (e.g., 0.02 -> 2.0)
+            tp_pct = sl_pct * 2  # TP is 2x SL (e.g., 4.0%)
+            
             result = self.api.place_order(
                 symbol=symbol,
                 side="Buy" if direction == "long" else "Sell",
                 order_type="Market",
-                qty=quantity
+                qty=quantity,
+                stop_loss_pct=sl_pct,
+                take_profit_pct=tp_pct
             )
             
             if result.get("retCode") != 0:
                 logger.error(f"Failed to open position for {symbol}: {result.get('retMsg')}")
                 return False
             
-            # SL/TP will be set in next engine cycle after position is confirmed
-            # This avoids sleep() delay and handles async position creation
+            # Get actual entry price from executed order (handle slippage)
+            try:
+                order_data = result.get("result", {})
+                actual_entry_price = None
+                
+                if "avgPrice" in order_data and order_data["avgPrice"]:
+                    actual_entry_price = float(order_data["avgPrice"])
+                elif "cumExecValue" in order_data and "cumExecQty" in order_data:
+                    exec_qty = float(order_data.get("cumExecQty", 0))
+                    exec_value = float(order_data.get("cumExecValue", 0))
+                    if exec_qty > 0:
+                        actual_entry_price = exec_value / exec_qty
+                
+                if not actual_entry_price or actual_entry_price <= 0:
+                    actual_entry_price = entry_price
+                    logger.warning(f"Using estimated entry price for {symbol}: {actual_entry_price}")
+                else:
+                    slippage_pct = abs(actual_entry_price - entry_price) / entry_price * 100
+                    if slippage_pct > 0.1:
+                        logger.warning(f"Slippage detected for {symbol}: {slippage_pct:.2f}% (expected {entry_price:.4f}, got {actual_entry_price:.4f})")
+                
+            except Exception as e:
+                logger.warning(f"Could not get actual entry price for {symbol}: {e}, using estimated: {entry_price}")
+                actual_entry_price = entry_price
             
-            # Create position object (SL/TP will be set later)
+            # Calculate SL/TP prices for position tracking (Bybit handles the actual orders)
+            risk_distance = actual_entry_price * self.sl_fixed_pct
+            
+            if direction == "long":
+                actual_stop_loss = actual_entry_price - risk_distance
+                actual_take_profit = actual_entry_price + (risk_distance * 2)
+            else:
+                actual_stop_loss = actual_entry_price + risk_distance
+                actual_take_profit = actual_entry_price - (risk_distance * 2)
+            
+            # Create position object with SL/TP already set via API
             position = Position(
                 symbol=symbol,
                 direction=direction,
-                entry_price=entry_price,
+                entry_price=actual_entry_price,
                 quantity=quantity,
                 trade_type=trade_type,
                 leverage=leverage,
-                stop_loss=stop_loss,
-                take_profit=take_profit,
+                stop_loss=actual_stop_loss,
+                take_profit=actual_take_profit,
                 trailing_stop=None,
                 entry_time=datetime.utcnow(),
                 pyramiding_level=0,
                 status="open",
-                sl_tp_set=False  # Will be set in next engine cycle
+                sl_tp_set=True  # SL/TP set immediately via place_order
             )
             
             self.positions[symbol] = position
-            logger.info(f"Opened {trade_type.value} position: {direction} {quantity:.4f} {symbol} @ {entry_price:.2f}")
+            logger.info(f"Opened {trade_type.value} position: {direction} {quantity:.4f} {symbol} @ {actual_entry_price:.2f} (SL: {sl_pct:.1f}%, TP: {tp_pct:.1f}%)")
             
             return True
             
@@ -225,16 +263,46 @@ class PositionManager:
             
             position = self.positions[symbol]
             
+            # Check if position actually exists on exchange (avoid "position is zero" error)
+            try:
+                exchange_position = self.api.check_position_state(symbol)
+                if not exchange_position or exchange_position.get("size", 0) == 0:
+                    logger.warning(f"Position {symbol} already closed on exchange, removing from tracking")
+                    del self.positions[symbol]
+                    return True
+            except Exception as e:
+                logger.debug(f"Could not verify position state for {symbol}: {e}")
+            
+            # Get instrument info for proper quantity formatting
+            instrument = self.api.get_instrument_info(symbol)
+            lot_size_filter = instrument.get("lotSizeFilter", {})
+            qty_step = float(lot_size_filter.get("qtyStep", 0.001))
+            
+            # Round quantity to qty_step precision
+            close_quantity = round(position.quantity / qty_step) * qty_step
+            close_quantity = round(close_quantity, 8)
+            
+            # Ensure minimum quantity
+            min_qty = float(lot_size_filter.get("minOrderQty", 0.001))
+            if close_quantity < min_qty:
+                logger.warning(f"Close quantity {close_quantity} below minimum {min_qty} for {symbol}")
+                close_quantity = min_qty
+            
             # Place closing order with reduceOnly to ensure we only close, not open new position
             result = self.api.place_order(
                 symbol=symbol,
                 side="Sell" if position.direction == "long" else "Buy",
                 order_type="Market",
-                qty=position.quantity,
+                qty=close_quantity,
                 reduce_only=True  # Bybit API: only reduce position, don't open new
             )
             
             if result.get("retCode") != 0:
+                # If position already closed, just remove from tracking
+                if "current position is zero" in str(result.get('retMsg', '')):
+                    logger.warning(f"Position {symbol} already closed on exchange (zero position)")
+                    del self.positions[symbol]
+                    return True
                 logger.error(f"Failed to close position for {symbol}: {result.get('retMsg')}")
                 return False
             
@@ -371,13 +439,10 @@ class PositionManager:
                (position.direction == "long" and new_trailing_stop > position.trailing_stop) or \
                (position.direction == "short" and new_trailing_stop < position.trailing_stop):
                 
-                # Update stop loss via API
-                result = self.api.place_order(
+                # Update trailing stop via API using set_trading_stop
+                result = self.api.set_trading_stop(
                     symbol=symbol,
-                    side="Buy" if position.direction == "short" else "Sell",
-                    order_type="Stop",
-                    qty=position.quantity,
-                    stop_loss=new_trailing_stop
+                    trailing_stop=new_trailing_stop
                 )
                 
                 if result.get("retCode") == 0:
@@ -593,15 +658,28 @@ class PositionManager:
             if position.sl_tp_set:
                 return True
             
+            # Validate actual_entry_price, fallback to position.entry_price if invalid
+            if not actual_entry_price or actual_entry_price <= 0:
+                actual_entry_price = position.entry_price
+                logger.warning(f"Using estimated entry price for {symbol}: {actual_entry_price}")
+            
             # Recalculate SL/TP based on actual entry price
             risk_distance = actual_entry_price * self.sl_fixed_pct
             
             if position.direction == "long":
                 stop_loss = actual_entry_price - risk_distance
                 take_profit = actual_entry_price + (risk_distance * 2)
+                # Validate: SL must be below entry for long
+                if stop_loss >= actual_entry_price:
+                    logger.error(f"Invalid SL for long {symbol}: SL={stop_loss} >= entry={actual_entry_price}")
+                    return False
             else:
                 stop_loss = actual_entry_price + risk_distance
                 take_profit = actual_entry_price - (risk_distance * 2)
+                # Validate: SL must be above entry for short
+                if stop_loss <= actual_entry_price:
+                    logger.error(f"Invalid SL for short {symbol}: SL={stop_loss} <= entry={actual_entry_price}")
+                    return False
             
             # Apply to exchange
             result = self.api.set_trading_stop(

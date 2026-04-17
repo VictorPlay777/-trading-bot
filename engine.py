@@ -77,17 +77,35 @@ class TradingEngine:
             return default_symbols
     
     def _setup_leverage(self) -> None:
-        """Set leverage for all symbols during initialization"""
-        logger.info(f"Setting up {self.leverage}x leverage for all symbols...")
+        """Set optimal leverage for all symbols based on Bybit limits"""
+        logger.info(f"Setting up optimal leverage for all symbols (target: {self.leverage}x)...")
+        success_count = 0
+        adjusted_count = 0
+        
         for symbol in self.symbols:
             try:
-                result = self.api.set_leverage(symbol, self.leverage)
+                # Get max available leverage for this symbol
+                max_leverage = self.api.get_max_leverage(symbol)
+                
+                # Use minimum of desired leverage and max available
+                target_leverage = min(self.leverage, max_leverage)
+                
+                result = self.api.set_leverage(symbol, target_leverage)
                 if result.get("retCode") == 0:
-                    logger.debug(f"Leverage set to {self.leverage}x for {symbol}")
+                    if target_leverage < self.leverage:
+                        logger.info(f"Leverage set for {symbol}: {target_leverage}x (max available)")
+                        adjusted_count += 1
+                    else:
+                        success_count += 1
                 else:
-                    logger.warning(f"Failed to set leverage for {symbol}: {result.get('retMsg')}")
+                    # Only log non-maxLeverage errors
+                    if "maxLeverage" not in str(result.get('retMsg', '')):
+                        logger.warning(f"Failed to set leverage for {symbol}: {result.get('retMsg')}")
             except Exception as e:
-                logger.error(f"Error setting leverage for {symbol}: {e}")
+                if "maxLeverage" not in str(e):
+                    logger.error(f"Error setting leverage for {symbol}: {e}")
+        
+        logger.info(f"Leverage setup complete: {success_count} symbols at {self.leverage}x, {adjusted_count} symbols at lower leverage (Bybit limit)")
     
     def _update_symbol_stats(self, symbol: str, trade_result: str, pnl: float = 0) -> None:
         """Update per-symbol statistics"""
