@@ -11,13 +11,22 @@ from api_client import BybitClient
 from engine import TradingEngine
 from web_dashboard import start_dashboard
 
-# Configure logging
+# Configure logging with timestamped file for each run
+from datetime import datetime
+log_timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+log_filename = f'bot_{log_timestamp}.log'
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s | %(levelname)-8s | %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        logging.FileHandler(log_filename),
+        logging.StreamHandler(sys.stdout)
+    ]
 )
 logger = logging.getLogger(__name__)
+logger.info(f"Log file: {log_filename}")
 
 
 def main():
