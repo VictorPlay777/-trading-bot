@@ -15,7 +15,7 @@ echo.
 echo [Recent log entries:]
 echo.
 
-ssh svy1990@111.88.150.44 "cd ~/-trading-bot && tail -n 20 logs/bot_`$(date +%Y%m%d)*.log 2>/dev/null || tail -n 20 logs/bot.log 2>/dev/null || echo 'No logs found'"
+ssh svy1990@111.88.150.44 "cd ~/-trading-bot && LATEST_LOG=\$(ls -t logs/bot_*.log 2>/dev/null | head -1) && if [ -n \"\$LATEST_LOG\" ]; then tail -n 20 \$LATEST_LOG; else echo 'No logs found'; fi"
 
 echo.
 set /p viewlogs="Watch live logs? (y/n): "
@@ -23,6 +23,6 @@ if /i "%viewlogs%"=="y" (
     echo.
     echo [Press Ctrl+C to stop watching logs]
     echo.
-    ssh svy1990@111.88.150.44 "cd ~/-trading-bot && tail -f logs/bot_`$(date +%Y%m%d)*.log 2>/dev/null || tail -f logs/bot.log"
+    ssh svy1990@111.88.150.44 "cd ~/-trading-bot && LATEST_LOG=\$(ls -t logs/bot_*.log 2>/dev/null | head -1) && if [ -n \"\$LATEST_LOG\" ]; then tail -f \$LATEST_LOG; else echo 'No logs found'; fi"
 )
 pause
