@@ -8,10 +8,22 @@ pkill -f main_new.py
 sleep 3
 
 echo "=== Pulling latest code ==="
+git reset --hard HEAD
+git clean -fd -e venv -e symbol_stats.json -e bot_*.log -e learning_history.json -e leverage_cache.json
 git pull origin main
 
-echo "=== Starting new bot ==="
+echo "=== Setting up virtual environment ==="
+if [ ! -f "venv/bin/activate" ]; then
+    echo "Creating new virtual environment..."
+    python3 -m venv venv
+fi
+
 source venv/bin/activate
+
+echo "=== Installing dependencies ==="
+pip install --quiet -r requirements.txt 2>/dev/null || pip install -r requirements.txt
+
+echo "=== Starting new bot ==="
 nohup python main_new.py > /dev/null 2>&1 &
 sleep 2
 
