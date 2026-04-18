@@ -446,7 +446,8 @@ class PositionManager:
     
     def update_trailing_stop(self, symbol: str, current_price: float) -> bool:
         """
-        Update trailing stop for a profitable position
+        CENTRALIZED trailing stop update with strict safety checks.
+        This is the ONLY function that should update trailing stops.
         
         Args:
             symbol: Trading symbol
@@ -460,6 +461,7 @@ class PositionManager:
                 return False
             
             position = self.positions[symbol]
+            previous_sl = position.trailing_stop or position.stop_loss
             
             # Calculate profit
             if position.direction == "long":
@@ -471,33 +473,89 @@ class PositionManager:
             if profit_pct < self.trailing_stop_activation_pct:
                 return False
             
-            # Calculate new trailing stop
+            # Calculate new trailing stop with strict rules
             if position.direction == "long":
+                # For LONG: SL MUST be BELOW current price
                 new_trailing_stop = current_price * (1 - self.trailing_stop_distance_pct)
+                
+                # SAFETY: Force valid SL if calculated wrong
+                if new_trailing_stop >= current_price:
+                    new_trailing_stop = current_price * 0.995  # 0.5% below current
+                    logger.warning(f"[SAFETY] Forced SL below current for {symbol}: {new_trailing_stop:.4f} < {current_price:.4f}")
+                
+                # Minimum trailing distance: 0.2% from current price
+                min_sl_distance = current_price * 0.002
+                min_sl = current_price - min_sl_distance
+                if new_trailing_stop > min_sl:
+                    new_trailing_stop = min_sl
+                    logger.debug(f"[MIN DISTANCE] Adjusted SL to maintain 0.2% distance for {symbol}")
+                
+                # Rate-limit: Skip if change is too small (<0.1%)
+                if previous_sl is not None:
+                    change_pct = (new_trailing_stop - previous_sl) / previous_sl
+                    if 0 < change_pct < 0.001:
+                        logger.debug(f"[RATE LIMIT] {symbol}: SL change {change_pct*100:.3f}% too small, skipping")
+                        return False
+                
+                # Rule: SL can only go UP (never decrease for LONG)
+                if previous_sl is not None and new_trailing_stop <= previous_sl:
+                    logger.debug(f"[SL SKIP] {symbol}: LONG SL would decrease from {previous_sl:.4f} to {new_trailing_stop:.4f}, skipping")
+                    return False
+                    
             else:
+                # For SHORT: SL MUST be ABOVE current price
                 new_trailing_stop = current_price * (1 + self.trailing_stop_distance_pct)
-            
-            # Update if better than current
-            if position.trailing_stop is None or \
-               (position.direction == "long" and new_trailing_stop > position.trailing_stop) or \
-               (position.direction == "short" and new_trailing_stop < position.trailing_stop):
                 
-                # Update trailing stop via API using set_trading_stop
-                result = self.api.set_trading_stop(
-                    symbol=symbol,
-                    trailing_stop=new_trailing_stop
-                )
+                # SAFETY: Force valid SL if calculated wrong
+                if new_trailing_stop <= current_price:
+                    new_trailing_stop = current_price * 1.005  # 0.5% above current
+                    logger.warning(f"[SAFETY] Forced SL above current for {symbol}: {new_trailing_stop:.4f} > {current_price:.4f}")
                 
-                if result.get("retCode") == 0:
-                    position.trailing_stop = new_trailing_stop
-                    position.stop_loss = new_trailing_stop
-                    logger.info(f"Updated trailing stop for {symbol}: {new_trailing_stop:.2f}")
-                    return True
+                # Minimum trailing distance: 0.2% from current price
+                min_sl_distance = current_price * 0.002
+                min_sl = current_price + min_sl_distance
+                if new_trailing_stop < min_sl:
+                    new_trailing_stop = min_sl
+                    logger.debug(f"[MIN DISTANCE] Adjusted SL to maintain 0.2% distance for {symbol}")
+                
+                # Rate-limit: Skip if change is too small (<0.1%)
+                if previous_sl is not None:
+                    change_pct = abs(new_trailing_stop - previous_sl) / previous_sl
+                    if change_pct < 0.001:
+                        logger.debug(f"[RATE LIMIT] {symbol}: SL change {change_pct*100:.3f}% too small, skipping")
+                        return False
+                
+                # Rule: SL can only go DOWN (never increase for SHORT)
+                if previous_sl is not None and new_trailing_stop >= previous_sl:
+                    logger.debug(f"[SL SKIP] {symbol}: SHORT SL would increase from {previous_sl:.4f} to {new_trailing_stop:.4f}, skipping")
+                    return False
             
-            return False
+            # Log every SL update with full details (safe formatting)
+            prev_sl_str = f"{previous_sl:.4f}" if previous_sl is not None else "N/A"
+            logger.info(f"[SL UPDATE] {symbol} | Side: {position.direction.upper()} | "
+                       f"Current: ${current_price:.4f} | New SL: ${new_trailing_stop:.4f} | "
+                       f"Previous SL: ${prev_sl_str} | Profit: {profit_pct*100:.2f}%")
+            
+            # Update via API
+            result = self.api.set_trading_stop(
+                symbol=symbol,
+                stop_loss=new_trailing_stop
+            )
+            
+            if result.get("retCode") == 0:
+                position.trailing_stop = new_trailing_stop
+                position.stop_loss = new_trailing_stop
+                logger.info(f"[SL SUCCESS] Updated trailing stop for {symbol}: ${new_trailing_stop:.4f}")
+                return True
+            else:
+                error_msg = result.get('retMsg', 'Unknown error')
+                logger.error(f"[SL FAILED] {symbol}: {error_msg} | "
+                           f"Tried to set {position.direction} SL at ${new_trailing_stop:.4f} "
+                           f"with current price ${current_price:.4f}")
+                return False
             
         except Exception as e:
-            logger.error(f"Error updating trailing stop for {symbol}: {e}")
+            logger.error(f"[SL ERROR] Exception updating trailing stop for {symbol}: {e}")
             return False
     
     def _calculate_stop_loss(self, entry_price: float, direction: str, atr: Optional[float]) -> Optional[float]:
@@ -514,17 +572,18 @@ class PositionManager:
     
     def manage_smart_stops(self, symbol: str, current_price: float, atr: Optional[float] = None) -> bool:
         """
-        Smart stop management with breakeven and trailing stops
+        Smart stop management with breakeven logic ONLY.
+        Trailing stop logic is CENTRALIZED in update_trailing_stop().
         
         Strategy:
         - After 1x risk profit: Move SL to breakeven (entry price)
-        - After 2x risk profit: Activate trailing stop
+        - Trailing stop is handled separately by update_trailing_stop()
         - After 3x risk profit: Take partial profit (50%)
         
         Args:
             symbol: Trading symbol
             current_price: Current market price
-            atr: Current ATR value for trailing distance
+            atr: Current ATR value (not used for breakeven, kept for API compatibility)
             
         Returns:
             True if any action taken, False otherwise
@@ -557,48 +616,89 @@ class PositionManager:
                 # Check if SL is below entry for long, above entry for short
                 if position.direction == "long" and position.stop_loss < position.entry_price:
                     new_sl = position.entry_price
-                    sl_result = self.api.set_trading_stop(symbol=symbol, stop_loss=new_sl)
-                    if sl_result.get("retCode") == 0:
-                        position.stop_loss = new_sl
-                        logger.info(f"Smart SL: Moved to breakeven for {symbol} at {new_sl:.2f}")
-                        action_taken = True
+                    # Validate: breakeven SL must be below current price for LONG
+                    if new_sl >= current_price:
+                        logger.warning(f"[BREAKEVEN SKIP] {symbol}: Cannot set breakeven ${new_sl:.4f} >= current ${current_price:.4f}")
+                    else:
+                        sl_result = self.api.set_trading_stop(symbol=symbol, stop_loss=new_sl)
+                        if sl_result.get("retCode") == 0:
+                            position.stop_loss = new_sl
+                            logger.info(f"[BREAKEVEN] Moved SL to breakeven for {symbol} at ${new_sl:.4f}")
+                            action_taken = True
+                        else:
+                            logger.error(f"[BREAKEVEN FAILED] {symbol}: {sl_result.get('retMsg')}")
+                            
                 elif position.direction == "short" and position.stop_loss > position.entry_price:
                     new_sl = position.entry_price
-                    sl_result = self.api.set_trading_stop(symbol=symbol, stop_loss=new_sl)
-                    if sl_result.get("retCode") == 0:
-                        position.stop_loss = new_sl
-                        logger.info(f"Smart SL: Moved to breakeven for {symbol} at {new_sl:.2f}")
-                        action_taken = True
+                    # Validate: breakeven SL must be above current price for SHORT
+                    if new_sl <= current_price:
+                        logger.warning(f"[BREAKEVEN SKIP] {symbol}: Cannot set breakeven ${new_sl:.4f} <= current ${current_price:.4f}")
+                    else:
+                        sl_result = self.api.set_trading_stop(symbol=symbol, stop_loss=new_sl)
+                        if sl_result.get("retCode") == 0:
+                            position.stop_loss = new_sl
+                            logger.info(f"[BREAKEVEN] Moved SL to breakeven for {symbol} at ${new_sl:.4f}")
+                            action_taken = True
+                        else:
+                            logger.error(f"[BREAKEVEN FAILED] {symbol}: {sl_result.get('retMsg')}")
             
-            # Stage 2: Activate trailing stop after 2x risk profit
-            if profit_multiple >= 2.0:
-                trailing_distance = atr if atr else position.entry_price * 0.01
-                
-                if position.direction == "long":
-                    new_trailing_sl = current_price - trailing_distance
-                    # Only update if new SL is higher than current
-                    if new_trailing_sl > position.stop_loss:
-                        sl_result = self.api.set_trading_stop(symbol=symbol, stop_loss=new_trailing_sl)
-                        if sl_result.get("retCode") == 0:
-                            position.stop_loss = new_trailing_sl
-                            position.trailing_stop = new_trailing_sl
-                            logger.info(f"Smart SL: Updated trailing stop for {symbol} to {new_trailing_sl:.2f}")
-                            action_taken = True
-                else:
-                    new_trailing_sl = current_price + trailing_distance
-                    # Only update if new SL is lower than current
-                    if new_trailing_sl < position.stop_loss:
-                        sl_result = self.api.set_trading_stop(symbol=symbol, stop_loss=new_trailing_sl)
-                        if sl_result.get("retCode") == 0:
-                            position.stop_loss = new_trailing_sl
-                            position.trailing_stop = new_trailing_sl
-                            logger.info(f"Smart SL: Updated trailing stop for {symbol} to {new_trailing_sl:.2f}")
-                            action_taken = True
+            # Stage 2: Trailing stop is handled by update_trailing_stop() - DO NOT duplicate here
+            # The engine calls update_trailing_stop separately after manage_smart_stops
+            
+            # Stage 3: Take partial profit at 3x risk
+            if profit_multiple >= 3.0:
+                action_taken = self._take_partial_profit_stage(symbol, current_price, profit_multiple) or action_taken
             
             return action_taken
             
         except Exception as e:
-            logger.error(f"Error in smart stop management for {symbol}: {e}")
+            logger.error(f"[SMART STOP ERROR] {symbol}: {e}")
+            return False
+    
+    def _take_partial_profit_stage(self, symbol: str, current_price: float, profit_multiple: float) -> bool:
+        """Separate method for partial profit to keep code clean"""
+        try:
+            if symbol not in self.positions:
+                return False
+            
+            position = self.positions[symbol]
+            
+            if getattr(position, 'partial_profit_taken', False):
+                return False
+            
+            close_quantity = position.quantity * 0.5
+            
+            result = self.api.place_order(
+                symbol=symbol,
+                side="Sell" if position.direction == "long" else "Buy",
+                order_type="Market",
+                qty=close_quantity
+            )
+            
+            if result.get("retCode") == 0:
+                position.quantity -= close_quantity
+                position.partial_profit_taken = True
+                logger.info(f"[PARTIAL PROFIT] {symbol}: Closed {close_quantity:.4f} at {profit_multiple:.1f}x risk")
+                
+                # Move SL to lock in profit (1x risk from entry)
+                if position.direction == "long":
+                    new_sl = position.entry_price + (position.entry_price * self.sl_fixed_pct)
+                    # Ensure valid SL
+                    if new_sl >= current_price:
+                        new_sl = current_price * 0.99  # 1% below current
+                else:
+                    new_sl = position.entry_price - (position.entry_price * self.sl_fixed_pct)
+                    # Ensure valid SL
+                    if new_sl <= current_price:
+                        new_sl = current_price * 1.01  # 1% above current
+                
+                self.api.set_trading_stop(symbol=symbol, stop_loss=new_sl)
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"[PARTIAL PROFIT ERROR] {symbol}: {e}")
             return False
     
     def take_partial_profit(self, symbol: str, current_price: float, profit_multiple: float) -> bool:
