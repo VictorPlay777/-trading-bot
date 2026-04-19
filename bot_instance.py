@@ -293,15 +293,17 @@ class BotInstance:
     def check_api_conflict(self, all_bots: list) -> bool:
         """Check if another bot is using same API"""
         my_key = self.config.get('api', {}).get('key', '')
+        my_bot_id = self.stats.bot_id
         
         for bot in all_bots:
-            if bot.bot_id == self.stats.bot_id:
+            other_bot_id = bot.stats.bot_id
+            if other_bot_id == my_bot_id:
                 continue  # Skip self
             if bot.status.value == 'running':
                 other_key = bot.config.get('api', {}).get('key', '')
                 if other_key == my_key:
-                    self.logger.error(f"⚠️ API CONFLICT: Bot {bot.bot_id} already running with same API key!")
-                    self.logger.error(f"Stop {bot.bot_id} first before starting {self.stats.bot_id}")
+                    self.logger.error(f"⚠️ API CONFLICT: Bot {other_bot_id} already running with same API key!")
+                    self.logger.error(f"Stop {other_bot_id} first before starting {my_bot_id}")
                     return True
         return False
     
