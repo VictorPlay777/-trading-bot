@@ -1,0 +1,43 @@
+{
+  "bot_id": "bot_1_aggressive",
+  "name": "Aggressive High-Leverage",
+  "description": "High risk, high reward strategy with 100x leverage",
+  "enabled": false,
+  
+  "api": {
+    "key": "rRsm08OPN027nk5hgF",
+    "secret": "GD1qBUUx1KROqmAKwJLOpAanLNDwG6zr1CyA",
+    "testnet": false
+  },
+  
+  "strategy": {
+    "type": "momentum",
+    "leverage": 100,
+    "max_positions": 50,
+    "position_size_pct": 5.0,
+    "probe_enabled": true,
+    "pyramiding_enabled": true
+  },
+  
+  "risk": {
+    "stop_loss_pct": 1.0,
+    "take_profit_pct": 3.0,
+    "trailing_stop": true,
+    "max_daily_loss_pct": 20.0,
+    "max_drawdown_pct": 30.0
+  },
+  
+  "filters": {
+    "min_volume_24h": 1000000,
+    "min_win_rate": 0.50,
+    "blocked_symbols": []
+  },
+  
+  "logging": {
+    "level": "INFO",
+    "file": "bot_logs/bot_1_aggressive.log"
+  },
+  
+  "created_at": "2026-04-18T20:00:00",
+  "updated_at": "2026-04-18T20:00:00"
+}

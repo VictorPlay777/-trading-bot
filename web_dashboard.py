@@ -213,8 +213,8 @@ HTML_TEMPLATE = """
                     {% for symbol, sym_stats in symbol_stats %}
                     <tr>
                         <td><strong>{{ symbol }}</strong></td>
-                        <td>{{ sym_stats.total_trades }}</td>
-                        <td class="{{ 'positive' if sym_stats.win_rate > 0.5 else 'negative' }}">{{ "%.1f"|format(sym_stats.win_rate * 100) }}%</td>
+                        <td>{{ sym_stats.trades }}</td>
+                        <td class="{{ 'positive' if sym_stats.winrate > 0.5 else 'negative' }}">{{ "%.1f"|format(sym_stats.winrate * 100) }}%</td>
                         <td class="{{ 'positive' if sym_stats.avg_pnl > 0 else 'negative' }}">${{ "%.2f"|format(sym_stats.avg_pnl) }}</td>
                         <td class="{{ 'positive' if sym_stats.total_pnl > 0 else 'negative' }}">${{ "%.2f"|format(sym_stats.total_pnl) }}</td>
                     </tr>
@@ -289,13 +289,14 @@ def get_dashboard_stats() -> Dict:
         positions = trading_engine.position_manager.get_all_positions()
         symbol_stats = trading_engine.symbol_stats
         
-        # Calculate total PnL
-        total_pnl = sum(p.pnl for p in positions)
-        total_pnl += sum(s.get('total_pnl', 0) for s in symbol_stats.values())
+        # Calculate total PnL (realized from closed + unrealized from open)
+        realized_pnl = sum(s.total_pnl for s in symbol_stats.values())
+        unrealized_pnl = sum(p.pnl for p in positions)
+        total_pnl = realized_pnl + unrealized_pnl
         
         # Calculate win rate
-        total_trades = sum(s.get('total_trades', 0) for s in symbol_stats.values())
-        winning_trades = sum(s.get('winning_trades', 0) for s in symbol_stats.values())
+        total_trades = sum(s.trades for s in symbol_stats.values())
+        winning_trades = sum(s.wins for s in symbol_stats.values())
         win_rate = winning_trades / total_trades if total_trades > 0 else 0
         
         # Get balance
@@ -362,7 +363,7 @@ def get_symbol_stats() -> List[tuple]:
         stats = trading_engine.symbol_stats
         sorted_stats = sorted(
             stats.items(),
-            key=lambda x: x[1].get('win_rate', 0),
+            key=lambda x: x[1].winrate,
             reverse=True
         )
         return sorted_stats[:20]  # Top 20

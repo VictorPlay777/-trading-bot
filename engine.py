@@ -16,6 +16,7 @@ from liquidity_engine import LiquidityEngine, LiquidityAnalysis
 from liquidation_engine import LiquidationEngine, LiquidationSignal
 from api_client import BybitClient
 from config import trading_config, strategy_config
+from symbol_analytics import get_analytics, SymbolStats
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ class TradingEngine:
         self.market_data: Dict[str, pd.DataFrame] = {}
         
         # Symbol statistics tracking - PER SESSION (resets on each restart)
-        self.symbol_stats: Dict[str, Dict] = {}
+        self.symbol_stats: Dict[str, SymbolStats] = {}
         self.session_id = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
         self.session_start_time = datetime.utcnow()
         self.session_trades = 0
@@ -159,32 +160,28 @@ class TradingEngine:
     
     def _update_symbol_stats(self, symbol: str, trade_result: str, pnl: float = 0) -> None:
         """Update per-symbol and per-session statistics"""
-        # Per-symbol stats
+        # Per-symbol stats using dataclass
         if symbol not in self.symbol_stats:
-            self.symbol_stats[symbol] = {
-                "total_trades": 0,
-                "winning_trades": 0,
-                "losing_trades": 0,
-                "total_pnl": 0.0,
-                "avg_pnl": 0.0,
-                "win_rate": 0.0,
-                "last_updated": datetime.utcnow()
-            }
+            self.symbol_stats[symbol] = SymbolStats(symbol=symbol)
         
         stats = self.symbol_stats[symbol]
-        stats["total_trades"] += 1
-        stats["total_pnl"] += pnl
+        stats.trades += 1
+        stats.total_pnl += pnl
         
         if trade_result == "win":
-            stats["winning_trades"] += 1
+            stats.wins += 1
+            stats.consecutive_wins += 1
+            stats.consecutive_losses = 0
         elif trade_result == "loss":
-            stats["losing_trades"] += 1
+            stats.losses += 1
+            stats.consecutive_losses += 1
+            stats.consecutive_wins = 0
         
-        if stats["total_trades"] > 0:
-            stats["win_rate"] = stats["winning_trades"] / stats["total_trades"]
-            stats["avg_pnl"] = stats["total_pnl"] / stats["total_trades"]
+        if stats.trades > 0:
+            stats.winrate = stats.wins / stats.trades
+            stats.avg_pnl = stats.total_pnl / stats.trades
         
-        stats["last_updated"] = datetime.utcnow()
+        stats.last_updated = datetime.utcnow().isoformat()
         
         # Session-wide stats
         self.session_trades += 1
@@ -590,13 +587,36 @@ class TradingEngine:
             if self.symbol_stats:
                 logger.info("--- Session Per-Symbol Statistics ---")
                 sorted_symbols = sorted(self.symbol_stats.items(), 
-                                      key=lambda x: x[1].get("win_rate", 0), 
+                                      key=lambda x: x[1].winrate, 
                                       reverse=True)
                 for symbol, sym_stats in sorted_symbols[:10]:  # Top 10 by win rate
-                    logger.info(f"{symbol}: {sym_stats['total_trades']} trades, "
-                              f"win rate: {sym_stats['win_rate']*100:.1f}%, "
-                              f"avg PnL: ${sym_stats['avg_pnl']:.2f}, "
-                              f"total PnL: ${sym_stats['total_pnl']:.2f}")
+                    logger.info(f"{symbol}: {sym_stats.trades} trades, "
+                              f"win rate: {sym_stats.winrate*100:.1f}%, "
+                              f"avg PnL: ${sym_stats.avg_pnl:.2f}, "
+                              f"total PnL: ${sym_stats.total_pnl:.2f}")
+            
+            # [ANALYTICS] Print symbol performance summary
+            try:
+                analytics = get_analytics()
+                analytics.print_summary()
+                
+                # Show top 10 symbols to trade
+                top_symbols = analytics.get_top_symbols(n=10)
+                if top_symbols:
+                    logger.info("🏆 TOP SYMBOLS TO TRADE (by win rate):")
+                    for symbol, stats in top_symbols:
+                        logger.info(f"  {symbol}: {stats.winrate*100:.1f}% WR, {stats.total_pnl:.2f}% total PnL")
+                
+                # Show blocked symbols
+                blocked = [s for s, st in analytics.stats.items() if not analytics.should_trade_symbol(s)]
+                if blocked:
+                    logger.info(f"🚫 BLOCKED symbols (poor performance): {len(blocked)} symbols")
+                    for symbol in blocked[:5]:
+                        st = analytics.stats[symbol]
+                        logger.info(f"  {symbol}: {st.winrate*100:.1f}% WR, {st.consecutive_losses} losses streak")
+                        
+            except Exception as e:
+                logger.error(f"Error printing analytics: {e}")
             
         except Exception as e:
             logger.error(f"Error in periodic learning: {e}")

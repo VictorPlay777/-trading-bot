@@ -9,6 +9,8 @@ from datetime import datetime
 from enum import Enum
 import pandas as pd
 
+from symbol_analytics import get_analytics
+
 logger = logging.getLogger(__name__)
 
 
@@ -138,6 +140,20 @@ class PositionManager:
             else:  # NORMAL
                 position_size = max_position_size
             
+            # [ADAPTIVE POSITION SIZING] Apply multiplier based on symbol performance
+            analytics = get_analytics()
+            size_multiplier = analytics.get_position_size_multiplier(symbol)
+            position_size = position_size * size_multiplier
+            
+            # Log the multiplier for transparency
+            if size_multiplier != 1.0:
+                logger.info(f"[ADAPTIVE SIZE] {symbol}: multiplier={size_multiplier:.1f}x, base=${position_size/size_multiplier:.2f}, final=${position_size:.2f}")
+            
+            # Check if symbol should be traded at all
+            if not analytics.should_trade_symbol(symbol):
+                logger.warning(f"[FILTER] {symbol} blocked by analytics - poor performance detected")
+                return False
+            
             # Calculate quantity
             quantity = position_size / entry_price
             
@@ -160,9 +176,14 @@ class PositionManager:
                 current_price = entry_price
                 logger.warning(f"Using entry price as fallback for SL/TP calculation: {current_price}")
             
-            # Calculate SL/TP prices from current market price (2% SL, 4% TP)
-            sl_pct = 0.02  # 2%
-            tp_pct = 0.04  # 4%
+            # [DYNAMIC R:R] Calculate SL/TP based on symbol performance
+            analytics = get_analytics()
+            risk_reward = analytics.get_risk_reward_ratio(symbol)
+            
+            sl_pct = 0.02  # Base 2% stop loss
+            tp_pct = sl_pct * risk_reward  # TP based on R:R
+            
+            logger.info(f"[DYNAMIC R:R] {symbol}: Risk/Reward = 1:{risk_reward:.1f}, SL={sl_pct*100:.1f}%, TP={tp_pct*100:.1f}%")
             
             if direction == "long":
                 stop_loss = current_price * (1 - sl_pct)   # 2% below current price
@@ -349,6 +370,44 @@ class PositionManager:
                 logger.error(f"Failed to close position for {symbol}: {result.get('retMsg')}")
                 return False
             
+            # Calculate PnL
+            try:
+                # Get actual exit price from order result or use current market price
+                exit_price = float(result.get('result', {}).get('avgPrice', current_price if 'current_price' in locals() else position.entry_price))
+                
+                if position.direction == "long":
+                    pnl_pct = (exit_price - position.entry_price) / position.entry_price * 100
+                else:
+                    pnl_pct = (position.entry_price - exit_price) / position.entry_price * 100
+                
+                # Estimate fees (0.055% entry + 0.055% exit)
+                fees_pct = 0.11
+                net_pnl = pnl_pct - fees_pct
+                
+                is_win = net_pnl > 0
+                
+                # Record in analytics
+                analytics = get_analytics()
+                analytics.record_trade(
+                    symbol=symbol,
+                    pnl=pnl_pct,
+                    is_win=is_win,
+                    fees=fees_pct
+                )
+                
+                logger.info(f"Recorded trade: {symbol} {position.direction}, PnL: {net_pnl:.2f}% ({'WIN' if is_win else 'LOSS'}), Entry: {position.entry_price:.4f}, Exit: {exit_price:.4f}")
+                
+                # Log win/loss streaks
+                stats = analytics.stats.get(symbol)
+                if stats:
+                    if stats.consecutive_wins >= 3:
+                        logger.info(f"🔥 {symbol}: {stats.consecutive_wins} consecutive wins!")
+                    elif stats.consecutive_losses >= 3:
+                        logger.warning(f"❄️ {symbol}: {stats.consecutive_losses} consecutive losses, cooling off")
+                
+            except Exception as e:
+                logger.error(f"Error recording trade stats for {symbol}: {e}")
+            
             # Update position status
             position.status = "closed"
             logger.info(f"Closed position: {symbol} (reason: {reason})")
@@ -381,20 +440,32 @@ class PositionManager:
             
             position = self.positions[symbol]
             
-            # Check if position is profitable
+            # [SMART PYRAMIDING] Check if position is profitable enough
             if position.direction == "long":
                 profit_pct = (current_price - position.entry_price) / position.entry_price
             else:
                 profit_pct = (position.entry_price - current_price) / position.entry_price
             
-            if profit_pct <= 0:
-                logger.warning(f"Position not profitable, cannot pyramid {symbol}")
+            # Require minimum 0.5% profit before pyramiding (was: >0)
+            min_profit_for_pyramid = 0.005  # 0.5%
+            if profit_pct < min_profit_for_pyramid:
+                logger.debug(f"[SMART PYRAMID] {symbol}: Profit {profit_pct*100:.2f}% < {min_profit_for_pyramid*100:.1f}%, skipping")
                 return False
             
-            # Check if max pyramiding level reached
-            if position.pyramiding_level >= self.max_pyramiding_levels:
+            # Check symbol analytics - only pyramid if symbol is performing well
+            analytics = get_analytics()
+            stats = analytics.stats.get(symbol)
+            if stats and stats.consecutive_losses >= 2:
+                logger.warning(f"[SMART PYRAMID] {symbol}: {stats.consecutive_losses} consecutive losses, no pyramiding")
+                return False
+            
+            # Reduce max levels from 3 to 2
+            if position.pyramiding_level >= 2:  # Changed from 3 to 2
                 logger.warning(f"Max pyramiding level reached for {symbol}")
                 return False
+            
+            # Log pyramiding decision
+            logger.info(f"[SMART PYRAMID] {symbol}: Adding to winner with {profit_pct*100:.2f}% profit")
             
             # Calculate addition size
             multiplier = self.pyramiding_multipliers[position.pyramiding_level]
