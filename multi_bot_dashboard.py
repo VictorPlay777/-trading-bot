@@ -128,6 +128,7 @@ HTML_TEMPLATE = """
         .btn-stop { background: #ff4444; color: #fff; }
         .btn-pause { background: #ffaa00; color: #000; }
         .btn-edit { background: #00aaff; color: #fff; }
+        .btn-logs { background: #9b59b6; color: #fff; }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
         
         /* Leaderboard */
@@ -299,9 +300,25 @@ HTML_TEMPLATE = """
                     {% endif %}
                     
                     <button class="btn btn-edit" onclick="editBot('{{ bot.bot_id }}')">⚙ Edit</button>
+                    <button class="btn btn-logs" onclick="showLogs('{{ bot.bot_id }}')">📋 Логи</button>
                 </div>
             </div>
             {% endfor %}
+        </div>
+        
+        <!-- Logs Modal -->
+        <div id="logsModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000;">
+            <div style="background:#1a1a2e; margin:50px auto; padding:20px; width:80%; max-height:80%; overflow:auto; border-radius:12px; border:2px solid #00ff88;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h2 style="color:#00ff88; margin:0;">📋 Логи: <span id="logsBotName"></span></h2>
+                    <button onclick="closeLogs()" style="background:#ff4444; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer;">❌ Закрыть</button>
+                </div>
+                <pre id="logsContent" style="background:#0a0a0a; color:#00ff88; padding:15px; border-radius:8px; max-height:500px; overflow:auto; font-family:monospace; font-size:12px;"></pre>
+                <div style="margin-top:10px;">
+                    <button onclick="refreshLogs()" style="background:#00ff88; color:#000; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">🔄 Обновить</button>
+                    <button onclick="clearLogs()" style="background:#ffaa00; color:#000; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold; margin-left:10px;">🗑️ Очистить</button>
+                </div>
+            </div>
         </div>
         
         <!-- Leaderboard -->
@@ -441,6 +458,46 @@ HTML_TEMPLATE = """
                 location.reload();
             });
         });
+        
+        // Logs functions
+        let currentLogBotId = '';
+        
+        function showLogs(botId) {
+            currentLogBotId = botId;
+            document.getElementById('logsBotName').textContent = botId;
+            document.getElementById('logsModal').style.display = 'block';
+            refreshLogs();
+        }
+        
+        function closeLogs() {
+            document.getElementById('logsModal').style.display = 'none';
+        }
+        
+        function refreshLogs() {
+            if (!currentLogBotId) return;
+            
+            fetch(`/api/bots/${currentLogBotId}/logs?lines=100`)
+                .then(r => r.json())
+                .then(data => {
+                    const logs = data.logs || ['No logs available'];
+                    document.getElementById('logsContent').textContent = logs.join('\n');
+                })
+                .catch(e => {
+                    document.getElementById('logsContent').textContent = 'Error loading logs: ' + e;
+                });
+        }
+        
+        function clearLogs() {
+            document.getElementById('logsContent').textContent = 'Logs cleared. Click 🔄 Обновить to load new logs.';
+        }
+        
+        // Close modal on outside click
+        window.onclick = function(event) {
+            const modal = document.getElementById('logsModal');
+            if (event.target == modal) {
+                closeLogs();
+            }
+        }
     </script>
 </body>
 </html>
