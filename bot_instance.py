@@ -193,7 +193,7 @@ class BotInstance:
                 self.logger.error(f"API credentials not found in config")
                 return False
             
-            self.api = BybitClient(api_key, api_secret, testnet=testnet)
+            self.api = BybitClient()  # Keys read from config.py directly
             self.logger.info(f"API initialized (HARDCORE MODE, testnet={testnet})")
             return True
             
