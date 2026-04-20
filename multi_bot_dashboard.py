@@ -408,7 +408,7 @@ HTML_TEMPLATE = """
     
     <script>
         function startBot(botId) {
-            fetch(`/api/bots/${botId}/start`, {method: 'POST'})
+            fetch('/api/bots/' + botId + '/start', {method: 'POST'})
                 .then(r => r.json())
                 .then(data => {
                     alert(data.message || 'Bot started');
@@ -418,7 +418,7 @@ HTML_TEMPLATE = """
         
         function stopBot(botId) {
             if (!confirm('Stop bot ' + botId + '?')) return;
-            fetch(`/api/bots/${botId}/stop`, {method: 'POST'})
+            fetch('/api/bots/' + botId + '/stop', {method: 'POST'})
                 .then(r => r.json())
                 .then(data => {
                     alert(data.message || 'Bot stopped');
@@ -427,7 +427,7 @@ HTML_TEMPLATE = """
         }
         
         function pauseBot(botId) {
-            fetch(`/api/bots/${botId}/pause`, {method: 'POST'})
+            fetch('/api/bots/' + botId + '/pause', {method: 'POST'})
                 .then(r => r.json())
                 .then(data => location.reload());
         }
@@ -476,7 +476,7 @@ HTML_TEMPLATE = """
         function refreshLogs() {
             if (!currentLogBotId) return;
             
-            fetch(`/api/bots/${currentLogBotId}/logs?lines=100`)
+            fetch('/api/bots/' + currentLogBotId + '/logs?lines=100')
                 .then(r => r.json())
                 .then(data => {
                     const logs = data.logs || ['No logs available'];
@@ -1077,7 +1077,7 @@ def edit_bot_page(bot_id):
             // Load config on page load
             async function loadConfig() {{
                 try {{
-                    const response = await fetch(`/api/bots/${{botId}}/config`);
+                    const response = await fetch('/api/bots/' + botId + '/config');
                     const data = await response.json();
                     
                     if (data.success) {{
