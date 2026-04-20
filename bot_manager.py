@@ -258,6 +258,33 @@ class BotManager:
             self.logger.error(f"Failed to update bot {bot_id}: {e}")
             return False
     
+    def reload_bot_config(self, bot_id: str) -> bool:
+        """Reload bot configuration from file"""
+        if bot_id not in self.bots:
+            return False
+        
+        try:
+            import json
+            bot = self.bots[bot_id]
+            
+            # Reload config from file
+            with open(bot.config_path, 'r') as f:
+                new_config = json.load(f)
+            
+            # Update bot config
+            bot.config = new_config
+            
+            # If engine exists and supports hot-reload, update it too
+            if bot.engine and hasattr(bot.engine, 'update_config'):
+                bot.engine.update_config(new_config)
+            
+            self.logger.info(f"Config reloaded for bot {bot_id}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Failed to reload config for bot {bot_id}: {e}")
+            return False
+    
     def delete_bot(self, bot_id: str) -> bool:
         """Delete a bot (must be stopped first)"""
         if bot_id not in self.bots:
