@@ -433,7 +433,7 @@ HTML_TEMPLATE = """
         }
         
         function editBot(botId) {
-            window.location.href = `/bots/${botId}/edit`;
+            window.location.href = '/bots/' + botId + '/edit';
         }
         
         document.getElementById('createBotForm').addEventListener('submit', function(e) {
