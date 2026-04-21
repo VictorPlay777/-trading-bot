@@ -408,22 +408,30 @@ HTML_TEMPLATE = """
     
     <script>
         function startBot(botId) {
+            var badge = document.querySelector('[data-bot-id="' + botId + '"] .status-badge');
+            if (badge) { badge.textContent = 'starting...'; badge.className = 'status-badge status-starting'; }
+            var btn = event.target; btn.disabled = true; btn.textContent = '⏳ Starting...';
             fetch('/api/bots/' + botId + '/start', {method: 'POST'})
                 .then(r => r.json())
                 .then(data => {
                     alert(data.message || 'Bot started');
                     location.reload();
-                });
+                })
+                .catch(e => { alert('Error: ' + e); btn.disabled = false; btn.textContent = '▶ Start'; });
         }
         
         function stopBot(botId) {
             if (!confirm('Stop bot ' + botId + '?')) return;
+            var badge = document.querySelector('[data-bot-id="' + botId + '"] .status-badge');
+            if (badge) { badge.textContent = 'stopping...'; badge.className = 'status-badge status-stopped'; }
+            var btn = event.target; btn.disabled = true; btn.textContent = '⏳ Stopping...';
             fetch('/api/bots/' + botId + '/stop', {method: 'POST'})
                 .then(r => r.json())
                 .then(data => {
                     alert(data.message || 'Bot stopped');
                     location.reload();
-                });
+                })
+                .catch(e => { alert('Error: ' + e); btn.disabled = false; btn.textContent = '⏹ Stop'; });
         }
         
         function pauseBot(botId) {
