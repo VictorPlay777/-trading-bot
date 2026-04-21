@@ -414,8 +414,35 @@ HTML_TEMPLATE = """
             fetch('/api/bots/' + botId + '/start', {method: 'POST'})
                 .then(r => r.json())
                 .then(data => {
-                    alert(data.message || 'Bot started');
-                    location.reload();
+                    if (!data.success) {
+                        alert('❌ ' + data.message);
+                        btn.disabled = false; btn.textContent = '▶ Start';
+                        if (badge) { badge.textContent = 'stopped'; badge.className = 'status-badge status-stopped'; }
+                        return;
+                    }
+                    // Poll status until running or error
+                    var checks = 0;
+                    var pollId = setInterval(function() {
+                        fetch('/api/bots/' + botId)
+                            .then(r => r.json())
+                            .then(bot => {
+                                if (bot.status === 'running') {
+                                    clearInterval(pollId);
+                                    if (badge) { badge.textContent = 'running'; badge.className = 'status-badge status-running'; }
+                                    btn.textContent = '⏹ Stop'; btn.className = 'btn btn-stop'; btn.disabled = false;
+                                    btn.setAttribute('onclick', "stopBot('" + botId + "')");
+                                    alert('✅ Bot ' + botId + ' запущен!');
+                                } else if (bot.status === 'error' || bot.status === 'stopped') {
+                                    clearInterval(pollId);
+                                    if (badge) { badge.textContent = bot.status; badge.className = 'status-badge status-stopped'; }
+                                    btn.disabled = false; btn.textContent = '▶ Start';
+                                    alert('❌ Bot failed to start');
+                                }
+                                checks++;
+                                if (checks > 30) { clearInterval(pollId); btn.disabled = false; btn.textContent = '▶ Start'; }
+                            })
+                            .catch(function() { checks++; });
+                    }, 2000);
                 })
                 .catch(e => { alert('Error: ' + e); btn.disabled = false; btn.textContent = '▶ Start'; });
         }
