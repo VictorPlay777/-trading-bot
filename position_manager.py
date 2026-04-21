@@ -75,9 +75,9 @@ class PositionManager:
         self.bot_config = bot_config or {}  # Bot-specific config
         self.positions: Dict[str, Position] = {}  # symbol -> Position
         
-        # Check if this is the Genius AI Trader bot
-        self.bot_id = bot_config.get('bot_id', '') if bot_config else ''
-        self.is_genius = self.bot_id == 'bot_4_genius'
+        # Get genius features from config
+        genius_cfg = bot_config.get('genius_features', {}) if bot_config else {}
+        self.skip_analytics_filter = genius_cfg.get('skip_analytics_filter', False)
         
         # Get max_positions from bot_config or fallback to global
         if bot_config and 'strategy' in bot_config:
@@ -167,7 +167,7 @@ class PositionManager:
             
             # Check if symbol should be traded at all (for non-Genius bots)
             # Genius bot uses risk adjustment instead of blocking
-            if not self.is_genius and not analytics.should_trade_symbol(symbol):
+            if not self.skip_analytics_filter and not analytics.should_trade_symbol(symbol):
                 logger.warning(f"[FILTER] {symbol} blocked by analytics - poor performance detected")
                 return False
             

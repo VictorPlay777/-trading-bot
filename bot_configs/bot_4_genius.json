@@ -160,5 +160,13 @@
       "imbalance_threshold": 0.3,
       "pressure_detection": true
     }
+  },
+
+  "genius_features": {
+    "trend_filter_enabled": true,
+    "trend_filter_ema_period": 50,
+    "risk_adjustment_enabled": true,
+    "risk_adjustment_threshold": 0.5,
+    "skip_analytics_filter": true
   }
 }

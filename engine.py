@@ -39,8 +39,12 @@ class TradingEngine:
         self.bot_config = bot_config or {}  # Bot-specific config from JSON
         self.bot_id = bot_config.get('bot_id', '') if bot_config else ''  # Bot identifier
         
-        # Check if this is the Genius AI Trader bot for special features
-        self.is_genius = self.bot_id == 'bot_4_genius'
+        # Get genius features from config
+        genius_cfg = bot_config.get('genius_features', {}) if bot_config else {}
+        self.trend_filter_enabled = genius_cfg.get('trend_filter_enabled', False)
+        self.trend_filter_ema_period = genius_cfg.get('trend_filter_ema_period', 50)
+        self.risk_adjustment_enabled = genius_cfg.get('risk_adjustment_enabled', False)
+        self.risk_adjustment_threshold = genius_cfg.get('risk_adjustment_threshold', 0.5)
         
         # Get strategy settings from bot_config or fallback to global
         strategy_cfg = bot_config.get('strategy', {}) if bot_config else strategy_config
@@ -326,7 +330,7 @@ class TradingEngine:
             
             # Genius-only: Check symbol risk multiplier - reduce position size for poor performers to learn safely
             risk_multiplier = 1.0
-            if self.is_genius:
+            if self.risk_adjustment_enabled:
                 risk_multiplier = self.learning_module.get_position_size_multiplier(symbol)
                 if risk_multiplier < 1.0:
                     logger.info(f"RISK ADJUSTMENT: {symbol} using {risk_multiplier*100:.0f}% position size (learning mode)")
@@ -348,7 +352,7 @@ class TradingEngine:
                 logger.debug(f"Momentum signal detected: {momentum_signal.reason}")
                 
                 # Genius-only: Check trend filter - don't fight strong trends with momentum
-                if self.is_genius and not self._check_trend_filter(symbol, momentum_signal.direction, df, current_price):
+                if self.trend_filter_enabled and not self._check_trend_filter(symbol, momentum_signal.direction, df, current_price):
                     logger.warning(f"Momentum signal for {symbol} blocked by trend filter")
                     return
                 
@@ -361,7 +365,7 @@ class TradingEngine:
                     return
                 
                 logger.info(f"MOMENTUM signal for {symbol}: {momentum_signal.reason}")
-                self._open_momentum_trade(symbol, momentum_signal, current_price, risk_multiplier if self.is_genius else 1.0)
+                self._open_momentum_trade(symbol, momentum_signal, current_price, risk_multiplier if self.risk_adjustment_enabled else 1.0)
                 return  # Don't open other trades if momentum detected
             
             # 3. Signal detection (SCOUT trade)
@@ -370,7 +374,7 @@ class TradingEngine:
                 logger.debug(f"Signal detected: {signal.direction}, strength={signal.strength:.2f}")
                 
                 # Genius-only: Check trend filter - don't fight trends with scout trades
-                if self.is_genius and not self._check_trend_filter(symbol, signal.direction, df, current_price):
+                if self.trend_filter_enabled and not self._check_trend_filter(symbol, signal.direction, df, current_price):
                     logger.warning(f"Scout signal for {symbol} blocked by trend filter")
                     return
                 
@@ -383,14 +387,14 @@ class TradingEngine:
                     return
                 
                 logger.info(f"SCOUT signal for {symbol}: {signal.reason}")
-                self._open_scout_trade(symbol, signal, current_price, risk_multiplier if self.is_genius else 1.0)
+                self._open_scout_trade(symbol, signal, current_price, risk_multiplier if self.risk_adjustment_enabled else 1.0)
                 return  # Don't open probe if scout signal found
             
             # 4. Probe logic
             probe_roll = random.random()
             logger.debug(f"Probe roll: {probe_roll:.4f} (threshold: {self.probability_of_probe})")
             if probe_roll < self.probability_of_probe:
-                if self.is_genius:
+                if self.trend_filter_enabled:
                     # Genius: Determine probe direction based on trend (follow trend, not random!)
                     trend = self._get_trend_direction(df, current_price)
                     if trend == 'uptrend':
