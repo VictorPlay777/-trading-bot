@@ -480,7 +480,7 @@ HTML_TEMPLATE = """
                 .then(r => r.json())
                 .then(data => {
                     const logs = data.logs || ['No logs available'];
-                    document.getElementById('logsContent').textContent = logs.join('\n');
+                    document.getElementById('logsContent').textContent = logs.join('\\n');
                 })
                 .catch(e => {
                     document.getElementById('logsContent').textContent = 'Error loading logs: ' + e;

@@ -1,0 +1,20 @@
+[Unit]
+Description=Trading Bot Multi-Bot System
+After=network.target
+
+[Service]
+Type=simple
+User=svy1990
+WorkingDirectory=/home/svy1990/-trading-bot
+Environment=PYTHONPATH=/home/svy1990/-trading-bot
+Environment=PATH=/home/svy1990/-trading-bot/venv/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/svy1990/-trading-bot/venv/bin/python /home/svy1990/-trading-bot/run_multi_bot.py
+ExecStop=/bin/kill -SIGTERM $MAINPID
+ExecStopPost=/bin/sleep 5
+Restart=always
+RestartSec=10
+StandardOutput=append:/home/svy1990/-trading-bot/logs/service.log
+StandardError=append:/home/svy1990/-trading-bot/logs/service_error.log
+
+[Install]
+WantedBy=multi-user.target
