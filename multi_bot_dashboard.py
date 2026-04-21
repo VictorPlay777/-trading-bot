@@ -600,13 +600,46 @@ def create_bot():
 
 @app.route('/api/bots/<bot_id>/start', methods=['POST'])
 def start_bot(bot_id):
-    """Start a bot"""
-    success = manager.start_bot(bot_id)
+    """Start a bot (async - returns immediately, bot starts in background)"""
+    import threading
+    
+    bot = manager.bots.get(bot_id)
+    if not bot:
+        return jsonify({'success': False, 'bot_id': bot_id, 'message': 'Bot not found'}), 404
+    
+    if bot.status.value == 'running':
+        return jsonify({'success': True, 'bot_id': bot_id, 'status': 'running', 'message': 'Bot already running'})
+    
+    # Check API conflict
+    my_key = bot.config.get('api', {}).get('key', '')
+    for other_id, other_bot in manager.bots.items():
+        if other_id == bot_id:
+            continue
+        if other_bot.status.value == 'running':
+            other_key = other_bot.config.get('api', {}).get('key', '')
+            if other_key == my_key:
+                return jsonify({
+                    'success': False, 
+                    'bot_id': bot_id, 
+                    'message': 'API CONFLICT: Bot ' + other_id + ' already uses same API key! Stop it first.'
+                })
+    
+    # Start in background thread so HTTP response returns immediately
+    def _start_async():
+        try:
+            manager.start_bot(bot_id)
+        except Exception as e:
+            logger.error(f"Async start error for {bot_id}: {e}")
+    
+    bot.status = type(bot.status).STARTING if hasattr(type(bot.status), 'STARTING') else bot.status
+    thread = threading.Thread(target=_start_async, daemon=True)
+    thread.start()
+    
     return jsonify({
-        'success': success,
+        'success': True,
         'bot_id': bot_id,
-        'status': 'running' if success else 'error',
-        'message': 'Bot started' if success else 'Failed to start'
+        'status': 'starting',
+        'message': 'Bot starting... Check status in a few seconds'
     })
 
 
@@ -824,7 +857,7 @@ def get_overview():
 
 @app.route('/bots/<bot_id>/edit')
 def edit_bot_page(bot_id):
-    """Full bot configuration editor"""
+    """Full bot configuration editor - dynamic, renders ALL config fields"""
     return f"""
     <!DOCTYPE html>
     <html>
@@ -846,7 +879,7 @@ def edit_bot_page(bot_id):
                 margin: -20px -20px 20px -20px;
             }}
             .header h1 {{ color: #00ff88; }}
-            .container {{ max-width: 800px; margin: 0 auto; }}
+            .container {{ max-width: 900px; margin: 0 auto; }}
             .section {{
                 background: rgba(255,255,255,0.05);
                 padding: 20px;
@@ -860,10 +893,12 @@ def edit_bot_page(bot_id):
                 margin-bottom: 15px;
                 padding-bottom: 10px;
                 border-bottom: 1px solid rgba(255,255,255,0.1);
+                cursor: pointer;
             }}
+            .section-title:hover {{ color: #33ffaa; }}
             .form-row {{
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
                 gap: 15px;
                 margin-bottom: 15px;
             }}
@@ -873,22 +908,25 @@ def edit_bot_page(bot_id):
             }}
             .form-group label {{
                 color: #888;
-                font-size: 12px;
+                font-size: 11px;
                 margin-bottom: 5px;
                 text-transform: uppercase;
+                letter-spacing: 0.5px;
             }}
-            .form-group input, .form-group select {{
+            .form-group input, .form-group select, .form-group textarea {{
                 padding: 10px;
                 border: 1px solid rgba(255,255,255,0.2);
                 border-radius: 8px;
                 background: rgba(0,0,0,0.3);
                 color: #fff;
                 font-size: 14px;
+                font-family: monospace;
             }}
-            .form-group input:focus, .form-group select:focus {{
+            .form-group input:focus, .form-group select:focus, .form-group textarea:focus {{
                 outline: none;
                 border-color: #00ff88;
             }}
+            .form-group textarea {{ min-height: 60px; resize: vertical; }}
             .btn {{
                 padding: 15px 30px;
                 border: none;
@@ -939,6 +977,21 @@ def edit_bot_page(bot_id):
             .history-table th {{ color: #888; font-size: 12px; text-transform: uppercase; }}
             .positive {{ color: #00ff88; }}
             .negative {{ color: #ff4444; }}
+            .bool-true {{ color: #00ff88; font-weight: bold; }}
+            .bool-false {{ color: #ff4444; }}
+            .raw-json {{
+                background: rgba(0,0,0,0.4);
+                border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 8px;
+                padding: 15px;
+                font-family: monospace;
+                font-size: 12px;
+                color: #00ff88;
+                white-space: pre-wrap;
+                word-break: break-all;
+                max-height: 400px;
+                overflow: auto;
+            }}
         </style>
     </head>
     <body>
@@ -955,122 +1008,15 @@ def edit_bot_page(bot_id):
                 <div id="botStatus">Загрузка...</div>
             </div>
             
-            <!-- Strategy Config -->
-            <div class="section">
-                <div class="section-title">🎯 Стратегия</div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Type</label>
-                        <select id="strategy_type">
-                            <option value="momentum">Momentum</option>
-                            <option value="scout">Scout</option>
-                            <option value="breakout">Breakout</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Leverage (1-100)</label>
-                        <input type="number" id="strategy_leverage" min="1" max="100" value="10">
-                    </div>
-                    <div class="form-group">
-                        <label>Max Positions</label>
-                        <input type="number" id="strategy_max_positions" min="1" max="100" value="20">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Position Size %</label>
-                        <input type="number" id="strategy_position_size_pct" step="0.1" value="2.0">
-                    </div>
-                    <div class="form-group">
-                        <label>Probe Enabled</label>
-                        <select id="strategy_probe_enabled">
-                            <option value="true">Yes</option>
-                            <option value="false">No</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Pyramiding Enabled</label>
-                        <select id="strategy_pyramiding_enabled">
-                            <option value="true">Yes</option>
-                            <option value="false">No</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
+            <!-- Dynamic Config Sections - rendered from JSON -->
+            <div id="configSections">Загрузка конфигурации...</div>
             
-            <!-- Risk Management -->
+            <!-- Raw JSON Editor -->
             <div class="section">
-                <div class="section-title">🛡️ Риск-менеджмент</div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Daily Loss Limit %</label>
-                        <input type="number" id="risk_daily_loss_limit_pct" step="0.1" value="5.0">
-                    </div>
-                    <div class="form-group">
-                        <label>Max Drawdown %</label>
-                        <input type="number" id="risk_max_drawdown_pct" step="0.1" value="10.0">
-                    </div>
-                    <div class="form-group">
-                        <label>Position Timeout Hours</label>
-                        <input type="number" id="risk_position_timeout_hours" value="24">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Auto Reduce Enabled</label>
-                        <select id="risk_auto_reduce_enabled">
-                            <option value="true">Yes</option>
-                            <option value="false">No</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Emergency Stop Enabled</label>
-                        <select id="risk_emergency_stop_enabled">
-                            <option value="true">Yes</option>
-                            <option value="false">No</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Trading Settings -->
-            <div class="section">
-                <div class="section-title">⚡ Торговые настройки</div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Check Interval (sec)</label>
-                        <input type="number" id="trading_check_interval_sec" value="60">
-                    </div>
-                    <div class="form-group">
-                        <label>Order Timeout (sec)</label>
-                        <input type="number" id="trading_order_timeout_sec" value="30">
-                    </div>
-                    <div class="form-group">
-                        <label>Max Spread %</label>
-                        <input type="number" id="trading_max_spread_pct" step="0.01" value="0.5">
-                    </div>
-                </div>
-            </div>
-            
-            <!-- API Settings -->
-            <div class="section">
-                <div class="section-title">🔑 API настройки</div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>API Key</label>
-                        <input type="text" id="api_key" placeholder="Введите API ключ">
-                    </div>
-                    <div class="form-group">
-                        <label>API Secret</label>
-                        <input type="password" id="api_secret" placeholder="Введите API секрет">
-                    </div>
-                    <div class="form-group">
-                        <label>Testnet</label>
-                        <select id="api_testnet">
-                            <option value="false">Нет (Реальный счет)</option>
-                            <option value="true">Да (Тестнет)</option>
-                        </select>
-                    </div>
+                <div class="section-title" onclick="document.getElementById('rawJsonBlock').style.display=document.getElementById('rawJsonBlock').style.display==='none'?'block':'none'">📝 Raw JSON (нажми чтобы показать/скрыть)</div>
+                <div id="rawJsonBlock" style="display:none">
+                    <textarea id="rawJsonEditor" class="raw-json" style="width:100%;min-height:300px"></textarea>
+                    <button class="btn btn-save" style="margin-top:10px" onclick="saveRawJson()">💾 Сохранить JSON</button>
                 </div>
             </div>
             
@@ -1096,7 +1042,111 @@ def edit_bot_page(bot_id):
         
         <script>
             const botId = '{bot_id}';
+            let fullConfig = {{}};
             
+            // Section icons mapping
+            const sectionIcons = {{
+                'api': '🔑', 'strategy': '🎯', 'risk': '🛡️', 'trading': '⚡',
+                'logging': '📋', 'symbols': '📊', 'name': '🏷️', 'enabled': '🔌'
+            }};
+
+            // Render a config value as an input field
+            function renderField(key, value, path) {{
+                const id = path.join('_');
+                if (typeof value === 'boolean') {{
+                    return '<div class="form-group"><label>' + key + '</label>' +
+                        '<select id="field_' + id + '" data-path="' + path.join('.') + '">' +
+                        '<option value="true"' + (value ? ' selected' : '') + '>Yes (true)</option>' +
+                        '<option value="false"' + (!value ? ' selected' : '') + '>No (false)</option>' +
+                        '</select></div>';
+                }} else if (typeof value === 'number') {{
+                    const step = Number.isInteger(value) ? '1' : '0.01';
+                    return '<div class="form-group"><label>' + key + '</label>' +
+                        '<input type="number" id="field_' + id + '" data-path="' + path.join('.') + '" step="' + step + '" value="' + value + '"></div>';
+                }} else if (Array.isArray(value)) {{
+                    return '<div class="form-group"><label>' + key + ' (array)</label>' +
+                        '<textarea id="field_' + id + '" data-path="' + path.join('.') + '">' + JSON.stringify(value, null, 2) + '</textarea></div>';
+                }} else {{
+                    const isSecret = key.toLowerCase().includes('secret');
+                    const inputType = isSecret ? 'password' : 'text';
+                    return '<div class="form-group"><label>' + key + '</label>' +
+                        '<input type="' + inputType + '" id="field_' + id + '" data-path="' + path.join('.') + '" value="' + (value || '') + '"></div>';
+                }}
+            }}
+
+            // Build config sections dynamically from JSON
+            function buildConfigUI(config) {{
+                let html = '';
+                const skipKeys = ['bot_id'];
+                
+                for (const [key, value] of Object.entries(config)) {{
+                    if (skipKeys.includes(key)) continue;
+                    
+                    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {{
+                        // Object section
+                        const icon = sectionIcons[key] || '📁';
+                        html += '<div class="section">';
+                        html += '<div class="section-title">' + icon + ' ' + key.charAt(0).toUpperCase() + key.slice(1) + '</div>';
+                        html += '<div class="form-row">';
+                        for (const [subKey, subValue] of Object.entries(value)) {{
+                            if (typeof subValue === 'object' && subValue !== null && !Array.isArray(subValue)) {{
+                                // Nested object - flatten
+                                for (const [k3, v3] of Object.entries(subValue)) {{
+                                    html += renderField(subKey + '.' + k3, v3, [key, subKey, k3]);
+                                }}
+                            }} else {{
+                                html += renderField(subKey, subValue, [key, subKey]);
+                            }}
+                        }}
+                        html += '</div></div>';
+                    }} else {{
+                        // Top-level value (like enabled, name)
+                        const icon = sectionIcons[key] || '⚙️';
+                        if (!html.startsWith('<div class="section"')) {{
+                            html += '<div class="section">';
+                            html += '<div class="section-title">⚙️ Основные настройки</div>';
+                            html += '<div class="form-row">';
+                        }}
+                        html += renderField(key, value, [key]);
+                    }}
+                }}
+                
+                // Close any open section
+                if (html.includes('<div class="form-row">') && !html.includes('</div></div>')) {{
+                    html += '</div></div>';
+                }}
+                
+                return html;
+            }}
+
+            // Collect all field values back into config object
+            function collectConfig() {{
+                const config = JSON.parse(JSON.stringify(fullConfig));
+                const fields = document.querySelectorAll('[data-path]');
+                fields.forEach(function(field) {{
+                    const path = field.getAttribute('data-path').split('.');
+                    let val = field.value;
+                    
+                    // Parse value type
+                    if (field.tagName === 'SELECT') {{
+                        val = val === 'true';
+                    }} else if (field.type === 'number') {{
+                        val = parseFloat(val);
+                    }} else if (field.tagName === 'TEXTAREA') {{
+                        try {{ val = JSON.parse(val); }} catch(e) {{}}
+                    }}
+                    
+                    // Set value in config by path
+                    let obj = config;
+                    for (let i = 0; i < path.length - 1; i++) {{
+                        if (!obj[path[i]]) obj[path[i]] = {{}};
+                        obj = obj[path[i]];
+                    }}
+                    obj[path[path.length - 1]] = val;
+                }});
+                return config;
+            }}
+
             // Load config on page load
             async function loadConfig() {{
                 try {{
@@ -1104,34 +1154,20 @@ def edit_bot_page(bot_id):
                     const data = await response.json();
                     
                     if (data.success) {{
-                        const c = data.config;
-                        document.getElementById('strategy_type').value = c.strategy?.type || 'momentum';
-                        document.getElementById('strategy_leverage').value = c.strategy?.leverage || 10;
-                        document.getElementById('strategy_max_positions').value = c.strategy?.max_positions || 20;
-                        document.getElementById('strategy_position_size_pct').value = c.strategy?.position_size_pct || 2.0;
-                        document.getElementById('strategy_probe_enabled').value = String(c.strategy?.probe_enabled || false);
-                        document.getElementById('strategy_pyramiding_enabled').value = String(c.strategy?.pyramiding_enabled || false);
+                        fullConfig = data.config;
                         
-                        document.getElementById('risk_daily_loss_limit_pct').value = c.risk?.daily_loss_limit_pct || 5.0;
-                        document.getElementById('risk_max_drawdown_pct').value = c.risk?.max_drawdown_pct || 10.0;
-                        document.getElementById('risk_position_timeout_hours').value = c.risk?.position_timeout_hours || 24;
-                        document.getElementById('risk_auto_reduce_enabled').value = String(c.risk?.auto_reduce_enabled || true);
-                        document.getElementById('risk_emergency_stop_enabled').value = String(c.risk?.emergency_stop_enabled || true);
+                        // Build dynamic UI
+                        document.getElementById('configSections').innerHTML = buildConfigUI(fullConfig);
                         
-                        document.getElementById('trading_check_interval_sec').value = c.trading?.check_interval_sec || 60;
-                        document.getElementById('trading_order_timeout_sec').value = c.trading?.order_timeout_sec || 30;
-                        document.getElementById('trading_max_spread_pct').value = c.trading?.max_spread_pct || 0.5;
+                        // Set raw JSON
+                        document.getElementById('rawJsonEditor').value = JSON.stringify(fullConfig, null, 2);
                         
-                        document.getElementById('api_key').value = c.api?.key || '';
-                        document.getElementById('api_secret').value = c.api?.secret || '';
-                        document.getElementById('api_testnet').value = String(c.api?.testnet || false);
-                        
-                        document.getElementById('botStatus').innerHTML = `
-                            <span class="status-badge ${{c.enabled ? 'status-running' : 'status-stopped'}}">
-                                ${{c.enabled ? 'ENABLED' : 'DISABLED'}}
-                            </span>
-                            <span style="margin-left:15px; color:#888">${{c.name}}</span>
-                        `;
+                        // Status
+                        const c = fullConfig;
+                        document.getElementById('botStatus').innerHTML =
+                            '<span class="status-badge ' + (c.enabled ? 'status-running' : 'status-stopped') + '">' +
+                            (c.enabled ? 'ENABLED' : 'DISABLED') + '</span>' +
+                            '<span style="margin-left:15px; color:#888">' + (c.name || botId) + '</span>';
                     }}
                 }} catch (e) {{
                     showAlert('Error loading config: ' + e, 'error');
@@ -1141,22 +1177,22 @@ def edit_bot_page(bot_id):
             // Load history
             async function loadHistory() {{
                 try {{
-                    const response = await fetch(`/api/bots/${{botId}}/history`);
+                    const response = await fetch('/api/bots/' + botId + '/history');
                     const data = await response.json();
                     
                     if (data.success && data.history.sessions.length > 0) {{
                         let html = '<table class="history-table"><tr><th>Дата</th><th>PnL</th><th>Сделок</th><th>Win Rate</th><th>Аптайм</th></tr>';
-                        data.history.sessions.slice().reverse().forEach(s => {{
+                        data.history.sessions.slice().reverse().forEach(function(s) {{
                             const pnl = parseFloat(s.final_balance);
                             const pnlClass = pnl >= 0 ? 'positive' : 'negative';
                             const pnlSign = pnl >= 0 ? '+' : '';
-                            html += `<tr>
-                                <td>${{new Date(s.timestamp).toLocaleString()}}</td>
-                                <td class="${{pnlClass}}">${{pnlSign}}${{pnl.toFixed(2)}} USDT</td>
-                                <td>${{s.total_trades}}</td>
-                                <td>${{(s.win_rate * 100).toFixed(1)}}%</td>
-                                <td>${{Math.floor(s.uptime_seconds / 60)}} мин</td>
-                            </tr>`;
+                            html += '<tr>' +
+                                '<td>' + new Date(s.timestamp).toLocaleString() + '</td>' +
+                                '<td class="' + pnlClass + '">' + pnlSign + pnl.toFixed(2) + ' USDT</td>' +
+                                '<td>' + s.total_trades + '</td>' +
+                                '<td>' + (s.win_rate * 100).toFixed(1) + '%</td>' +
+                                '<td>' + Math.floor(s.uptime_seconds / 60) + ' мин</td>' +
+                                '</tr>';
                         }});
                         html += '</table>';
                         document.getElementById('historyContainer').innerHTML = html;
@@ -1168,41 +1204,12 @@ def edit_bot_page(bot_id):
                 }}
             }}
             
-            // Save config
+            // Save config from dynamic fields
             async function saveConfig() {{
-                const config = {{
-                    bot_id: botId,
-                    name: '{bot_id}',
-                    enabled: false,
-                    strategy: {{
-                        type: document.getElementById('strategy_type').value,
-                        leverage: parseInt(document.getElementById('strategy_leverage').value),
-                        max_positions: parseInt(document.getElementById('strategy_max_positions').value),
-                        position_size_pct: parseFloat(document.getElementById('strategy_position_size_pct').value),
-                        probe_enabled: document.getElementById('strategy_probe_enabled').value === 'true',
-                        pyramiding_enabled: document.getElementById('strategy_pyramiding_enabled').value === 'true'
-                    }},
-                    risk: {{
-                        daily_loss_limit_pct: parseFloat(document.getElementById('risk_daily_loss_limit_pct').value),
-                        max_drawdown_pct: parseFloat(document.getElementById('risk_max_drawdown_pct').value),
-                        position_timeout_hours: parseInt(document.getElementById('risk_position_timeout_hours').value),
-                        auto_reduce_enabled: document.getElementById('risk_auto_reduce_enabled').value === 'true',
-                        emergency_stop_enabled: document.getElementById('risk_emergency_stop_enabled').value === 'true'
-                    }},
-                    trading: {{
-                        check_interval_sec: parseInt(document.getElementById('trading_check_interval_sec').value),
-                        order_timeout_sec: parseInt(document.getElementById('trading_order_timeout_sec').value),
-                        max_spread_pct: parseFloat(document.getElementById('trading_max_spread_pct').value)
-                    }},
-                    api: {{
-                        key: document.getElementById('api_key').value,
-                        secret: document.getElementById('api_secret').value,
-                        testnet: document.getElementById('api_testnet').value === 'true'
-                    }}
-                }};
+                const config = collectConfig();
                 
                 try {{
-                    const response = await fetch(`/api/bots/${{botId}}/config`, {{
+                    const response = await fetch('/api/bots/' + botId + '/config', {{
                         method: 'PUT',
                         headers: {{'Content-Type': 'application/json'}},
                         body: JSON.stringify(config)
@@ -1218,17 +1225,39 @@ def edit_bot_page(bot_id):
                     showAlert('❌ Ошибка сохранения: ' + e, 'error');
                 }}
             }}
+
+            // Save raw JSON
+            async function saveRawJson() {{
+                try {{
+                    const config = JSON.parse(document.getElementById('rawJsonEditor').value);
+                    const response = await fetch('/api/bots/' + botId + '/config', {{
+                        method: 'PUT',
+                        headers: {{'Content-Type': 'application/json'}},
+                        body: JSON.stringify(config)
+                    }});
+                    const data = await response.json();
+                    
+                    if (data.success) {{
+                        showAlert('✅ JSON сохранён! Перезапусти бота для применения.', 'success');
+                        loadConfig(); // Refresh UI
+                    }} else {{
+                        showAlert('❌ Ошибка: ' + data.error, 'error');
+                    }}
+                }} catch (e) {{
+                    showAlert('❌ Невалидный JSON: ' + e, 'error');
+                }}
+            }}
             
             // Reset balance
             async function resetBalance() {{
                 if (!confirm('Сбросить баланс к 100,000 USDT? Текущая статистика будет сохранена в историю.')) return;
                 
                 try {{
-                    const response = await fetch(`/api/bots/${{botId}}/reset-balance`, {{method: 'POST'}});
+                    const response = await fetch('/api/bots/' + botId + '/reset-balance', {{method: 'POST'}});
                     const data = await response.json();
                     
                     if (data.success) {{
-                        showAlert(`✅ Баланс сброшен! PnL сессии: ${{data.session_stats.final_balance.toFixed(2)}} USDT`, 'success');
+                        showAlert('✅ Баланс сброшен! PnL сессии: $' + data.session_stats.final_balance.toFixed(2) + ' USDT', 'success');
                         loadHistory();
                     }} else {{
                         showAlert('❌ Ошибка: ' + data.error, 'error');
@@ -1243,11 +1272,11 @@ def edit_bot_page(bot_id):
                 if (!confirm('Graceful shutdown? Все позиции будут закрыты перед остановкой.')) return;
                 
                 try {{
-                    const response = await fetch(`/api/bots/${{botId}}/graceful-shutdown`, {{method: 'POST'}});
+                    const response = await fetch('/api/bots/' + botId + '/graceful-shutdown', {{method: 'POST'}});
                     const data = await response.json();
                     
                     if (data.success) {{
-                        showAlert(`✅ Бот остановлен. Закрыто позиций: ${{data.closed_positions.length}}`, 'success');
+                        showAlert('✅ Бот остановлен. Закрыто позиций: ' + data.closed_positions.length, 'success');
                     }} else {{
                         showAlert('❌ Ошибка: ' + data.error, 'error');
                     }}
@@ -1262,7 +1291,7 @@ def edit_bot_page(bot_id):
                 box.textContent = message;
                 box.className = 'alert ' + type;
                 box.style.display = 'block';
-                setTimeout(() => box.style.display = 'none', 5000);
+                setTimeout(function() {{ box.style.display = 'none'; }}, 5000);
             }}
             
             // Load on start
