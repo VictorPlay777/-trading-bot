@@ -34,21 +34,30 @@ class TradingEngine:
     6. Learning -> update weights, record statistics
     """
     
-    def __init__(self, api_client: BybitClient):
+    def __init__(self, api_client: BybitClient, bot_config: dict = None):
         self.api = api_client
+        self.bot_config = bot_config or {}  # Bot-specific config from JSON
         
-        # Initialize engines
-        self.momentum_engine = MomentumEngine(strategy_config)
-        self.signal_engine = SignalEngine(strategy_config)
-        self.position_manager = PositionManager(strategy_config, api_client)
-        self.learning_module = LearningModule(strategy_config)
-        self.liquidity_engine = LiquidityEngine(strategy_config)
-        self.liquidation_engine = LiquidationEngine(strategy_config)
+        # Get strategy settings from bot_config or fallback to global
+        strategy_cfg = bot_config.get('strategy', {}) if bot_config else strategy_config
         
-        # Trading parameters
+        # Initialize engines with bot-specific config
+        self.momentum_engine = MomentumEngine(strategy_cfg)
+        self.signal_engine = SignalEngine(strategy_cfg)
+        self.position_manager = PositionManager(strategy_cfg, api_client, bot_config)
+        self.learning_module = LearningModule(strategy_cfg)
+        self.liquidity_engine = LiquidityEngine(strategy_cfg)
+        self.liquidation_engine = LiquidationEngine(strategy_cfg)
+        
+        # Trading parameters from bot config
         self.symbols = self._load_symbols()
         self.max_position_size = 100000.0  # $100k max position per trade (will be adjusted based on balance)
-        self.leverage = trading_config.default_leverage  # 100x
+        
+        # Use bot-specific leverage or fallback to global
+        if bot_config and 'strategy' in bot_config:
+            self.leverage = bot_config['strategy'].get('leverage', trading_config.default_leverage)
+        else:
+            self.leverage = trading_config.default_leverage
         
         # Setup leverage for all symbols (Bybit API requirement)
         self._setup_leverage()

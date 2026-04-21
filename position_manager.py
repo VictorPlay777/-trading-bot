@@ -69,10 +69,17 @@ class PositionManager:
     - Trailing stop for strong profits
     """
     
-    def __init__(self, config, api_client):
+    def __init__(self, config, api_client, bot_config: dict = None):
         self.cfg = config
         self.api = api_client
+        self.bot_config = bot_config or {}  # Bot-specific config
         self.positions: Dict[str, Position] = {}  # symbol -> Position
+        
+        # Get max_positions from bot_config or fallback to global
+        if bot_config and 'strategy' in bot_config:
+            self.max_positions = bot_config['strategy'].get('max_positions', 20)
+        else:
+            self.max_positions = 20  # Default
         
         # Trade type percentages
         self.probe_pct = 0.05  # 5% of max position
@@ -121,6 +128,11 @@ class PositionManager:
             # Check if position already exists
             if symbol in self.positions:
                 logger.warning(f"Position already exists for {symbol}")
+                return False
+            
+            # Check max positions limit
+            if len(self.positions) >= self.max_positions:
+                logger.warning(f"Max positions ({self.max_positions}) reached, cannot open new position for {symbol}")
                 return False
             
             # Get instrument info for qty_step, min_qty, and price filters

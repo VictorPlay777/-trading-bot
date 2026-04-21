@@ -166,18 +166,18 @@ class BotInstance:
     
     def _apply_config_changes(self):
         """Apply configuration changes without restart"""
-        # Update strategy parameters
         if self.engine:
+            # Update leverage
             new_leverage = self.config.get('strategy', {}).get('leverage', 10)
             if new_leverage != self.engine.leverage:
                 self.logger.info(f"Leverage changed: {self.engine.leverage}x → {new_leverage}x")
                 self.engine.leverage = new_leverage
             
-            # Update max positions
+            # Update max positions in both engine and position manager
             new_max = self.config.get('strategy', {}).get('max_positions', 20)
-            if new_max != self.engine.max_positions:
-                self.logger.info(f"Max positions changed: {self.engine.max_positions} → {new_max}")
-                self.engine.max_positions = new_max
+            if new_max != self.engine.position_manager.max_positions:
+                self.logger.info(f"Max positions changed: {self.engine.position_manager.max_positions} → {new_max}")
+                self.engine.position_manager.max_positions = new_max
         
         self.logger.info("Configuration hot-reloaded successfully")
     
@@ -205,11 +205,9 @@ class BotInstance:
         """Initialize trading engine"""
         try:
             # Apply config to strategy
-            strategy_config.leverage = self.config.get('strategy', {}).get('leverage', 10)
-            strategy_config.max_positions = self.config.get('strategy', {}).get('max_positions', 20)
-            
-            self.engine = TradingEngine(self.api)
-            self.logger.info("Trading engine initialized")
+            # Pass bot-specific config to engine so it uses JSON settings, not global
+            self.engine = TradingEngine(self.api, self.config)
+            self.logger.info("Trading engine initialized with bot-specific config")
             return True
             
         except Exception as e:
