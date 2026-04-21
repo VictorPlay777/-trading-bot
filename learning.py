@@ -6,7 +6,7 @@ import json
 import os
 from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 
 logger = logging.getLogger(__name__)
@@ -75,8 +75,15 @@ class LearningModule:
         # Symbol performance tracking
         self.symbol_performance: Dict[str, Dict] = {}
         
-        # Trade history
+        # Trade history - increased to 1000 for better analysis
         self.trade_history: List[TradeRecord] = []
+        self.max_history_size = 1000  # Keep last 1000 trades instead of 100
+        
+        # Symbol risk adjustment - reduce position size for poor performers instead of blocking
+        self.symbol_risk_multiplier: Dict[str, float] = {}  # symbol -> position size multiplier
+        self.min_win_rate_for_full_size = 0.40  # Full position size at 40%+ win rate
+        self.min_win_rate_for_reduced = 0.25  # Reduced position size below 25% win rate
+        self.risk_adjustment_min_trades = 8  # Need at least 8 trades before adjustment
         
         # Learning parameters
         self.learning_rate = 0.1  # How much to adjust weights
@@ -151,6 +158,9 @@ class LearningModule:
             # Update symbol performance
             self._update_symbol_performance(trade_record)
             
+            # Adjust risk based on symbol performance (learn instead of block)
+            self._adjust_symbol_risk(symbol)
+            
             # Save learning data
             self._save_learning_data()
             
@@ -213,6 +223,47 @@ class LearningModule:
         except Exception as e:
             logger.error(f"Error updating symbol performance: {e}")
     
+    def _adjust_symbol_risk(self, symbol: str) -> None:
+        """Adjust position size multiplier based on symbol performance - LEARN instead of blocking"""
+        try:
+            if symbol not in self.symbol_performance:
+                self.symbol_risk_multiplier[symbol] = 1.0  # Default full size
+                return
+            
+            perf = self.symbol_performance[symbol]
+            total_trades = perf.get("total_trades", 0)
+            winning_trades = perf.get("winning_trades", 0)
+            
+            # Need minimum trades before adjustment
+            if total_trades < self.risk_adjustment_min_trades:
+                self.symbol_risk_multiplier[symbol] = 1.0
+                return
+            
+            # Calculate win rate
+            win_rate = winning_trades / total_trades if total_trades > 0 else 0.0
+            
+            # Dynamic position size based on performance
+            if win_rate >= self.min_win_rate_for_full_size:
+                # Good performance - full size
+                self.symbol_risk_multiplier[symbol] = 1.0
+                logger.info(f"📈 {symbol}: Good performance {win_rate*100:.1f}% win rate, full position size")
+            elif win_rate >= self.min_win_rate_for_reduced:
+                # Medium performance - reduced size to learn safely
+                multiplier = 0.5 + (win_rate - self.min_win_rate_for_reduced) / (self.min_win_rate_for_full_size - self.min_win_rate_for_reduced) * 0.5
+                self.symbol_risk_multiplier[symbol] = round(multiplier, 2)
+                logger.info(f"⚠️ {symbol}: Medium performance {win_rate*100:.1f}% win rate, position size reduced to {multiplier*100:.0f}%")
+            else:
+                # Poor performance - minimal size to learn with minimal risk
+                self.symbol_risk_multiplier[symbol] = 0.2  # 20% of normal size
+                logger.warning(f"� {symbol}: Poor performance {win_rate*100:.1f}% win rate, learning mode: 20% position size. Keep trading to improve strategy!")
+        
+        except Exception as e:
+            logger.error(f"Error adjusting risk for {symbol}: {e}")
+    
+    def get_position_size_multiplier(self, symbol: str) -> float:
+        """Get position size multiplier for a symbol (0.2 to 1.0)"""
+        return self.symbol_risk_multiplier.get(symbol, 1.0)
+    
     def get_signal_weight(self, signal_type: str) -> float:
         """Get current weight for a signal type"""
         return self.signal_weights.get(signal_type, 1.0)
@@ -264,7 +315,13 @@ class LearningModule:
             data = {
                 "signal_weights": self.signal_weights,
                 "symbol_performance": self.symbol_performance,
-                "trade_history": [asdict(t) for t in self.trade_history[-100:]]  # Keep last 100 trades
+                "trade_history": [asdict(t) for t in self.trade_history[-self.max_history_size:]],  # Keep last 1000 trades
+                "symbol_risk_multiplier": self.symbol_risk_multiplier,
+                "config": {
+                    "min_win_rate_for_full_size": self.min_win_rate_for_full_size,
+                    "min_win_rate_for_reduced": self.min_win_rate_for_reduced,
+                    "risk_adjustment_min_trades": self.risk_adjustment_min_trades
+                }
             }
             
             with open(self.history_file, 'w') as f:
@@ -284,15 +341,20 @@ class LearningModule:
             
             self.signal_weights = data.get("signal_weights", self.signal_weights)
             self.symbol_performance = data.get("symbol_performance", {})
+            self.symbol_risk_multiplier = data.get("symbol_risk_multiplier", {})
             
             # Load trade history (convert back to TradeRecord objects)
             trade_data = data.get("trade_history", [])
             for t in trade_data:
-                t["entry_time"] = datetime.fromisoformat(t["entry_time"])
-                t["exit_time"] = datetime.fromisoformat(t["exit_time"])
-                self.trade_history.append(TradeRecord(**t))
+                try:
+                    t["entry_time"] = datetime.fromisoformat(t["entry_time"])
+                    t["exit_time"] = datetime.fromisoformat(t["exit_time"])
+                    self.trade_history.append(TradeRecord(**t))
+                except Exception as e:
+                    logger.warning(f"Error loading trade record: {e}")
             
-            logger.info(f"Loaded learning data: {len(self.trade_history)} trades")
+            adjusted_count = sum(1 for v in self.symbol_risk_multiplier.values() if v < 1.0)
+            logger.info(f"Loaded learning data: {len(self.trade_history)} trades, {adjusted_count} symbols with reduced position size")
             
         except Exception as e:
             logger.error(f"Error loading learning data: {e}")

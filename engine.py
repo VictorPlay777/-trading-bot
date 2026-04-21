@@ -272,10 +272,58 @@ class TradingEngine:
         except Exception as e:
             logger.error(f"Error fetching market data: {e}")
     
+    def _get_trend_direction(self, df: pd.DataFrame, current_price: float) -> str:
+        """
+        Determine trend direction using EMA50
+        Returns: 'uptrend', 'downtrend', or 'neutral'
+        """
+        try:
+            if len(df) < 50:
+                return 'neutral'
+            
+            # Calculate EMA50
+            ema50 = df['close'].ewm(span=50, adjust=False).mean().iloc[-1]
+            
+            # Determine trend
+            price_vs_ema = (current_price - ema50) / ema50 * 100
+            
+            if price_vs_ema > 0.5:  # Price above EMA50 by 0.5%
+                return 'uptrend'
+            elif price_vs_ema < -0.5:  # Price below EMA50 by 0.5%
+                return 'downtrend'
+            else:
+                return 'neutral'
+                
+        except Exception as e:
+            logger.warning(f"Error calculating trend for: {e}")
+            return 'neutral'
+    
+    def _check_trend_filter(self, symbol: str, direction: str, df: pd.DataFrame, current_price: float) -> bool:
+        """
+        Check if trade direction aligns with trend
+        Returns True if allowed, False if blocked
+        """
+        trend = self._get_trend_direction(df, current_price)
+        
+        # Don't trade against strong trend
+        if trend == 'uptrend' and direction == 'short':
+            logger.warning(f"TREND FILTER: Blocked SHORT on {symbol} - uptrend detected (price > EMA50)")
+            return False
+        elif trend == 'downtrend' and direction == 'long':
+            logger.warning(f"TREND FILTER: Blocked LONG on {symbol} - downtrend detected (price < EMA50)")
+            return False
+        
+        return True
+    
     def _look_for_trades(self, symbol: str, df: pd.DataFrame, current_price: float) -> None:
         """Look for new trade opportunities with priority: LIQUIDATION > MOMENTUM > SIGNAL > PROBE"""
         try:
             logger.debug(f"Checking for trades for {symbol}")
+            
+            # Check symbol risk multiplier - reduce position size for poor performers to learn safely
+            self.current_risk_multiplier = self.learning_module.get_position_size_multiplier(symbol)
+            if self.current_risk_multiplier < 1.0:
+                logger.info(f"RISK ADJUSTMENT: {symbol} using {self.current_risk_multiplier*100:.0f}% position size (learning mode)")
             
             # 1. Liquidation cascade hunting (highest priority)
             liquidation_signal = self.liquidation_engine.detect_liquidation_opportunity(df, symbol)
@@ -292,6 +340,12 @@ class TradingEngine:
             momentum_signal = self.momentum_engine.detect_momentum(df, symbol)
             if momentum_signal:
                 logger.debug(f"Momentum signal detected: {momentum_signal.reason}")
+                
+                # Check trend filter - don't fight strong trends with momentum
+                if not self._check_trend_filter(symbol, momentum_signal.direction, df, current_price):
+                    logger.warning(f"Momentum signal for {symbol} blocked by trend filter")
+                    return
+                
                 # Check liquidity context before momentum trade
                 liquidity_analysis = self.liquidity_engine.analyze_liquidity(df, symbol)
                 
@@ -301,13 +355,19 @@ class TradingEngine:
                     return
                 
                 logger.info(f"MOMENTUM signal for {symbol}: {momentum_signal.reason}")
-                self._open_momentum_trade(symbol, momentum_signal, current_price)
+                self._open_momentum_trade(symbol, momentum_signal, current_price, self.current_risk_multiplier)
                 return  # Don't open other trades if momentum detected
             
             # 3. Signal detection (SCOUT trade)
             signal = self.signal_engine.generate_signal(df, symbol)
             if signal:
                 logger.debug(f"Signal detected: {signal.direction}, strength={signal.strength:.2f}")
+                
+                # Check trend filter - don't fight trends with scout trades
+                if not self._check_trend_filter(symbol, signal.direction, df, current_price):
+                    logger.warning(f"Scout signal for {symbol} blocked by trend filter")
+                    return
+                
                 # Check liquidity context before signal trade
                 liquidity_analysis = self.liquidity_engine.analyze_liquidity(df, symbol)
                 
@@ -317,15 +377,26 @@ class TradingEngine:
                     return
                 
                 logger.info(f"SCOUT signal for {symbol}: {signal.reason}")
-                self._open_scout_trade(symbol, signal, current_price)
+                self._open_scout_trade(symbol, signal, current_price, self.current_risk_multiplier)
                 return  # Don't open probe if scout signal found
             
-            # 4. Probe logic (random small trade)
+            # 4. Probe logic (random small trade) - WITH TREND FILTER
             probe_roll = random.random()
             logger.debug(f"Probe roll: {probe_roll:.4f} (threshold: {self.probability_of_probe})")
             if probe_roll < self.probability_of_probe:
-                logger.info(f"PROBE trade for {symbol}")
-                self._open_probe_trade(symbol, current_price)
+                # Determine probe direction based on trend (follow trend, not random!)
+                trend = self._get_trend_direction(df, current_price)
+                if trend == 'uptrend':
+                    probe_direction = 'long'
+                    logger.info(f"PROBE trade for {symbol}: LONG (following uptrend)")
+                    self._open_probe_trade_directional(symbol, current_price, probe_direction, self.current_risk_multiplier)
+                elif trend == 'downtrend':
+                    probe_direction = 'short'
+                    logger.info(f"PROBE trade for {symbol}: SHORT (following downtrend)")
+                    self._open_probe_trade_directional(symbol, current_price, probe_direction, self.current_risk_multiplier)
+                else:
+                    # Neutral trend - skip probe to avoid random entries
+                    logger.debug(f"PROBE skipped for {symbol}: neutral trend")
             
             logger.debug(f"No trade opened for {symbol} this cycle")
             
@@ -352,12 +423,12 @@ class TradingEngine:
             logger.error(f"Error opening liquidation trade for {symbol}: {e}")
             return False
 
-    def _open_momentum_trade(self, symbol: str, momentum_signal: MomentumSignal, current_price: float) -> bool:
-        """Open MOMENTUM trade"""
+    def _open_momentum_trade(self, symbol: str, momentum_signal: MomentumSignal, current_price: float, risk_multiplier: float = 1.0) -> bool:
+        """Open MOMENTUM trade with risk-adjusted position size"""
         try:
-            # Calculate max position size based on account balance
+            # Calculate max position size based on account balance and risk multiplier
             account_balance = self._get_account_balance()
-            max_position_size = account_balance * 0.3  # Use 30% of balance for momentum trades
+            max_position_size = account_balance * 0.3 * risk_multiplier  # Use 30% of balance adjusted by risk
             
             return self.position_manager.open_position(
                 symbol=symbol,
@@ -372,12 +443,12 @@ class TradingEngine:
             logger.error(f"Error opening momentum trade for {symbol}: {e}")
             return False
     
-    def _open_scout_trade(self, symbol: str, signal: Signal, current_price: float) -> bool:
-        """Open SCOUT trade"""
+    def _open_scout_trade(self, symbol: str, signal: Signal, current_price: float, risk_multiplier: float = 1.0) -> bool:
+        """Open SCOUT trade with risk-adjusted position size"""
         try:
-            # Calculate max position size based on account balance
+            # Calculate max position size based on account balance and risk multiplier
             account_balance = self._get_account_balance()
-            max_position_size = account_balance * 0.2  # Use 20% of balance for scout trades
+            max_position_size = account_balance * 0.2 * risk_multiplier  # Use 20% of balance adjusted by risk
             
             return self.position_manager.open_position(
                 symbol=symbol,
@@ -392,15 +463,16 @@ class TradingEngine:
             logger.error(f"Error opening scout trade for {symbol}: {e}")
             return False
     
-    def _open_probe_trade(self, symbol: str, current_price: float) -> bool:
-        """Open PROBE trade"""
+    def _open_probe_trade(self, symbol: str, current_price: float, direction: str = None, risk_multiplier: float = 1.0) -> bool:
+        """Open PROBE trade - now with trend-following direction and risk adjustment"""
         try:
-            # Calculate max position size based on account balance
+            # Calculate max position size based on account balance and risk multiplier
             account_balance = self._get_account_balance()
-            max_position_size = account_balance * 0.05  # Use 5% of balance for probe trades
+            max_position_size = account_balance * 0.05 * risk_multiplier  # Use 5% of balance adjusted by risk
             
-            # Random direction for probe
-            direction = "long" if random.random() > 0.5 else "short"
+            # Use provided direction or default to random (for backward compatibility)
+            if direction is None:
+                direction = "long" if random.random() > 0.5 else "short"
             
             return self.position_manager.open_position(
                 symbol=symbol,
@@ -414,6 +486,10 @@ class TradingEngine:
         except Exception as e:
             logger.error(f"Error opening probe trade for {symbol}: {e}")
             return False
+    
+    def _open_probe_trade_directional(self, symbol: str, current_price: float, direction: str, risk_multiplier: float = 1.0) -> bool:
+        """Open PROBE trade with specific direction (used by trend filter)"""
+        return self._open_probe_trade(symbol, current_price, direction, risk_multiplier)
     
     def _manage_position(self, symbol: str, df: pd.DataFrame, current_price: float) -> None:
         """Manage existing position"""
