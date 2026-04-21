@@ -18,7 +18,7 @@ HTML_TEMPLATE = """
 <html>
 <head>
     <title>Multi-Bot Trading Manager</title>
-    <meta http-equiv="refresh" content="10">
+    <!-- No auto-refresh meta - it breaks JS fetch calls -->
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -256,7 +256,7 @@ HTML_TEMPLATE = """
         <!-- Bot Cards -->
         <div class="bots-grid">
             {% for bot in bots %}
-            <div class="bot-card {{ bot.status }}">
+            <div class="bot-card {{ bot.status }}" data-bot-id="{{ bot.bot_id }}">
                 <div class="bot-header">
                     <div>
                         <div class="bot-name">{{ bot.name }}</div>
@@ -498,6 +498,21 @@ HTML_TEMPLATE = """
                 closeLogs();
             }
         }
+        
+        // Auto-refresh status every 15 seconds (without killing JS)
+        setInterval(function() {
+            fetch('/api/bots')
+                .then(r => r.json())
+                .then(bots => {
+                    bots.forEach(function(bot) {
+                        var badge = document.querySelector('[data-bot-id="' + bot.bot_id + '"] .status-badge');
+                        if (badge) {
+                            badge.textContent = bot.status;
+                            badge.className = 'status-badge status-' + bot.status;
+                        }
+                    });
+                });
+        }, 15000);
     </script>
 </body>
 </html>
