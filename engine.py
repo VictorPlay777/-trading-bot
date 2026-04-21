@@ -37,6 +37,10 @@ class TradingEngine:
     def __init__(self, api_client: BybitClient, bot_config: dict = None):
         self.api = api_client
         self.bot_config = bot_config or {}  # Bot-specific config from JSON
+        self.bot_id = bot_config.get('bot_id', '') if bot_config else ''  # Bot identifier
+        
+        # Check if this is the Genius AI Trader bot for special features
+        self.is_genius = self.bot_id == 'bot_4_genius'
         
         # Get strategy settings from bot_config or fallback to global
         strategy_cfg = bot_config.get('strategy', {}) if bot_config else strategy_config
@@ -320,10 +324,12 @@ class TradingEngine:
         try:
             logger.debug(f"Checking for trades for {symbol}")
             
-            # Check symbol risk multiplier - reduce position size for poor performers to learn safely
-            self.current_risk_multiplier = self.learning_module.get_position_size_multiplier(symbol)
-            if self.current_risk_multiplier < 1.0:
-                logger.info(f"RISK ADJUSTMENT: {symbol} using {self.current_risk_multiplier*100:.0f}% position size (learning mode)")
+            # Genius-only: Check symbol risk multiplier - reduce position size for poor performers to learn safely
+            risk_multiplier = 1.0
+            if self.is_genius:
+                risk_multiplier = self.learning_module.get_position_size_multiplier(symbol)
+                if risk_multiplier < 1.0:
+                    logger.info(f"RISK ADJUSTMENT: {symbol} using {risk_multiplier*100:.0f}% position size (learning mode)")
             
             # 1. Liquidation cascade hunting (highest priority)
             liquidation_signal = self.liquidation_engine.detect_liquidation_opportunity(df, symbol)
@@ -341,8 +347,8 @@ class TradingEngine:
             if momentum_signal:
                 logger.debug(f"Momentum signal detected: {momentum_signal.reason}")
                 
-                # Check trend filter - don't fight strong trends with momentum
-                if not self._check_trend_filter(symbol, momentum_signal.direction, df, current_price):
+                # Genius-only: Check trend filter - don't fight strong trends with momentum
+                if self.is_genius and not self._check_trend_filter(symbol, momentum_signal.direction, df, current_price):
                     logger.warning(f"Momentum signal for {symbol} blocked by trend filter")
                     return
                 
@@ -355,7 +361,7 @@ class TradingEngine:
                     return
                 
                 logger.info(f"MOMENTUM signal for {symbol}: {momentum_signal.reason}")
-                self._open_momentum_trade(symbol, momentum_signal, current_price, self.current_risk_multiplier)
+                self._open_momentum_trade(symbol, momentum_signal, current_price, risk_multiplier if self.is_genius else 1.0)
                 return  # Don't open other trades if momentum detected
             
             # 3. Signal detection (SCOUT trade)
@@ -363,8 +369,8 @@ class TradingEngine:
             if signal:
                 logger.debug(f"Signal detected: {signal.direction}, strength={signal.strength:.2f}")
                 
-                # Check trend filter - don't fight trends with scout trades
-                if not self._check_trend_filter(symbol, signal.direction, df, current_price):
+                # Genius-only: Check trend filter - don't fight trends with scout trades
+                if self.is_genius and not self._check_trend_filter(symbol, signal.direction, df, current_price):
                     logger.warning(f"Scout signal for {symbol} blocked by trend filter")
                     return
                 
@@ -377,26 +383,30 @@ class TradingEngine:
                     return
                 
                 logger.info(f"SCOUT signal for {symbol}: {signal.reason}")
-                self._open_scout_trade(symbol, signal, current_price, self.current_risk_multiplier)
+                self._open_scout_trade(symbol, signal, current_price, risk_multiplier if self.is_genius else 1.0)
                 return  # Don't open probe if scout signal found
             
-            # 4. Probe logic (random small trade) - WITH TREND FILTER
+            # 4. Probe logic
             probe_roll = random.random()
             logger.debug(f"Probe roll: {probe_roll:.4f} (threshold: {self.probability_of_probe})")
             if probe_roll < self.probability_of_probe:
-                # Determine probe direction based on trend (follow trend, not random!)
-                trend = self._get_trend_direction(df, current_price)
-                if trend == 'uptrend':
-                    probe_direction = 'long'
-                    logger.info(f"PROBE trade for {symbol}: LONG (following uptrend)")
-                    self._open_probe_trade_directional(symbol, current_price, probe_direction, self.current_risk_multiplier)
-                elif trend == 'downtrend':
-                    probe_direction = 'short'
-                    logger.info(f"PROBE trade for {symbol}: SHORT (following downtrend)")
-                    self._open_probe_trade_directional(symbol, current_price, probe_direction, self.current_risk_multiplier)
+                if self.is_genius:
+                    # Genius: Determine probe direction based on trend (follow trend, not random!)
+                    trend = self._get_trend_direction(df, current_price)
+                    if trend == 'uptrend':
+                        probe_direction = 'long'
+                        logger.info(f"PROBE trade for {symbol}: LONG (following uptrend)")
+                        self._open_probe_trade_directional(symbol, current_price, probe_direction, risk_multiplier)
+                    elif trend == 'downtrend':
+                        probe_direction = 'short'
+                        logger.info(f"PROBE trade for {symbol}: SHORT (following downtrend)")
+                        self._open_probe_trade_directional(symbol, current_price, probe_direction, risk_multiplier)
+                    else:
+                        # Neutral trend - skip probe to avoid random entries
+                        logger.debug(f"PROBE skipped for {symbol}: neutral trend")
                 else:
-                    # Neutral trend - skip probe to avoid random entries
-                    logger.debug(f"PROBE skipped for {symbol}: neutral trend")
+                    # Other bots: Random probe direction
+                    self._open_probe_trade(symbol, current_price)
             
             logger.debug(f"No trade opened for {symbol} this cycle")
             
