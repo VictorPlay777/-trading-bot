@@ -1,0 +1,164 @@
+{
+  "bot_id": "bot_4_genius",
+  "name": "Genius AI Trader",
+  "description": "Ultra-adaptive AI-powered trading with multi-timeframe analysis, pattern recognition, and dynamic risk management",
+  "enabled": false,
+  "created_at": "2026-04-21T20:00:00",
+  
+  "api": {
+    "key": "rRsm08OPN027nk5hgF",
+    "secret": "GD1qBUUx1KROqmAKwJLOpAanLNDwG6zr1CyA",
+    "testnet": false
+  },
+  
+  "strategy": {
+    "type": "adaptive_ai",
+    "description": "AI-enhanced momentum with pattern recognition",
+    
+    "leverage": 25,
+    "max_positions": 15,
+    "position_size_pct": 3.0,
+    
+    "probe_enabled": true,
+    "probe_frequency": 0.15,
+    "probe_size_pct": 0.5,
+    
+    "pyramiding_enabled": true,
+    "pyramiding_max_levels": 3,
+    "pyramiding_step_pct": 2.0,
+    
+    "timeframes": ["1m", "5m", "15m", "1h"],
+    "primary_timeframe": "5m",
+    
+    "indicators": {
+      "rsi": {"enabled": true, "period": 14, "overbought": 70, "oversold": 30},
+      "macd": {"enabled": true, "fast": 12, "slow": 26, "signal": 9},
+      "bollinger": {"enabled": true, "period": 20, "std": 2.0},
+      "volume_profile": {"enabled": true, "lookback": 24},
+      "atr": {"enabled": true, "period": 14}
+    },
+    
+    "ai_settings": {
+      "learning_enabled": true,
+      "adaptation_speed": 0.3,
+      "pattern_memory": 50,
+      "confidence_threshold": 0.75,
+      "false_positive_penalty": 2.0
+    },
+    
+    "entry_conditions": {
+      "min_confluence": 3,
+      "trend_alignment": true,
+      "volume_confirmation": true,
+      "momentum_divergence_check": true
+    }
+  },
+  
+  "risk": {
+    "daily_loss_limit_pct": 4.0,
+    "max_drawdown_pct": 8.0,
+    "position_timeout_hours": 12,
+    "volatility_adjustment": true,
+    
+    "dynamic_stop_loss": {
+      "enabled": true,
+      "base_pct": 3.0,
+      "atr_multiplier": 2.5,
+      "trailing_enabled": true,
+      "trailing_step_pct": 1.0
+    },
+    
+    "dynamic_take_profit": {
+      "enabled": true,
+      "base_pct": 6.0,
+      "rr_ratio": 2.0,
+      "partial_close": true,
+      "partial_close_pct": 50,
+      "partial_close_at": 3.0
+    },
+    
+    "auto_reduce": {
+      "enabled": true,
+      "trigger": "drawdown",
+      "threshold_pct": 5.0,
+      "reduce_pct": 30
+    },
+    
+    "emergency_stop": {
+      "enabled": true,
+      "consecutive_losses": 3,
+      "time_window_minutes": 60
+    },
+    
+    "correlation_check": {
+      "enabled": true,
+      "max_correlated_positions": 2,
+      "correlation_threshold": 0.7
+    }
+  },
+  
+  "trading": {
+    "check_interval_sec": 30,
+    "order_timeout_sec": 15,
+    "max_spread_pct": 0.3,
+    "slippage_tolerance_pct": 0.5,
+    
+    "execution_mode": "smart",
+    "order_splitting": true,
+    "max_order_splits": 3,
+    
+    "market_regime_detection": true,
+    "regimes": {
+      "trending": {"multiplier": 1.2, "max_positions": 20},
+      "ranging": {"multiplier": 0.8, "max_positions": 10},
+      "volatile": {"multiplier": 0.5, "max_positions": 8},
+      "quiet": {"multiplier": 1.0, "max_positions": 15}
+    }
+  },
+  
+  "symbols": {
+    "whitelist": [],
+    "blacklist": [],
+    "filters": {
+      "min_volume_24h": 5000000,
+      "min_price": 0.001,
+      "max_price": 100000,
+      "min_win_rate": 0.45,
+      "update_interval_hours": 24
+    },
+    "priority": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "AVAXUSDT", "LINKUSDT"]
+  },
+  
+  "logging": {
+    "level": "INFO",
+    "console": true,
+    "file": true,
+    "max_file_size_mb": 50,
+    "backup_count": 5,
+    "log_signals": true,
+    "log_decisions": true,
+    "log_learning": true
+  },
+  
+  "advanced": {
+    "neural_network": {
+      "enabled": true,
+      "layers": [64, 32, 16],
+      "activation": "relu",
+      "prediction_horizon": 5
+    },
+    
+    "sentiment_analysis": {
+      "enabled": true,
+      "sources": ["volume", "funding_rate", "liquidations"],
+      "threshold": 0.6
+    },
+    
+    "market_microstructure": {
+      "enabled": true,
+      "order_book_depth": 10,
+      "imbalance_threshold": 0.3,
+      "pressure_detection": true
+    }
+  }
+}
