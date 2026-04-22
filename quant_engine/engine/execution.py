@@ -33,7 +33,7 @@ class ExecutionEngine:
         self.atr_multiplier_sl = self.risk_config.get("atr_multiplier_sl", 0.7)
         
         # API endpoints
-        self.base_url = "https://api-demo.bybit.com/v5" if testnet else "https://api.bybit.com/v5"
+        self.base_url = "https://api-demo.bybit.com" if testnet else "https://api.bybit.com"
         
         # Order tracking
         self.last_order_time: Dict[str, float] = {}  # symbol -> timestamp
@@ -58,9 +58,9 @@ class ExecutionEngine:
         import hmac
         import hashlib
         
-        # For POST: param = timestamp + API_KEY + RECV_WINDOW + query_string + body_str
-        # For GET: param = timestamp + API_KEY + RECV_WINDOW + query_string
-        recv_window = "5000"
+        # Bybit signature: timestamp + api_key + recv_window + query_string + body_str
+        # For GET: param = timestamp + api_key + recv_window + query_string
+        recv_window = "30000"
         param = timestamp + self.api_key + recv_window + query_string + body_str
         
         return hmac.new(
@@ -80,7 +80,7 @@ class ExecutionEngine:
         headers = {
             "X-BAPI-API-KEY": self.api_key,
             "X-BAPI-TIMESTAMP": timestamp,
-            "X-BAPI-RECV-WINDOW": "5000",
+            "X-BAPI-RECV-WINDOW": "30000",
             "Content-Type": "application/json"
         }
         
