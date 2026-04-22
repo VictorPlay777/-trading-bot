@@ -53,23 +53,21 @@ class ExecutionEngine:
         if self.session:
             await self.session.close()
             
-    def _generate_signature(self, timestamp: str, params: str) -> str:
-        """Generate API signature using HMAC-SHA256."""
+    def _generate_signature(self, timestamp: str, query_string: str = "", body_str: str = "") -> str:
+        """Generate V5 API signature - EXACT format as working api_client.py"""
         import hmac
         import hashlib
-        import json
         
-        # Bybit signature: timestamp + api_key + recv_window + params
+        # For POST: param = timestamp + API_KEY + RECV_WINDOW + query_string + body_str
+        # For GET: param = timestamp + API_KEY + RECV_WINDOW + query_string
         recv_window = "5000"
-        message = timestamp + self.api_key + recv_window + params
+        param = timestamp + self.api_key + recv_window + query_string + body_str
         
-        signature = hmac.new(
+        return hmac.new(
             self.api_secret.encode('utf-8'),
-            message.encode('utf-8'),
+            param.encode('utf-8'),
             hashlib.sha256
         ).hexdigest()
-        
-        return signature
         
     async def _make_request(self, method: str, endpoint: str, params: dict = None) -> dict:
         """Make API request."""
@@ -89,8 +87,9 @@ class ExecutionEngine:
         # Add signature
         if params:
             import json
-            params_str = json.dumps(params, separators=(',', ':'), sort_keys=True)
-            signature = self._generate_signature(timestamp, params_str)
+            query_string = ""
+            body_str = json.dumps(params, separators=(",", ":"))  # No sort_keys like api_client.py
+            signature = self._generate_signature(timestamp, query_string, body_str)
             headers["X-BAPI-SIGN"] = signature
             
         try:
