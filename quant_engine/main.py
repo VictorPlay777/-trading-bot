@@ -213,17 +213,20 @@ class QuantFundEngine:
             # PROBE TRADING: Open small positions without signals if no positions exist
             if use_probe:
                 position = await self.execution_engine.get_position(symbol)
-                if not position or not position.get("size"):
+                position_size = position.get("size") if position else 0
+                if not position or position_size == 0:
                     # Open small probe position (5% of allocation)
-                    probe_qty = (allocation * 0.05) / self.market_data.get_current_price(symbol) if self.market_data.get_current_price(symbol) > 0 else 0
-                    if probe_qty > 0:
-                        result = await self.execution_engine.place_order(
-                            symbol=symbol,
-                            side="Buy",  # Default to long for probe
-                            qty=probe_qty
-                        )
-                        if result:
-                            logger.info(f"[PROBE] Opened probe position in {symbol}")
+                    current_price = self.market_data.get_current_price(symbol)
+                    if current_price and current_price > 0:
+                        probe_qty = (allocation * 0.05) / current_price
+                        if probe_qty > 0:
+                            result = await self.execution_engine.place_order(
+                                symbol=symbol,
+                                side="Buy",  # Default to long for probe
+                                qty=probe_qty
+                            )
+                            if result:
+                                logger.info(f"[PROBE] Opened probe position in {symbol}")
                 continue
                 
             # Get signal
