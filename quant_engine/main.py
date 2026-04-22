@@ -2,6 +2,7 @@ import asyncio
 import logging
 import yaml
 from datetime import datetime
+import os
 
 from quant_engine.engine.market_data import MarketDataEngine, get_usdt_futures_symbols
 from quant_engine.engine.signal_engine import SignalEngine
@@ -12,12 +13,16 @@ from quant_engine.engine.execution import ExecutionEngine
 from quant_engine.engine.risk import RiskEngine
 from quant_engine.engine.market_data import DataLevel
 
+# Get project root directory
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CONFIG_PATH = os.path.join(PROJECT_ROOT, "quant_engine", "config.yaml")
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s | %(levelname)-8s | %(message)s',
     handlers=[
-        logging.FileHandler('quant_engine.log'),
+        logging.FileHandler(os.path.join(PROJECT_ROOT, "quant_engine", "quant_engine.log")),
         logging.StreamHandler()
     ]
 )
@@ -297,8 +302,8 @@ class QuantFundEngine:
 
 async def main():
     """Main entry point."""
-    # Configuration
-    config_path = "config.yaml"
+    # Configuration (using absolute path)
+    config_path = CONFIG_PATH
     
     # API credentials from Genius bot
     api_key = "qltUum7PztwhAE6sU3"
