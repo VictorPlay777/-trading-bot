@@ -174,9 +174,22 @@ class PositionManager:
             # Calculate quantity
             quantity = position_size / entry_price
             
+            # Check against max_qty BEFORE rounding to prevent Qty invalid errors
+            max_qty = float(instrument_info.get("lotSizeFilter", {}).get("maxOrderQty", 999999))
+            if quantity > max_qty:
+                # Use 90% of max_qty to be safe
+                quantity = max_qty * 0.9
+                logger.warning(f"[QTY LIMIT] {symbol}: quantity {position_size/entry_price:.4f} exceeds max_qty {max_qty}, using {quantity:.4f}")
+            
             # Round quantity to qty_step precision with better precision handling
             quantity = round(quantity / qty_step) * qty_step
             quantity = round(quantity, 8)  # Round to 8 decimal places to avoid floating point issues
+            
+            # Final check against min_qty after rounding
+            min_qty = float(instrument_info.get("lotSizeFilter", {}).get("minOrderQty", 0.001))
+            if quantity < min_qty:
+                quantity = min_qty
+                logger.warning(f"[MIN QTY] {symbol}: rounded quantity too low, using min_qty {min_qty}")
             
             # Ensure quantity meets minimum order requirement
             if quantity < min_qty:
@@ -369,10 +382,25 @@ class PositionManager:
                 logger.warning(f"Close quantity {close_quantity} below minimum {min_qty} for {symbol}")
                 close_quantity = min_qty
             
+            # Get current position from exchange to verify direction
+            try:
+                current_pos = self.api.get_position(symbol)
+                current_qty = float(current_pos.get("size", 0))
+                if abs(current_qty) < min_qty:
+                    logger.warning(f"Position {symbol} already closed (size={current_qty}), removing from tracking")
+                    del self.positions[symbol]
+                    return True
+                # Determine correct close side based on actual position
+                actual_direction = "long" if current_qty > 0 else "short"
+                close_side = "Sell" if actual_direction == "long" else "Buy"
+            except Exception as e:
+                logger.warning(f"Could not get current position for {symbol}, using tracked direction: {e}")
+                close_side = "Sell" if position.direction == "long" else "Buy"
+            
             # Place closing order with reduceOnly to ensure we only close, not open new position
             result = self.api.place_order(
                 symbol=symbol,
-                side="Sell" if position.direction == "long" else "Buy",
+                side=close_side,
                 order_type="Market",
                 qty=close_quantity,
                 reduce_only=True  # Bybit API: only reduce position, don't open new
@@ -884,14 +912,18 @@ class PositionManager:
             
             # CRITICAL: Check if position actually exists on exchange
             try:
-                exchange_pos = self.api.check_position_state(symbol)
-                if not exchange_pos or exchange_pos.get("size", 0) == 0:
-                    logger.warning(f"Cannot apply SL/TP to {symbol}: position is zero or closed")
+                exchange_pos = self.api.get_position(symbol)
+                current_size = float(exchange_pos.get("size", 0))
+                if abs(current_size) < 0.0001:  # Use small threshold to handle floating point
+                    logger.warning(f"Cannot apply SL/TP to {symbol}: position is zero or closed (size={current_size})")
                     # Mark as set to avoid repeated attempts
                     position.sl_tp_set = True
+                    del self.positions[symbol]  # Remove from tracking
                     return False
             except Exception as e:
                 logger.debug(f"Could not verify position state for {symbol}: {e}")
+                # If we can't verify, try anyway but mark as set to avoid loops
+                position.sl_tp_set = True
             
             # Validate entry price
             if not actual_entry_price or actual_entry_price <= 0:
