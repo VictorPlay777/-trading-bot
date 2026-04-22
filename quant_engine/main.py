@@ -88,7 +88,9 @@ class QuantFundEngine:
         
         # INIT -> WARMUP
         if self.state == SystemState.INIT:
-            if self.market_data and self.market_data.session:
+            # Transition to WARMUP after market_data session is ready
+            if self.market_data and self.market_data.session and elapsed_in_state > 1:
+                logger.info("Market data session ready, transitioning to WARMUP")
                 self._transition_to(SystemState.WARMUP)
         
         # WARMUP -> SHADOW
