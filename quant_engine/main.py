@@ -63,13 +63,13 @@ class QuantFundEngine:
         self.init_timeout = 60        # Maximum INIT time (seconds)
         self.init_min_candles = 50    # Minimum candles to exit INIT
         self.init_min_coverage = 0.7  # Minimum 70% symbols coverage to exit INIT
-        self.init_top_symbols = 20    # Only fetch top N symbols initially for fast startup
-        self.init_fallback_symbols = 5  # Minimum symbols for fallback start (guaranteed exit)
+        self.init_top_symbols = 1     # Only fetch top N symbols initially for fast startup (TEST: 1 symbol)
+        self.init_fallback_symbols = 1  # Minimum symbols for fallback start (guaranteed exit) (TEST: 1 symbol)
         self.candles_collected = {}   # Track candles per symbol
         
         # Shadow mode configuration
         self.shadow_min_signals = 0.1  # Minimum 10% of symbols must produce signals
-        self.shadow_duration = 60      # Minimum shadow mode duration (seconds)
+        self.shadow_duration = 10      # Minimum shadow mode duration (seconds) (TEST: 10s for fast testing)
         
         # Initialize engines
         self.market_data: MarketDataEngine = None
@@ -201,20 +201,12 @@ class QuantFundEngine:
     
     async def _handle_warmup(self):
         """Handle WARMUP state - collect historical candles for remaining symbols, NO signals."""
-        # Start background data fetching
+        # NO background fetching - only focus on the 1 symbol we already have
         if not hasattr(self, '_warmup_connect_done'):
-            logger.info("WARMUP: Starting background data fetching")
+            logger.info("WARMUP: Starting data fetching for 1 symbol only")
             self.market_data.auto_fetch = True
             asyncio.create_task(self.market_data.connect())
             self._warmup_connect_done = True
-        
-        # Fetch remaining symbols in background
-        if not hasattr(self, '_warmup_fetch_done'):
-            remaining_symbols = self.symbols[self.init_top_symbols:]
-            if remaining_symbols:
-                logger.info(f"WARMUP: Fetching data for remaining {len(remaining_symbols)} symbols")
-                await self.market_data._fetch_all_data(remaining_symbols)
-            self._warmup_fetch_done = True
         
         # Update market data only, NO signal computation
         for symbol in self.symbols:
@@ -323,8 +315,8 @@ class QuantFundEngine:
         """Initialize all engines."""
         logger.info("Initializing Quant Fund Engine...")
         
-        # Get symbols
-        universe_size = self.config.get("initial_universe_size", 250)
+        # Get symbols (TEST: use only 1 symbol for debugging)
+        universe_size = 1  # self.config.get("initial_universe_size", 250)
         logger.info(f"Fetching {universe_size} USDT futures symbols...")
         self.symbols = await get_usdt_futures_symbols(universe_size)
         logger.info(f"Loaded {len(self.symbols)} symbols")
