@@ -6,9 +6,9 @@
   "created_at": "2026-04-21T20:00:00",
   
   "api": {
-    "key": "rRsm08OPN027nk5hgF",
-    "secret": "GD1qBUUx1KROqmAKwJLOpAanLNDwG6zr1CyA",
-    "testnet": false
+    "key": "qltUum7PztwhAE6sU3",
+    "secret": "iVYTFKUgy9HLqNWIcSpMHprYx1Ohn7Cv2yxZ",
+    "testnet": true
   },
   
   "strategy": {
