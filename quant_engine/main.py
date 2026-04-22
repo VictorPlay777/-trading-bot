@@ -85,6 +85,9 @@ class QuantFundEngine:
         self.running = False
         self.indicators_ready = False
         
+        # Local position cache for test_mode (to avoid API position check issues)
+        self.test_positions_opened: set = set()
+        
         # Callbacks
         self._setup_callbacks()
     
@@ -386,35 +389,36 @@ class QuantFundEngine:
             risk_config = self.config.get("risk", {})
             base_tp_pct = risk_config.get("base_tp_pct", 0.25)
             base_sl_pct = risk_config.get("base_sl_pct", 0.12)
-            
+
             for symbol in self.symbols:
                 current_price = self.market_data.get_current_price(symbol)
-                
-                # Check if we already have a position
-                position = await self.execution_engine.get_position(symbol)
-                
-                if current_price:
-                    if not position or position.get("size", 0) == 0:
-                        # No position - open a long with TP/SL
-                        tp_price = current_price * (1 + base_tp_pct)
-                        sl_price = current_price * (1 - base_sl_pct)
-                        
-                        logger.warning(f"[TEST] Opening long position on {symbol} at ${current_price} TP=${tp_price} SL=${sl_price}")
-                        try:
-                            result = await self.execution_engine.place_order(
-                                symbol=symbol,
-                                side='BUY',
-                                qty=1.0,
-                                price=current_price,
-                                tp=tp_price,
-                                sl=sl_price
-                            )
-                            logger.info(f"[TEST] Order result: {result}")
-                        except Exception as e:
-                            logger.error(f"[TEST] Order failed for {symbol}: {e}")
-                    else:
-                        # Already have position - log status
-                        logger.info(f"[TEST] Already have position on {symbol}: {position.get('side')} size={position.get('size')}")
+
+                # Use local cache to check if position was opened (API position check fails on DEMO)
+                if current_price and symbol not in self.test_positions_opened:
+                    # No position in cache - open a long with TP/SL
+                    tp_price = current_price * (1 + base_tp_pct)
+                    sl_price = current_price * (1 - base_sl_pct)
+
+                    logger.warning(f"[TEST] Opening long position on {symbol} at ${current_price} TP=${tp_price} SL=${sl_price}")
+                    try:
+                        result = await self.execution_engine.place_order(
+                            symbol=symbol,
+                            side='BUY',
+                            qty=1.0,
+                            price=current_price,
+                            tp=tp_price,
+                            sl=sl_price
+                        )
+                        logger.info(f"[TEST] Order result: {result}")
+                        # Add to cache after successful order
+                        if result.get("retCode") == 0:
+                            self.test_positions_opened.add(symbol)
+                            logger.info(f"[TEST] Position opened for {symbol}, added to cache")
+                    except Exception as e:
+                        logger.error(f"[TEST] Order failed for {symbol}: {e}")
+                elif symbol in self.test_positions_opened:
+                    # Already have position in cache - log status
+                    logger.info(f"[TEST] Position already opened for {symbol}")
         
         allocations = self.portfolio_manager.get_all_allocations()
         

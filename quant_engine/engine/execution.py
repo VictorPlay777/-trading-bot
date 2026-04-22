@@ -133,9 +133,18 @@ class ExecutionEngine:
         try:
             if method == "GET":
                 async with self.session.get(url, headers=headers, params=params) as resp:
+                    # Handle non-JSON responses (some endpoints return octet-stream)
+                    if resp.content_type != "application/json":
+                        text = await resp.text()
+                        logger.error(f"Non-JSON response from {endpoint}: {resp.content_type}, content: {text[:200]}")
+                        return {"retCode": -1, "retMsg": f"Non-JSON response: {resp.content_type}"}
                     return await resp.json()
             elif method == "POST":
                 async with self.session.post(url, headers=headers, data=body_str) as resp:
+                    if resp.content_type != "application/json":
+                        text = await resp.text()
+                        logger.error(f"Non-JSON response from {endpoint}: {resp.content_type}, content: {text[:200]}")
+                        return {"retCode": -1, "retMsg": f"Non-JSON response: {resp.content_type}"}
                     return await resp.json()
         except Exception as e:
             logger.error(f"API request error: {e}")
@@ -281,9 +290,13 @@ class ExecutionEngine:
             "category": "linear",
             "symbol": symbol
         }
-        
-        response = await self._make_request("GET", "/position/list", params)
-        
+
+        try:
+            response = await self._make_request("GET", "/position/list", params)
+        except Exception as e:
+            logger.error(f"Failed to get position for {symbol}: {e}")
+            return None
+
         if response.get("retCode") == 0 and response.get("result", {}).get("list"):
             positions = response["result"]["list"]
             for pos in positions:
@@ -296,7 +309,7 @@ class ExecutionEngine:
                         "unrealized_pnl": float(pos["unrealisedPnl"])
                     }
                     return self.positions[symbol]
-                    
+
         return None
         
     async def get_all_positions(self) -> Dict[str, dict]:
