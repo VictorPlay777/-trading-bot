@@ -27,10 +27,10 @@ class BybitAPIError(Exception):
 class BybitClient:
     """Sync Bybit V5 API Client using requests"""
     
-    def __init__(self):
-        self.api_key = api_config.key
-        self.api_secret = api_config.secret
-        self.base_url = api_config.base_url
+    def __init__(self, base_url: str = None, api_key: str = None, api_secret: str = None):
+        self.api_key = api_key or api_config.key
+        self.api_secret = api_secret or api_config.secret
+        self.base_url = base_url or api_config.base_url
         self.recv_window = api_config.recv_window
         self._last_request_time = 0.0
         self._min_interval = 0.05  # 50ms between requests

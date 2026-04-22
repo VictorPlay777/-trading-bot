@@ -181,7 +181,7 @@ class BotInstance:
     def _init_api(self) -> bool:
         """Initialize API client with bot-specific credentials"""
         try:
-            # Hardcoded API keys from config (HARDCORE MODE!)
+            # API keys and settings from bot config
             api_key = self.config.get('api', {}).get('key', 'rRsm08OPN027nk5hgF')
             api_secret = self.config.get('api', {}).get('secret', 'GD1qBUUx1KROqmAKwJLOpAanLNDwG6zr1CyA')
             testnet = self.config.get('api', {}).get('testnet', False)
@@ -190,8 +190,15 @@ class BotInstance:
                 self.logger.error(f"API credentials not found in config")
                 return False
             
-            self.api = BybitClient()  # Keys read from config.py directly
-            self.logger.info(f"API initialized (HARDCORE MODE, testnet={testnet})")
+            # Calculate base_url based on testnet flag
+            if testnet:
+                base_url = "https://testnet.bybit.com"
+            else:
+                base_url = "https://api-demo.bybit.com"
+            
+            # Initialize API client with bot-specific settings
+            self.api = BybitClient(base_url=base_url, api_key=api_key, api_secret=api_secret)
+            self.logger.info(f"API initialized (base_url={base_url}, testnet={testnet})")
             return True
             
         except Exception as e:
