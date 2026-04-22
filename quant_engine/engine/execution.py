@@ -164,7 +164,7 @@ class ExecutionEngine:
             params["tpslMode"] = "Full"
             
         # Place order
-        response = await self._make_request("POST", "/order/create", params)
+        response = await self._make_request("POST", "/v5/order/create", params)
         
         # Update last order time
         self.last_order_time[symbol] = datetime.now().timestamp() * 1000
