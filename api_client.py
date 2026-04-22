@@ -666,5 +666,5 @@ class BybitClient:
                 # Fallback: try to get from other fields
                 logger.warning(f"Could not get leverageList for {symbol}, using instruments info")
         except Exception as e:
-            logger.error(f"Error getting leverage limit for {symbol}: {e}")
+            logger.error(f"Error getting leverage limit for {symbol}: {str(e)}")
         return 20  # Default fallback

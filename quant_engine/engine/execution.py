@@ -203,8 +203,8 @@ class ExecutionEngine:
         else:
             order_value = qty * price
 
-        # Check if order value meets minimum requirement (100 USDT)
-        min_order_value = 100.0
+        # Check if order value meets minimum requirement (5 USDT - Bybit minimum)
+        min_order_value = 5.0
         if order_value < min_order_value:
             # Calculate required qty to meet minimum order value
             # Use price if provided, otherwise use estimated price
