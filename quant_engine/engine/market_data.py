@@ -70,29 +70,20 @@ class MarketDataEngine:
         for i in range(0, len(self.symbols), batch_size):
             batch = self.symbols[i:i+batch_size]
             
-            # Orderbook subscription
-            orderbook_subs = [
-                {"topic": "orderbook.1." + symbol, "symbol": symbol}
-                for symbol in batch
-            ]
-            
-            # Trade subscription
-            trade_subs = [
-                {"topic": "publicTrade." + symbol, "symbol": symbol}
-                for symbol in batch
-            ]
-            
-            # Funding subscription
-            funding_subs = [
-                {"topic": "tickers." + symbol, "symbol": symbol}
-                for symbol in batch
-            ]
+            # Bybit v5 subscription format: strings
+            subs = []
+            for symbol in batch:
+                subs.append(f"orderbook.1.{symbol}")
+                subs.append(f"publicTrade.{symbol}")
+                subs.append(f"tickers.{symbol}")
             
             # Send subscriptions
             await ws.send(json.dumps({
                 "op": "subscribe",
-                "args": orderbook_subs + trade_subs + funding_subs
+                "args": subs
             }))
+            
+            logger.info(f"Subscribed to batch {i//batch_size + 1}: {len(batch)} symbols")
             
             # Small delay between batches
             await asyncio.sleep(0.1)
