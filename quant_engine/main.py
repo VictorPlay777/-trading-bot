@@ -388,14 +388,12 @@ class QuantFundEngine:
                 logger.warning(f"[TEST] Forcing long position on {symbol} at ${current_price}")
                 # Create a simple long order
                 try:
-                    order = {
-                        'symbol': symbol,
-                        'side': 'Buy',
-                        'order_type': 'Market',
-                        'qty': 0.01,  # Small test position
-                        'price': current_price
-                    }
-                    result = await self.execution_engine.place_order(order)
+                    result = await self.execution_engine.place_order(
+                        symbol=symbol,
+                        side='BUY',
+                        qty=0.01,  # Small test position
+                        price=current_price
+                    )
                     logger.info(f"[TEST] Order result: {result}")
                     self._test_trade_done = True
                 except Exception as e:
