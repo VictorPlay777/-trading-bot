@@ -132,7 +132,6 @@
   "logging": {
     "level": "INFO",
     "console": true,
-    "file": true,
     "max_file_size_mb": 50,
     "backup_count": 5,
     "log_signals": true,

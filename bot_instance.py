@@ -121,7 +121,9 @@ class BotInstance:
     def _setup_logging(self):
         """Setup isolated logging for this bot"""
         bot_id = self.config.get('bot_id', 'unknown')
-        log_file = self.config.get('logging', {}).get('file', f'bot_logs/{bot_id}.log')
+        bot_name = self.config.get('name', bot_id)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        log_file = self.config.get('logging', {}).get('file', f'bot_logs/{bot_name}_{timestamp}.log')
         log_level = self.config.get('logging', {}).get('level', 'INFO')
         
         # Create logger
