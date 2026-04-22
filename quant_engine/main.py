@@ -239,12 +239,12 @@ class QuantFundEngine:
             if current_price:
                 self.signal_engine.update_price(symbol, current_price, volume)
         
-        # Rebalance portfolio
-        health_scores = self.scoring_engine.calculate_health_scores(self.symbols, self.market_data)
-        allocations = self.portfolio_manager.calculate_allocations(health_scores)
-        self.portfolio_manager.set_allocations(allocations)
+        # TEST: Skip portfolio rebalancing for now - focus on signal-based trading
+        # health_scores = self.scoring_engine.calculate_health_scores(self.symbols, self.market_data)
+        # allocations = self.portfolio_manager.calculate_allocations(health_scores)
+        # self.portfolio_manager.set_allocations(allocations)
         
-        # Execute trades based on signals and allocations
+        # Execute trades based on signals
         await self._execute_trades()
         
         # Log status
