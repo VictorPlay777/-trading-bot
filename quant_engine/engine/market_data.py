@@ -114,6 +114,10 @@ class MarketDataEngine:
     def set_trade_callback(self, callback):
         """Set callback for trade updates."""
         self.on_trade_callback = callback
+        
+    def set_orderbook_callback(self, callback):
+        """Set callback for orderbook updates."""
+        self.on_orderbook_callback = callback
 
 
 async def get_usdt_futures_symbols(limit: int = 250, min_volume_24h: float = 1000000) -> List[str]:
