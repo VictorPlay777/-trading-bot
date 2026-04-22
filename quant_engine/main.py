@@ -52,7 +52,7 @@ class QuantFundEngine:
         
         # System state
         self.state = SystemState.INIT
-        self.state_start_time = None
+        self.state_start_time = datetime.now()
         
         # Warmup configuration
         self.warmup_min_candles = 100  # Minimum candles for MA/EMA
