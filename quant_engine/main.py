@@ -5,16 +5,16 @@ from datetime import datetime
 import sys
 import os
 
-# Add current directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Add engine directory to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'engine'))
 
-from engine.market_data import MarketDataEngine, get_usdt_futures_symbols
-from engine.signal_engine import SignalEngine
-from engine.scoring import ScoringEngine
-from engine.portfolio import PortfolioManager
-from engine.survival import SurvivalEngine
-from engine.execution import ExecutionEngine
-from engine.risk import RiskEngine
+from market_data import MarketDataEngine, get_usdt_futures_symbols
+from signal_engine import SignalEngine
+from scoring import ScoringEngine
+from portfolio import PortfolioManager
+from survival import SurvivalEngine
+from execution import ExecutionEngine
+from risk import RiskEngine
 
 # Configure logging
 logging.basicConfig(
