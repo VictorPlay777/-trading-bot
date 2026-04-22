@@ -201,6 +201,10 @@ class QuantFundEngine:
                 logger.info(f"WARMUP: Fetching data for remaining {len(remaining_symbols)} symbols")
                 await self.market_data._fetch_all_data(remaining_symbols)
             self._warmup_fetch_done = True
+            
+            # Enable auto-fetch for continuous updates
+            self.market_data.auto_fetch = True
+            logger.info("WARMUP: Enabled auto-fetch for continuous data updates")
         
         # Update market data only, NO signal computation
         for symbol in self.symbols:

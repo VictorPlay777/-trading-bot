@@ -27,6 +27,8 @@ class MarketDataEngine:
         self.symbols = symbols
         self.config = config
         self.base_url = "https://api.bybit.com/v5"
+        self.running = False
+        self.auto_fetch = False  # Disable auto-fetch loop
         
         # Data storage
         self.current_prices: Dict[str, float] = {}
@@ -62,19 +64,20 @@ class MarketDataEngine:
         logger.info("Market data engine stopped")
         
     async def connect(self):
-        """Start periodic data fetching."""
+        """Start periodic data fetching (if auto_fetch is enabled)."""
         self.running = True
         await self.start()
         
-        logger.info(f"Starting REST API data fetching for {len(self.symbols)} symbols...")
-        
-        while self.running:
-            try:
-                await self._fetch_all_data()
-                await asyncio.sleep(self.update_interval)
-            except Exception as e:
-                logger.error(f"Error fetching data: {e}")
-                await asyncio.sleep(5)
+        if self.auto_fetch:
+            logger.info(f"Starting REST API data fetching for {len(self.symbols)} symbols...")
+            
+            while self.running:
+                try:
+                    await self._fetch_all_data()
+                    await asyncio.sleep(self.update_interval)
+                except Exception as e:
+                    logger.error(f"Error fetching data: {e}")
+                    await asyncio.sleep(5)
                 
     async def _fetch_all_data(self, symbols_subset: List[str] = None):
         """Fetch data for symbols (or all if subset not provided)."""
