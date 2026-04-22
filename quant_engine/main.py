@@ -5,8 +5,8 @@ from datetime import datetime
 import sys
 import os
 
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add current directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from engine.market_data import MarketDataEngine, get_usdt_futures_symbols
 from engine.signal_engine import SignalEngine
