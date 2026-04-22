@@ -3,6 +3,7 @@ import logging
 import yaml
 from datetime import datetime
 import os
+from enum import Enum
 
 from quant_engine.engine.market_data import MarketDataEngine, get_usdt_futures_symbols
 from quant_engine.engine.signal_engine import SignalEngine
@@ -15,7 +16,15 @@ from quant_engine.engine.market_data import DataLevel
 
 # Get project root directory
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CONFIG_PATH = os.path.join(PROJECT_ROOT, "quant_engine", "config.yaml")
+CONFIG_PATH = os.path.join(PROJECT_ROOT, "config.yaml")
+
+
+class SystemState(Enum):
+    """System state machine for bootstrap lifecycle."""
+    INIT = 0          # Load config, initialize engines, start data collectors
+    WARMUP = 1        # Collect historical candles, NO signals, NO trading
+    SHADOW = 2        # Run signals for validation, NO execution
+    LIVE = 3          # Full trading mode with execution
 
 # Configure logging
 logging.basicConfig(
@@ -41,6 +50,19 @@ class QuantFundEngine:
         self.api_secret = api_secret
         self.testnet = testnet
         
+        # System state
+        self.state = SystemState.INIT
+        self.state_start_time = None
+        
+        # Warmup configuration
+        self.warmup_min_candles = 100  # Minimum candles for MA/EMA
+        self.warmup_min_atr = 50      # Minimum candles for ATR/volatility
+        self.warmup_timeout = 300     # Maximum warmup time (seconds)
+        
+        # Shadow mode configuration
+        self.shadow_min_signals = 0.1  # Minimum 10% of symbols must produce signals
+        self.shadow_duration = 60      # Minimum shadow mode duration (seconds)
+        
         # Initialize engines
         self.market_data: MarketDataEngine = None
         self.signal_engine: SignalEngine = SignalEngine(self.config)
@@ -53,9 +75,121 @@ class QuantFundEngine:
         # State
         self.symbols: list = []
         self.running = False
+        self.indicators_ready = False
         
         # Callbacks
         self._setup_callbacks()
+    
+    async def _handle_state_transition(self):
+        """Handle state transitions based on conditions."""
+        elapsed_in_state = 0
+        if self.state_start_time:
+            elapsed_in_state = (datetime.now() - self.state_start_time).total_seconds()
+        
+        # INIT -> WARMUP
+        if self.state == SystemState.INIT:
+            if self.market_data and self.market_data.session:
+                self._transition_to(SystemState.WARMUP)
+        
+        # WARMUP -> SHADOW
+        elif self.state == SystemState.WARMUP:
+            if self._check_warmup_complete() or elapsed_in_state > self.warmup_timeout:
+                logger.info("Warmup complete, transitioning to SHADOW mode")
+                self._transition_to(SystemState.SHADOW)
+        
+        # SHADOW -> LIVE
+        elif self.state == SystemState.SHADOW:
+            if elapsed_in_state > self.shadow_duration and self._check_shadow_valid():
+                logger.info("Shadow validation passed, transitioning to LIVE mode")
+                self._transition_to(SystemState.LIVE)
+    
+    def _transition_to(self, new_state: SystemState):
+        """Transition to new state with logging."""
+        old_state = self.state
+        self.state = new_state
+        self.state_start_time = datetime.now()
+        logger.info(f"State transition: {old_state.name} -> {new_state.name}")
+    
+    def _check_warmup_complete(self) -> bool:
+        """Check if warmup has collected enough data."""
+        if not self.market_data:
+            return False
+        
+        # Check if all symbols have minimum required candles
+        for symbol in self.symbols:
+            price_history = self.market_data.get_price_history(symbol)
+            if len(price_history) < self.warmup_min_candles:
+                return False
+            if len(price_history) < self.warmup_min_atr:
+                return False
+        
+        self.indicators_ready = True
+        return True
+    
+    def _check_shadow_valid(self) -> bool:
+        """Check if shadow mode produced valid signal distribution."""
+        signal_count = 0
+        for symbol in self.symbols:
+            signal = self.signal_engine.get_current_signal(symbol)
+            if signal and signal.get("combined"):
+                signal_count += 1
+        
+        signal_ratio = signal_count / len(self.symbols) if self.symbols else 0
+        return signal_ratio >= self.shadow_min_signals
+    
+    async def _handle_init(self):
+        """Handle INIT state - initialize and start data collection."""
+        logger.info("INIT: Starting data collection...")
+        # Data collection is already started in initialize()
+        pass
+    
+    async def _handle_warmup(self):
+        """Handle WARMUP state - collect historical candles, NO signals."""
+        elapsed = (datetime.now() - self.state_start_time).total_seconds()
+        logger.info(f"WARMUP: Collecting data ({elapsed:.0f}s elapsed)...")
+        
+        # Update market data only, NO signal computation
+        for symbol in self.symbols:
+            current_price = self.market_data.get_current_price(symbol)
+            volume = self.market_data.get_volume(symbol)
+            if current_price:
+                # Update price history but DO NOT compute signals
+                self.signal_engine.update_price(symbol, current_price, volume)
+    
+    async def _handle_shadow(self):
+        """Handle SHADOW state - run signals for validation, NO execution."""
+        elapsed = (datetime.now() - self.state_start_time).total_seconds()
+        logger.info(f"SHADOW: Validating signals ({elapsed:.0f}s elapsed)...")
+        
+        # Update signals but DO NOT execute trades
+        for symbol in self.symbols:
+            current_price = self.market_data.get_current_price(symbol)
+            volume = self.market_data.get_volume(symbol)
+            if current_price:
+                self.signal_engine.update_price(symbol, current_price, volume)
+                signal = self.signal_engine.generate_signals(symbol)
+                if signal and signal.get("combined"):
+                    logger.info(f"[SHADOW] {symbol}: {signal['combined']['direction']} (confidence: {signal['combined']['confidence']:.2f})")
+    
+    async def _handle_live(self):
+        """Handle LIVE state - full trading mode."""
+        # Update signal engine with current prices
+        for symbol in self.symbols:
+            current_price = self.market_data.get_current_price(symbol)
+            volume = self.market_data.get_volume(symbol)
+            if current_price:
+                self.signal_engine.update_price(symbol, current_price, volume)
+        
+        # Rebalance portfolio
+        health_scores = self.scoring_engine.calculate_health_scores(self.symbols, self.market_data)
+        allocations = self.portfolio_manager.calculate_allocations(health_scores)
+        self.portfolio_manager.set_allocations(allocations)
+        
+        # Execute trades based on signals and allocations
+        await self._execute_trades()
+        
+        # Log status
+        self._log_status()
         
     def _load_config(self, config_path: str) -> dict:
         """Load configuration from YAML file."""
@@ -154,36 +288,16 @@ class QuantFundEngine:
                 if self.risk_engine.is_emergency_stop():
                     logger.critical("Emergency stop triggered, shutting down...")
                     break
-                    
-                # Update survival engine
-                self.survival_engine.check_blacklist_expiry()
-                self.survival_engine.apply_decay()
                 
-                # Generate signals for all symbols
-                for symbol in self.symbols:
-                    if self.survival_engine.is_blacklisted(symbol):
-                        continue
-                        
-                    # Generate signal
-                    signal = self.signal_engine.generate_signals(symbol)
-                    
-                    # Update momentum score in scoring engine
-                    if signal and signal.get("combined"):
-                        strength = signal["combined"].get("strength", 0)
-                        self.scoring_engine.update_momentum_score(symbol, strength)
-                        
-                    # Calculate health score
-                    health_score = self.scoring_engine.calculate_health_score(symbol)
-                    
-                # Rebalance portfolio
-                health_scores = self.scoring_engine.get_all_scores()
-                await self.portfolio_manager.rebalance(health_scores)
-                
-                # Execute trades based on signals and allocations
-                await self._execute_trades()
-                
-                # Log status
-                self._log_status()
+                # State-specific logic
+                if self.state == SystemState.INIT:
+                    await self._handle_init()
+                elif self.state == SystemState.WARMUP:
+                    await self._handle_warmup()
+                elif self.state == SystemState.SHADOW:
+                    await self._handle_shadow()
+                elif self.state == SystemState.LIVE:
+                    await self._handle_live()
                 
                 # Sleep for next iteration
                 await asyncio.sleep(1)
@@ -197,6 +311,10 @@ class QuantFundEngine:
         
     async def _execute_trades(self):
         """Execute trades based on signals and allocations with data level awareness."""
+        # Only execute in LIVE state
+        if self.state != SystemState.LIVE:
+            return
+        
         allocations = self.portfolio_manager.get_all_allocations()
         
         # Get startup throttle (20-30% first 60 seconds)
