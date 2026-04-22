@@ -95,7 +95,14 @@ class MarketDataEngine:
             
             if "topic" in data:
                 topic = data["topic"]
-                symbol = data.get("symbol", "")
+                
+                # Extract symbol from topic (format: "orderbook.1.BTCUSDT")
+                parts = topic.split(".")
+                symbol = parts[-1] if len(parts) > 2 else ""
+                
+                if not symbol:
+                    logger.warning(f"Could not extract symbol from topic: {topic}")
+                    return
                 
                 if "orderbook" in topic:
                     await self._process_orderbook(symbol, data)
