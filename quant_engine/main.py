@@ -508,8 +508,8 @@ async def main():
     config_path = CONFIG_PATH
     
     # API credentials from Genius bot
-    api_key = "qltUum7PztwhAE6sU3"
-    api_secret = "iVYTFKUgy9HLqNWIcSpMHprYx1Ohn7Cv2yxZ"
+    api_key = "bev4f7HDaYtBbYOrXp"
+    api_secret = "uPESL7tBNEnVXVcpwDBm3krLEOYZOEyxwpCe"
     testnet = True  # Using testnet
     
     # Create engine
