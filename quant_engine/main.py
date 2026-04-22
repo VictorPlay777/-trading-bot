@@ -507,9 +507,9 @@ async def main():
     # Configuration (using absolute path)
     config_path = CONFIG_PATH
     
-    # API credentials from Genius bot
-    api_key = "bev4f7HDaYtBbYOrXp"
-    api_secret = "uPESL7tBNEnVXVcpwDBm3krLEOYZOEyxwpCe"
+    # API credentials from Genius AI Trader (working)
+    api_key = "rRsm08OPN027nk5hgF"
+    api_secret = "GD1qBUUx1KROqmAKwJLOpAanLNDwG6zr1CyA"
     testnet = True  # Using testnet
     
     # Create engine
