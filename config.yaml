@@ -1,0 +1,75 @@
+# =========================
+# REAL-TIME QUANT FUND ENGINE CONFIG
+# =========================
+
+mode: "REALTIME_PROP_FUND"
+
+# --- UNIVERSE ---
+initial_universe_size: 250
+max_active_coins: 250   # на старте без ограничений
+
+# --- TIMEFRAMES ---
+data_timeframe: "1m"
+signal_timeframe: "1m"
+
+# --- EXECUTION ---
+execution:
+  type: "hybrid"  # market / limit / adaptive
+  min_order_delay_ms: 200
+  max_slippage_pct: 0.15
+
+# --- STRATEGY ENGINE ---
+strategies:
+  enable_momentum: true
+  enable_mean_reversion: true
+  enable_breakout: true
+
+# --- TP / SL (MICRO SCALPING) ---
+risk:
+  base_tp_pct: 0.25
+  base_sl_pct: 0.12
+  atr_multiplier_tp: 1.2
+  atr_multiplier_sl: 0.7
+
+# --- PORTFOLIO LOGIC ---
+portfolio:
+  rebalance_interval_sec: 5
+  capital_concentration_limit: 0.25  # max per coin
+
+# --- HEALTH SYSTEM ---
+health:
+  enable_survival_mode: true
+  loss_streak_blacklist: 4
+  blacklist_duration_minutes: 1440  # 24h
+
+# --- SCORING ---
+scoring:
+  pnl_weight: 2.0
+  volatility_weight: 1.2
+  volume_weight: 1.5
+  momentum_weight: 2.0
+
+# --- MARKET FILTERS (soft, not blocking) ---
+filters:
+  min_volume_threshold: 0.8
+  min_atr_threshold: 0.15
+  max_spread_pct: 0.2
+
+# --- RISK ENGINE ---
+risk_engine:
+  global_drawdown_cutoff: -0.08
+  leverage_scaling: true
+  max_leverage: 5
+
+# --- SURVIVAL ENGINE ---
+survival:
+  enable_blacklist: true
+  enable_decay_system: true
+  recovery_enabled: true
+
+# --- LOGGING ---
+logging:
+  log_trades: true
+  log_skips: true
+  log_reasons: true
+  log_rebalance: true
