@@ -770,12 +770,12 @@ class PositionManager:
                 
                 # Move SL to lock in profit (1x risk from entry)
                 if position.direction == "long":
-                    new_sl = position.entry_price + (position.entry_price * self.sl_fixed_pct)
+                    new_sl = position.entry_price - (position.entry_price * self.sl_fixed_pct)
                     # Ensure valid SL
                     if new_sl >= current_price:
                         new_sl = current_price * 0.99  # 1% below current
                 else:
-                    new_sl = position.entry_price - (position.entry_price * self.sl_fixed_pct)
+                    new_sl = position.entry_price + (position.entry_price * self.sl_fixed_pct)
                     # Ensure valid SL
                     if new_sl <= current_price:
                         new_sl = current_price * 1.01  # 1% above current
@@ -826,9 +826,9 @@ class PositionManager:
                     
                     # Move SL to entry + 1x risk (lock in profit)
                     if position.direction == "long":
-                        new_sl = position.entry_price + (position.entry_price * self.sl_fixed_pct)
-                    else:
                         new_sl = position.entry_price - (position.entry_price * self.sl_fixed_pct)
+                    else:
+                        new_sl = position.entry_price + (position.entry_price * self.sl_fixed_pct)
                     
                     self.api.set_trading_stop(symbol=symbol, stop_loss=new_sl)
                     position.stop_loss = new_sl
