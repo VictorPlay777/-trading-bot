@@ -57,6 +57,7 @@ class ExecutionEngine:
         """Generate API signature using HMAC-SHA256."""
         import hmac
         import hashlib
+        import json
         
         # Bybit signature: timestamp + api_key + recv_window + params
         recv_window = "5000"
@@ -87,7 +88,8 @@ class ExecutionEngine:
         
         # Add signature
         if params:
-            params_str = str(params)
+            import json
+            params_str = json.dumps(params, separators=(',', ':'), sort_keys=True)
             signature = self._generate_signature(timestamp, params_str)
             headers["X-BAPI-SIGN"] = signature
             
