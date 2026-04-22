@@ -39,6 +39,7 @@ class PortfolioManager:
         """
         Calculate capital allocations based on health scores.
         Capital flows to top 20-60 coins based on scores.
+        Falls back to equal allocation if no scores available.
         """
         if not health_scores:
             return {}
@@ -58,6 +59,11 @@ class PortfolioManager:
                 if len(top_symbols) >= 60:  # Max 60 active positions
                     break
                     
+        # Fallback: if no symbols with score > 0.5, use top 20 by score
+        if not top_symbols and sorted_symbols:
+            top_symbols = sorted_symbols[:20]
+            logger.info("No high-health scores, using fallback allocation to top 20 symbols")
+            
         if not top_symbols:
             return {}
             
