@@ -63,6 +63,7 @@ class QuantFundEngine:
         self.init_timeout = 60        # Maximum INIT time (seconds)
         self.init_min_candles = 50    # Minimum candles to exit INIT
         self.init_min_coverage = 0.7  # Minimum 70% symbols coverage to exit INIT
+        self.init_top_symbols = 20    # Only fetch top N symbols initially for fast startup
         self.candles_collected = {}   # Track candles per symbol
         
         # Shadow mode configuration
@@ -119,13 +120,16 @@ class QuantFundEngine:
         logger.info(f"State transition: {old_state.name} -> {new_state.name}")
     
     def _check_init_complete(self) -> bool:
-        """Check if INIT has collected enough data to proceed."""
+        """Check if INIT has collected enough data for top symbols to proceed."""
         if not self.market_data:
             return False
         
-        # Check actual market data price history (not candles_collected)
+        # Only check top symbols for fast startup
+        top_symbols = self.symbols[:self.init_top_symbols]
+        
+        # Check actual market data price history
         symbols_with_data = 0
-        for symbol in self.symbols:
+        for symbol in top_symbols:
             price_history = self.market_data.get_price_history(symbol)
             candle_count = len(price_history)
             
@@ -133,14 +137,14 @@ class QuantFundEngine:
                 symbols_with_data += 1
         
         # Exit conditions:
-        # 1. All symbols have minimum candles
-        if symbols_with_data >= len(self.symbols):
+        # 1. All top symbols have minimum candles
+        if symbols_with_data >= len(top_symbols):
             return True
         
-        # 2. Minimum coverage (70% symbols with 50+ candles)
-        coverage = symbols_with_data / len(self.symbols) if self.symbols else 0
+        # 2. Minimum coverage (70% of top symbols with 50+ candles)
+        coverage = symbols_with_data / len(top_symbols) if top_symbols else 0
         if coverage >= self.init_min_coverage:
-            logger.info(f"INIT: {symbols_with_data}/{len(self.symbols)} symbols with {self.init_min_candles}+ candles")
+            logger.info(f"INIT: {symbols_with_data}/{len(top_symbols)} top symbols with {self.init_min_candles}+ candles")
             return True
         
         return False
@@ -173,24 +177,30 @@ class QuantFundEngine:
         return signal_ratio >= self.shadow_min_signals
     
     async def _handle_init(self):
-        """Handle INIT state - collect initial data (finite, no infinite loop)."""
-        # Update market data without logging loop
-        for symbol in self.symbols:
-            current_price = self.market_data.get_current_price(symbol)
-            volume = self.market_data.get_volume(symbol)
-            if current_price:
-                self.signal_engine.update_price(symbol, current_price, volume)
+        """Handle INIT state - collect initial data for top symbols only (fast startup)."""
+        # Fetch data only for top symbols during INIT
+        if not hasattr(self, '_init_fetch_done'):
+            top_symbols = self.symbols[:self.init_top_symbols]
+            logger.info(f"INIT: Fetching data for top {len(top_symbols)} symbols only")
+            await self.market_data._fetch_all_data(top_symbols)
+            self._init_fetch_done = True
         
-        # Log progress only every 10 seconds to avoid spam
+        # Log progress
         elapsed = (datetime.now() - self.state_start_time).total_seconds()
-        if int(elapsed) % 10 == 0 and int(elapsed) > 0:
-            symbols_with_data = sum(1 for c in self.candles_collected.values() if c >= self.init_min_candles)
-            logger.info(f"INIT: {symbols_with_data}/{len(self.symbols)} symbols with {self.init_min_candles}+ candles ({elapsed:.0f}s elapsed)")
+        if int(elapsed) % 5 == 0 and int(elapsed) > 0:
+            top_symbols = self.symbols[:self.init_top_symbols]
+            symbols_with_data = sum(1 for s in top_symbols if len(self.market_data.get_price_history(s)) >= self.init_min_candles)
+            logger.info(f"INIT: {symbols_with_data}/{len(top_symbols)} top symbols with {self.init_min_candles}+ candles ({elapsed:.0f}s elapsed)")
     
     async def _handle_warmup(self):
-        """Handle WARMUP state - collect historical candles, NO signals."""
-        elapsed = (datetime.now() - self.state_start_time).total_seconds()
-        logger.info(f"WARMUP: Collecting data ({elapsed:.0f}s elapsed)...")
+        """Handle WARMUP state - collect historical candles for remaining symbols, NO signals."""
+        # Fetch remaining symbols in background
+        if not hasattr(self, '_warmup_fetch_done'):
+            remaining_symbols = self.symbols[self.init_top_symbols:]
+            if remaining_symbols:
+                logger.info(f"WARMUP: Fetching data for remaining {len(remaining_symbols)} symbols")
+                await self.market_data._fetch_all_data(remaining_symbols)
+            self._warmup_fetch_done = True
         
         # Update market data only, NO signal computation
         for symbol in self.symbols:
@@ -199,6 +209,11 @@ class QuantFundEngine:
             if current_price:
                 # Update price history but DO NOT compute signals
                 self.signal_engine.update_price(symbol, current_price, volume)
+        
+        elapsed = (datetime.now() - self.state_start_time).total_seconds()
+        if int(elapsed) % 10 == 0 and int(elapsed) > 0:
+            symbols_with_data = sum(1 for s in self.symbols if len(self.market_data.get_price_history(s)) >= self.warmup_min_candles)
+            logger.info(f"WARMUP: {symbols_with_data}/{len(self.symbols)} symbols with {self.warmup_min_candles}+ candles ({elapsed:.0f}s elapsed)")
     
     async def _handle_shadow(self):
         """Handle SHADOW state - run signals for validation, NO execution."""

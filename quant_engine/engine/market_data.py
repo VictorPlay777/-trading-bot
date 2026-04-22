@@ -76,12 +76,13 @@ class MarketDataEngine:
                 logger.error(f"Error fetching data: {e}")
                 await asyncio.sleep(5)
                 
-    async def _fetch_all_data(self):
-        """Fetch data for all symbols."""
+    async def _fetch_all_data(self, symbols_subset: List[str] = None):
+        """Fetch data for symbols (or all if subset not provided)."""
+        symbols_to_fetch = symbols_subset if symbols_subset else self.symbols
         # Split into batches to avoid rate limits
         batch_size = 20
-        for i in range(0, len(self.symbols), batch_size):
-            batch = self.symbols[i:i+batch_size]
+        for i in range(0, len(symbols_to_fetch), batch_size):
+            batch = symbols_to_fetch[i:i+batch_size]
             await self._fetch_batch(batch)
             
     async def _fetch_batch(self, symbols: List[str]):
