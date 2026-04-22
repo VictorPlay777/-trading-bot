@@ -391,7 +391,7 @@ class QuantFundEngine:
                     result = await self.execution_engine.place_order(
                         symbol=symbol,
                         side='BUY',
-                        qty=0.01,  # Small test position
+                        qty=1.0,  # Test position (increased to meet minimum order requirements)
                         price=current_price
                     )
                     logger.info(f"[TEST] Order result: {result}")
