@@ -85,34 +85,36 @@ class MarketDataEngine:
             await self._fetch_batch(batch)
             
     async def _fetch_batch(self, symbols: List[str]):
-        """Fetch data for a batch of symbols."""
+        """Fetch historical candles for a batch of symbols."""
         try:
-            # Get tickers for batch
-            symbols_str = ",".join(symbols)
-            async with self.session.get(f"{self.base_url}/market/tickers?category=linear&symbol={symbols_str}") as resp:
-                data = await resp.json()
+            # Fetch historical klines for each symbol in batch
+            for symbol in symbols:
+                async with self.session.get(f"{self.base_url}/market/kline?category=linear&symbol={symbol}&interval=1&limit=100") as resp:
+                    data = await resp.json()
                 
-            if data.get("retCode") == 0:
-                for item in data.get("result", {}).get("list", []):
-                    symbol = item.get("symbol")
-                    if symbol:
-                        # Update price
-                        price = float(item.get("lastPrice", 0))
-                        self.current_prices[symbol] = price
-                        self.price_history[symbol].append(price)
+                if data.get("retCode") == 0:
+                    candles = data.get("result", {}).get("list", [])
+                    logger.info(f"[DATA] {symbol} fetched: {len(candles)} candles")
+                    
+                    if candles:
+                        # Store candles in reverse order (oldest first)
+                        for candle in reversed(candles):
+                            price = float(candle[4])  # Close price
+                            self.current_prices[symbol] = price
+                            self.price_history[symbol].append(price)
                         
-                        # Update volume
-                        volume = float(item.get("turnover24h", 0))
+                        # Update volume from latest candle
+                        volume = float(candles[0][5])  # Volume from latest candle
                         self.volumes[symbol] = volume
                         
                         self.last_update[symbol] = datetime.now().timestamp()
                         
-                        # Trigger callbacks
-                        if self.on_trade_callback:
-                            await self.on_trade_callback(symbol, [{"p": price, "q": volume}])
-                    
-                    # Update data level
-                    self._update_data_level(symbol)
+                        logger.info(f"[DATA] {symbol} appended: buffer size = {len(self.price_history[symbol])}")
+                        
+                        # Update data level
+                        self._update_data_level(symbol)
+                else:
+                    logger.warning(f"[DATA] {symbol} API error: {data.get('retMsg')}")
                             
         except Exception as e:
             logger.error(f"Error fetching batch: {e}")
