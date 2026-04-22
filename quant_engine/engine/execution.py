@@ -54,9 +54,21 @@ class ExecutionEngine:
             await self.session.close()
             
     def _generate_signature(self, timestamp: str, params: str) -> str:
-        """Generate API signature (simplified - use proper HMAC in production)."""
-        # In production, use HMAC-SHA256 with api_secret
-        return f"{timestamp}{params}"  # Placeholder
+        """Generate API signature using HMAC-SHA256."""
+        import hmac
+        import hashlib
+        
+        # Bybit signature: timestamp + api_key + recv_window + params
+        recv_window = "5000"
+        message = timestamp + self.api_key + recv_window + params
+        
+        signature = hmac.new(
+            self.api_secret.encode('utf-8'),
+            message.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+        
+        return signature
         
     async def _make_request(self, method: str, endpoint: str, params: dict = None) -> dict:
         """Make API request."""
