@@ -95,8 +95,9 @@ class QuantFundEngine:
         
         # INIT -> WARMUP
         if self.state == SystemState.INIT:
-            # Check INIT exit conditions
-            if self._check_init_complete() or elapsed_in_state > self.init_timeout:
+            init_complete = self._check_init_complete()
+            logger.debug(f"INIT transition check: complete={init_complete}, elapsed={elapsed_in_state:.1f}s")
+            if init_complete or elapsed_in_state > self.init_timeout:
                 logger.info(f"INIT complete ({elapsed_in_state:.1f}s), transitioning to WARMUP")
                 self._transition_to(SystemState.WARMUP)
         
