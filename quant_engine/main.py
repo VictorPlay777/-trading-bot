@@ -64,6 +64,7 @@ class QuantFundEngine:
         self.init_min_candles = 50    # Minimum candles to exit INIT
         self.init_min_coverage = 0.7  # Minimum 70% symbols coverage to exit INIT
         self.init_top_symbols = 20    # Only fetch top N symbols initially for fast startup
+        self.init_fallback_symbols = 5  # Minimum symbols for fallback start (guaranteed exit)
         self.candles_collected = {}   # Track candles per symbol
         
         # Shadow mode configuration
@@ -146,6 +147,11 @@ class QuantFundEngine:
         coverage = symbols_with_data / len(top_symbols) if top_symbols else 0
         if coverage >= self.init_min_coverage:
             logger.info(f"INIT: {symbols_with_data}/{len(top_symbols)} top symbols with {self.init_min_candles}+ candles")
+            return True
+        
+        # 3. Fallback: minimum symbols ready (guaranteed exit)
+        if symbols_with_data >= self.init_fallback_symbols:
+            logger.warning(f"INIT: Fallback mode - {symbols_with_data}/{len(top_symbols)} symbols ready, proceeding with partial data")
             return True
         
         return False
