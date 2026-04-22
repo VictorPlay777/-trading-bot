@@ -81,6 +81,10 @@ class MarketDataEngine:
                 
     async def _fetch_all_data(self, symbols_subset: List[str] = None):
         """Fetch data for symbols (or all if subset not provided)."""
+        # Ensure session is initialized
+        if not self.session:
+            await self.start()
+        
         symbols_to_fetch = symbols_subset if symbols_subset else self.symbols
         # Split into batches to avoid rate limits
         batch_size = 20
