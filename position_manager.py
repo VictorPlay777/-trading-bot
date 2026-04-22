@@ -75,9 +75,10 @@ class PositionManager:
         self.bot_config = bot_config or {}  # Bot-specific config
         self.positions: Dict[str, Position] = {}  # symbol -> Position
         
-        # Get genius features from config
+        # Get genius/trend features from config
         genius_cfg = bot_config.get('genius_features', {}) if bot_config else {}
-        self.skip_analytics_filter = genius_cfg.get('skip_analytics_filter', False)
+        trend_cfg = bot_config.get('trend_yolo_features', {}) if bot_config else {}
+        self.skip_analytics_filter = genius_cfg.get('skip_analytics_filter', False) or trend_cfg.get('skip_analytics_filter', False)
         
         # Get max_positions from bot_config or fallback to global
         if bot_config and 'strategy' in bot_config:
