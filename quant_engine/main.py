@@ -380,6 +380,27 @@ class QuantFundEngine:
         if self.state != SystemState.LIVE:
             return
         
+        # TEST: Force a trade on the first symbol to verify execution engine works
+        if self.symbols and len(self.symbols) > 0:
+            symbol = self.symbols[0]
+            current_price = self.market_data.get_current_price(symbol)
+            if current_price and not hasattr(self, '_test_trade_done'):
+                logger.warning(f"[TEST] Forcing long position on {symbol} at ${current_price}")
+                # Create a simple long order
+                try:
+                    order = {
+                        'symbol': symbol,
+                        'side': 'Buy',
+                        'order_type': 'Market',
+                        'qty': 0.01,  # Small test position
+                        'price': current_price
+                    }
+                    result = await self.execution_engine.place_order(order)
+                    logger.info(f"[TEST] Order result: {result}")
+                    self._test_trade_done = True
+                except Exception as e:
+                    logger.error(f"[TEST] Order failed: {e}")
+        
         allocations = self.portfolio_manager.get_all_allocations()
         
         # Get startup throttle (20-30% first 60 seconds)
