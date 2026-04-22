@@ -2,19 +2,15 @@ import asyncio
 import logging
 import yaml
 from datetime import datetime
-import sys
-import os
 
-# Add engine directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'engine'))
-
-from market_data import MarketDataEngine, get_usdt_futures_symbols
-from signal_engine import SignalEngine
-from scoring import ScoringEngine
-from portfolio import PortfolioManager
-from survival import SurvivalEngine
-from execution import ExecutionEngine
-from risk import RiskEngine
+from quant_engine.engine.market_data import MarketDataEngine, get_usdt_futures_symbols
+from quant_engine.engine.signal_engine import SignalEngine
+from quant_engine.engine.scoring import ScoringEngine
+from quant_engine.engine.portfolio import PortfolioManager
+from quant_engine.engine.survival import SurvivalEngine
+from quant_engine.engine.execution import ExecutionEngine
+from quant_engine.engine.risk import RiskEngine
+from quant_engine.engine.market_data import DataLevel
 
 # Configure logging
 logging.basicConfig(
@@ -206,7 +202,6 @@ class QuantFundEngine:
                 continue
             
             # Check symbol data readiness
-            from engine.market_data import DataLevel
             data_level = self.market_data.get_data_level(symbol)
             
             # Skip if not at least RAW level (basic price data)
