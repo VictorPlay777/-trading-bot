@@ -507,10 +507,10 @@ async def main():
     # Configuration (using absolute path)
     config_path = CONFIG_PATH
     
-    # API credentials from Genius AI Trader (working)
+    # API credentials from Genius AI Trader (working on DEMO)
     api_key = "rRsm08OPN027nk5hgF"
     api_secret = "GD1qBUUx1KROqmAKwJLOpAanLNDwG6zr1CyA"
-    testnet = True  # Using testnet
+    testnet = "demo"  # Using demo (api-demo.bybit.com)
     
     # Create engine
     engine = QuantFundEngine(config_path, api_key, api_secret, testnet)
