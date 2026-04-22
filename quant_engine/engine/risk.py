@@ -81,7 +81,8 @@ class RiskEngine:
             
         # Calculate recent performance
         recent_pnl = sum(list(self.pnl_history)[-20:])
-        win_rate = sum(1 for p in list(self.pnl_history)[-20:]) if p > 0 else 0) / min(20, len(self.pnl_history))
+        wins = sum(1 for p in list(self.pnl_history)[-20:] if p > 0)
+        win_rate = wins / min(20, len(self.pnl_history))
         
         # Scale leverage based on performance
         if recent_pnl > 0 and win_rate > 0.6:
