@@ -353,6 +353,9 @@ class QuantFundEngine:
                     logger.critical("Emergency stop triggered, shutting down...")
                     break
                 
+                # Handle state transitions
+                await self._handle_state_transition()
+                
                 # State-specific logic
                 if self.state == SystemState.INIT:
                     await self._handle_init()
