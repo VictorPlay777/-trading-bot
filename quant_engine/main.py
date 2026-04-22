@@ -63,8 +63,8 @@ class QuantFundEngine:
         self.init_timeout = 60        # Maximum INIT time (seconds)
         self.init_min_candles = 50    # Minimum candles to exit INIT
         self.init_min_coverage = 0.7  # Minimum 70% symbols coverage to exit INIT
-        self.init_top_symbols = 1     # Only fetch top N symbols initially for fast startup (TEST: 1 symbol)
-        self.init_fallback_symbols = 1  # Minimum symbols for fallback start (guaranteed exit) (TEST: 1 symbol)
+        self.init_top_symbols = 250    # Only fetch top N symbols initially for fast startup (INCREASED to 250)
+        self.init_fallback_symbols = 250  # Minimum symbols for fallback start (guaranteed exit) (INCREASED to 250)
         self.candles_collected = {}   # Track candles per symbol
         
         # Shadow mode configuration
@@ -380,24 +380,41 @@ class QuantFundEngine:
         if self.state != SystemState.LIVE:
             return
         
-        # TEST: Force a trade on the first symbol to verify execution engine works
-        if self.symbols and len(self.symbols) > 0:
-            symbol = self.symbols[0]
-            current_price = self.market_data.get_current_price(symbol)
-            if current_price and not hasattr(self, '_test_trade_done'):
-                logger.warning(f"[TEST] Forcing long position on {symbol} at ${current_price}")
-                # Create a simple long order
-                try:
-                    result = await self.execution_engine.place_order(
-                        symbol=symbol,
-                        side='BUY',
-                        qty=1.0,  # Test position (increased to meet minimum order requirements)
-                        price=current_price
-                    )
-                    logger.info(f"[TEST] Order result: {result}")
-                    # Don't set _test_trade_done - allow retry if needed
-                except Exception as e:
-                    logger.error(f"[TEST] Order failed: {e}")
+        # TEST: Force trades on all symbols to verify execution engine works
+        if self.config.get("test_mode") and self.symbols and len(self.symbols) > 0:
+            # Get TP/SL settings from config
+            risk_config = self.config.get("risk", {})
+            base_tp_pct = risk_config.get("base_tp_pct", 0.25)
+            base_sl_pct = risk_config.get("base_sl_pct", 0.12)
+            
+            for symbol in self.symbols:
+                current_price = self.market_data.get_current_price(symbol)
+                
+                # Check if we already have a position
+                position = await self.execution_engine.get_position(symbol)
+                
+                if current_price:
+                    if not position or position.get("size", 0) == 0:
+                        # No position - open a long with TP/SL
+                        tp_price = current_price * (1 + base_tp_pct)
+                        sl_price = current_price * (1 - base_sl_pct)
+                        
+                        logger.warning(f"[TEST] Opening long position on {symbol} at ${current_price} TP=${tp_price} SL=${sl_price}")
+                        try:
+                            result = await self.execution_engine.place_order(
+                                symbol=symbol,
+                                side='BUY',
+                                qty=1.0,
+                                price=current_price,
+                                tp=tp_price,
+                                sl=sl_price
+                            )
+                            logger.info(f"[TEST] Order result: {result}")
+                        except Exception as e:
+                            logger.error(f"[TEST] Order failed for {symbol}: {e}")
+                    else:
+                        # Already have position - log status
+                        logger.info(f"[TEST] Already have position on {symbol}: {position.get('side')} size={position.get('size')}")
         
         allocations = self.portfolio_manager.get_all_allocations()
         
