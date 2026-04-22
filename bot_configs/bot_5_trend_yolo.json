@@ -15,7 +15,7 @@
     "type": "breakout_momentum",
     "description": "Breakout momentum with trend following and auto profit taking",
     
-    "leverage": 25,
+    "leverage": 10,
     "max_positions": 999,
     "position_size_pct": 4.0,
     "stats_file": "symbol_stats_bot_5_trend_yolo.json",
@@ -59,20 +59,20 @@
     
     "dynamic_stop_loss": {
       "enabled": true,
-      "base_pct": 2.2,
-      "atr_multiplier": 2.0,
+      "base_pct": 3.5,
+      "atr_multiplier": 1.5,
       "trailing_enabled": true,
-      "trailing_trigger_pct": 3.0,
-      "trailing_step_pct": 1.0
+      "trailing_trigger_pct": 4.0,
+      "trailing_step_pct": 1.5
     },
     
     "dynamic_take_profit": {
       "enabled": true,
-      "base_pct": 6.0,
-      "rr_ratio": 2.7,
+      "base_pct": 4.0,
+      "rr_ratio": 1.14,
       "partial_close": true,
       "partial_close_pct": 50,
-      "partial_close_at": 3.0
+      "partial_close_at": 2.0
     },
     
     "auto_reduce": {
