@@ -195,50 +195,46 @@ class QuantFundEngine:
         await self.shutdown()
         
     async def _execute_trades(self):
-        """Execute trades based on signals and allocations."""
+        """Execute trades based on signals and allocations with data level awareness."""
         allocations = self.portfolio_manager.get_all_allocations()
         
-        # Check if we have any actual positions on exchange - if not, use probe trading
-        actual_positions = 0
-        for symbol in allocations.keys():
-            pos = await self.execution_engine.get_position(symbol)
-            if pos and pos.get("size", 0) != 0:
-                actual_positions += 1
-        use_probe = actual_positions == 0
+        # Get startup throttle (20-30% first 60 seconds)
+        startup_throttle = self.risk_engine.get_startup_throttle()
         
         for symbol, allocation in allocations.items():
             if self.survival_engine.is_blacklisted(symbol):
                 continue
-                
-            # PROBE TRADING: Open small positions without signals if no positions exist
-            if use_probe:
-                position = await self.execution_engine.get_position(symbol)
-                position_size = position.get("size") if position else 0
-                if not position or position_size == 0:
-                    # Open small probe position (5% of allocation)
-                    current_price = self.market_data.get_current_price(symbol)
-                    if current_price and current_price > 0:
-                        probe_qty = (allocation * 0.05) / current_price
-                        if probe_qty > 0:
-                            result = await self.execution_engine.place_order(
-                                symbol=symbol,
-                                side="Buy",  # Default to long for probe
-                                qty=probe_qty
-                            )
-                            if result:
-                                logger.info(f"[PROBE] Opened probe position in {symbol}")
+            
+            # Check symbol data readiness
+            from quant_engine.engine.market_data import DataLevel
+            data_level = self.market_data.get_data_level(symbol)
+            
+            # Skip if not at least RAW level (basic price data)
+            if not self.market_data.is_ready(symbol, DataLevel.RAW):
                 continue
-                
-            # Get signal
+            
+            # Get signal based on data level
             signal = self.signal_engine.get_current_signal(symbol)
+            
+            # Fallback strategy for RAW level (no historical data)
+            if not signal or not signal.get("combined"):
+                if data_level == DataLevel.RAW:
+                    current_price = self.market_data.get_current_price(symbol)
+                    volume = self.market_data.get_volume(symbol) or 0
+                    signal = self.signal_engine.generate_fallback_signal(symbol, current_price, volume)
+                    
+                    if signal:
+                        logger.info(f"[FALLBACK] Using fallback signal for {symbol}")
+            
             if not signal or not signal.get("combined"):
                 continue
                 
             direction = signal["combined"]["direction"]
             confidence = signal["combined"]["confidence"]
             
-            # Only trade if confidence is high enough (lowered for startup)
-            if confidence < 0.3:
+            # Lower confidence threshold for fallback/startup
+            min_confidence = 0.2 if data_level == DataLevel.RAW else 0.5
+            if confidence < min_confidence:
                 continue
                 
             # Check risk limits
@@ -253,9 +249,9 @@ class QuantFundEngine:
             atr = self.signal_engine.get_atr(symbol)
             tp, sl = self.execution_engine.calculate_tp_sl(symbol, current_price, direction, atr)
             
-            # Calculate quantity
+            # Calculate quantity with startup throttle
             leverage_multiplier = self.risk_engine.get_leverage_multiplier()
-            effective_allocation = allocation * leverage_multiplier
+            effective_allocation = allocation * leverage_multiplier * startup_throttle
             qty = effective_allocation / current_price if current_price > 0 else 0
             
             # Execute trade

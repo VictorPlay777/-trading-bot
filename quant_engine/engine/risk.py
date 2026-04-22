@@ -10,6 +10,7 @@ class RiskEngine:
     """
     Risk management engine.
     Handles global drawdown protection and dynamic leverage scaling.
+    Includes capital throttling for startup (20-30% first 60 seconds).
     """
     
     def __init__(self, config: dict):
@@ -37,6 +38,12 @@ class RiskEngine:
         
         # Leverage multiplier
         self.current_leverage_multiplier = 1.0
+        
+        # Startup throttling
+        self.startup_time = datetime.now()
+        self.startup_throttle_duration = 60  # seconds
+        self.startup_throttle_min = 0.2  # 20%
+        self.startup_throttle_max = 0.3  # 30%
         
     def set_initial_capital(self, capital: float):
         """Set initial capital for drawdown calculation."""
@@ -95,6 +102,19 @@ class RiskEngine:
     def get_leverage_multiplier(self) -> float:
         """Get current leverage multiplier."""
         return self.current_leverage_multiplier
+    
+    def get_startup_throttle(self) -> float:
+        """Get startup throttle multiplier (0.2-0.3 for first 60 seconds)."""
+        elapsed = (datetime.now() - self.startup_time).total_seconds()
+        
+        if elapsed >= self.startup_throttle_duration:
+            return 1.0  # Full size after 60 seconds
+            
+        # Linear ramp from 20% to 30% over 60 seconds
+        progress = elapsed / self.startup_throttle_duration
+        throttle = self.startup_throttle_min + (self.startup_throttle_max - self.startup_throttle_min) * progress
+        
+        return throttle
         
     def is_emergency_stop(self) -> bool:
         """Check if emergency stop is triggered."""

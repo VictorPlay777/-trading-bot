@@ -48,6 +48,43 @@ class SignalEngine:
             
     def generate_signals(self, symbol: str) -> dict:
         """Generate all signals for a symbol."""
+        
+    def generate_fallback_signal(self, symbol: str, current_price: float, volume: float) -> dict:
+        """
+        Generate fallback signal for startup without historical data.
+        Uses: volume spikes, short-term momentum, simple price action.
+        """
+        history = list(self.price_history[symbol])
+        
+        if len(history) < 3:
+            return None  # Need at least 3 data points
+            
+        # Calculate short-term momentum (last 3 points)
+        recent_prices = [h["price"] for h in history[-3:]]
+        momentum = (recent_prices[-1] - recent_prices[0]) / recent_prices[0] * 100
+        
+        # Calculate volume spike (current vs average of last 10)
+        recent_volumes = [h.get("volume", 0) for h in history[-10:]]
+        avg_volume = sum(recent_volumes) / len(recent_volumes) if recent_volumes else volume
+        volume_spike = volume / avg_volume if avg_volume > 0 else 1.0
+        
+        # Simple logic: strong momentum + volume spike = signal
+        if abs(momentum) > 0.1 and volume_spike > 1.5:
+            direction = "long" if momentum > 0 else "short"
+            confidence = min(abs(momentum) * 5, 0.8)  # Cap at 0.8
+            
+            return {
+                "combined": {
+                    "direction": direction,
+                    "confidence": confidence,
+                    "strategy": "fallback"
+                }
+            }
+        
+        return None
+    
+    def generate_signals(self, symbol: str) -> dict:
+        """Generate all signals for a symbol."""
         signals = {
             "symbol": symbol,
             "timestamp": datetime.now().timestamp(),
