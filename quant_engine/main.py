@@ -123,12 +123,11 @@ class QuantFundEngine:
         if not self.market_data:
             return False
         
-        # Track candles per symbol
+        # Check actual market data price history (not candles_collected)
         symbols_with_data = 0
         for symbol in self.symbols:
             price_history = self.market_data.get_price_history(symbol)
             candle_count = len(price_history)
-            self.candles_collected[symbol] = candle_count
             
             if candle_count >= self.init_min_candles:
                 symbols_with_data += 1
