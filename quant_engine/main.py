@@ -206,7 +206,7 @@ class QuantFundEngine:
                 continue
             
             # Check symbol data readiness
-            from quant_engine.engine.market_data import DataLevel
+            from engine.market_data import DataLevel
             data_level = self.market_data.get_data_level(symbol)
             
             # Skip if not at least RAW level (basic price data)
