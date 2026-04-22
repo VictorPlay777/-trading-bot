@@ -395,7 +395,7 @@ class QuantFundEngine:
                         price=current_price
                     )
                     logger.info(f"[TEST] Order result: {result}")
-                    self._test_trade_done = True
+                    # Don't set _test_trade_done - allow retry if needed
                 except Exception as e:
                     logger.error(f"[TEST] Order failed: {e}")
         
