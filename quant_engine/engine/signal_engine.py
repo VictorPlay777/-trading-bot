@@ -24,6 +24,9 @@ class SignalEngine:
         self.enable_mean_reversion = self.strategies.get("enable_mean_reversion", True)
         self.enable_breakout = self.strategies.get("enable_breakout", True)
         
+        # TEST MODE: Generate random signals for testing
+        self.test_mode = config.get("test_mode", False)
+        
         # Price history for analysis
         self.price_history: Dict[str, deque] = defaultdict(lambda: deque(maxlen=100))
         self.volume_history: Dict[str, deque] = defaultdict(lambda: deque(maxlen=100))
@@ -85,6 +88,10 @@ class SignalEngine:
     
     def generate_signals(self, symbol: str) -> dict:
         """Generate all signals for a symbol."""
+        # TEST MODE: Generate simple random signals for testing
+        if self.test_mode:
+            return self._generate_test_signal(symbol)
+        
         signals = {
             "symbol": symbol,
             "timestamp": datetime.now().timestamp(),
@@ -105,6 +112,39 @@ class SignalEngine:
             
         # Combine signals
         signals["combined"] = self._combine_signals(signals)
+        
+        self.current_signals[symbol] = signals
+        return signals
+    
+    def _generate_test_signal(self, symbol: str) -> dict:
+        """Generate simple test signal - alternating long/short every 30 seconds"""
+        import random
+        import time
+        
+        # Use timestamp to alternate direction every 30 seconds
+        current_time = int(time.time())
+        cycle = (current_time // 30) % 2  # 0 or 1
+        
+        direction = "long" if cycle == 0 else "short"
+        
+        signals = {
+            "symbol": symbol,
+            "timestamp": datetime.now().timestamp(),
+            "momentum": {
+                "direction": direction,
+                "strength": 0.8,
+                "confidence": 0.9,
+                "reason": "TEST MODE: Simple alternating signal"
+            },
+            "mean_reversion": None,
+            "breakout": None,
+            "combined": {
+                "direction": direction,
+                "strength": 0.8,
+                "confidence": 0.9,
+                "reason": "TEST MODE: Simple alternating signal"
+            }
+        }
         
         self.current_signals[symbol] = signals
         return signals

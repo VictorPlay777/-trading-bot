@@ -3,6 +3,7 @@
 # =========================
 
 mode: "REALTIME_PROP_FUND"
+test_mode: true  # TEST MODE: Generate simple alternating signals for testing
 
 # --- UNIVERSE ---
 initial_universe_size: 250
