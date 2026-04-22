@@ -85,6 +85,7 @@ class ExecutionEngine:
         }
         
         # Add signature
+        body_str = ""
         if params:
             import json
             query_string = ""
@@ -97,7 +98,7 @@ class ExecutionEngine:
                 async with self.session.get(url, headers=headers, params=params) as resp:
                     return await resp.json()
             elif method == "POST":
-                async with self.session.post(url, headers=headers, json=params) as resp:
+                async with self.session.post(url, headers=headers, data=body_str) as resp:
                     return await resp.json()
         except Exception as e:
             logger.error(f"API request error: {e}")
