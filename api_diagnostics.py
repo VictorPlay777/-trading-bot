@@ -25,9 +25,11 @@ class APIDiagnosticResult:
     """Result of API diagnostic check"""
     testnet_status: str  # "ok", "invalid", "permission", "error"
     mainnet_status: str  # "ok", "invalid", "permission", "error"
-    recommended: str     # "testnet", "mainnet", "none"
+    demo_status: str     # "ok", "invalid", "permission", "error"
+    recommended: str     # "testnet", "mainnet", "demo", "none"
     testnet_error: Optional[str] = None
     mainnet_error: Optional[str] = None
+    demo_error: Optional[str] = None
     account_type: Optional[str] = None
     balances: Optional[Dict] = None
 
@@ -40,10 +42,11 @@ class APIDiagnostics:
         self.api_secret = api_secret
         self.testnet_url = "https://api-testnet.bybit.com"
         self.mainnet_url = "https://api.bybit.com"
+        self.demo_url = "https://api-demo.bybit.com"
         self.max_retries = 3
         self.retry_delay = 1.0
         
-    def _check_endpoint(self, use_testnet: bool) -> Tuple[str, Optional[str], Optional[Dict]]:
+    def _check_endpoint(self, url: str, env_name: str) -> Tuple[str, Optional[str], Optional[Dict]]:
         """
         Check API endpoint with retry logic.
         
@@ -51,8 +54,6 @@ class APIDiagnostics:
             (status, error_message, account_info)
             status: "ok", "invalid", "permission", "error"
         """
-        url = self.testnet_url if use_testnet else self.mainnet_url
-        env_name = "TESTNET" if use_testnet else "MAINNET"
         
         for attempt in range(self.max_retries):
             try:
@@ -152,7 +153,7 @@ class APIDiagnostics:
     
     def diagnose(self) -> APIDiagnosticResult:
         """
-        Diagnose API key for both testnet and mainnet.
+        Diagnose API key for testnet, mainnet, and demo.
         
         Returns:
             APIDiagnosticResult with status and recommendations
@@ -164,18 +165,22 @@ class APIDiagnostics:
         logger.info(f"API Secret: {self.api_secret[:10]}...{self.api_secret[-4:]}")
         logger.info("-" * 60)
         
-        # Check testnet first
-        testnet_status, testnet_error, testnet_info = self._check_endpoint(use_testnet=True)
-        
-        # Check mainnet
-        mainnet_status, mainnet_error, mainnet_info = self._check_endpoint(use_testnet=False)
+        # Check all three environments
+        testnet_status, testnet_error, testnet_info = self._check_endpoint(self.testnet_url, "TESTNET")
+        mainnet_status, mainnet_error, mainnet_info = self._check_endpoint(self.mainnet_url, "MAINNET")
+        demo_status, demo_error, demo_info = self._check_endpoint(self.demo_url, "DEMO")
         
         # Determine recommendation
         recommended = "none"
         account_type = None
         balances = None
         
-        if testnet_status == "ok":
+        # Priority: demo > testnet > mainnet
+        if demo_status == "ok":
+            recommended = "demo"
+            account_type = demo_info.get("account_type") if demo_info else None
+            balances = demo_info.get("balances") if demo_info else None
+        elif testnet_status == "ok":
             recommended = "testnet"
             account_type = testnet_info.get("account_type") if testnet_info else None
             balances = testnet_info.get("balances") if testnet_info else None
@@ -183,14 +188,8 @@ class APIDiagnostics:
             recommended = "mainnet"
             account_type = mainnet_info.get("account_type") if mainnet_info else None
             balances = mainnet_info.get("balances") if mainnet_info else None
-        elif testnet_status == "permission" and mainnet_status == "permission":
-            recommended = "none"  # Permission issues on both
-        elif testnet_status == "invalid" and mainnet_status == "invalid":
-            recommended = "none"  # Invalid key on both
-        elif testnet_status == "error" and mainnet_status == "ok":
-            recommended = "mainnet"
-        elif mainnet_status == "error" and testnet_status == "ok":
-            recommended = "testnet"
+        elif all(s in ["invalid", "permission", "error"] for s in [testnet_status, mainnet_status, demo_status]):
+            recommended = "none"  # All failed
         
         # Print results
         logger.info("-" * 60)
@@ -202,12 +201,18 @@ class APIDiagnostics:
         if mainnet_error:
             logger.info(f"  Error: {mainnet_error}")
         
+        logger.info(f"[DEMO] {'✅ OK' if demo_status == 'ok' else '❌ ' + demo_status.upper()}")
+        if demo_error:
+            logger.info(f"  Error: {demo_error}")
+        
         logger.info("-" * 60)
         
-        if recommended == "testnet":
-            logger.info(f"→ RESULT: Use testnet (testnet=True)")
+        if recommended == "demo":
+            logger.info(f"→ RESULT: Use demo (api-demo.bybit.com)")
+        elif recommended == "testnet":
+            logger.info(f"→ RESULT: Use testnet (api-testnet.bybit.com)")
         elif recommended == "mainnet":
-            logger.info(f"→ RESULT: Use mainnet (testnet=False)")
+            logger.info(f"→ RESULT: Use mainnet (api.bybit.com)")
         else:
             logger.info(f"→ RESULT: API key invalid or has permission issues")
         
@@ -220,9 +225,11 @@ class APIDiagnostics:
         return APIDiagnosticResult(
             testnet_status=testnet_status,
             mainnet_status=mainnet_status,
+            demo_status=demo_status,
             recommended=recommended,
             testnet_error=testnet_error,
             mainnet_error=mainnet_error,
+            demo_error=demo_error,
             account_type=account_type,
             balances=balances
         )
@@ -254,9 +261,11 @@ def diagnose_api(api_key: str, api_secret: str) -> dict:
     return {
         "testnet": result.testnet_status,
         "mainnet": result.mainnet_status,
+        "demo": result.demo_status,
         "recommended": result.recommended,
         "testnet_error": result.testnet_error,
         "mainnet_error": result.mainnet_error,
+        "demo_error": result.demo_error,
         "account_type": result.account_type,
         "balances": result.balances
     }
@@ -287,7 +296,7 @@ def main():
     result = diagnose_api(api_key, api_secret)
     
     # Exit with appropriate code
-    if result["recommended"] in ["testnet", "mainnet"]:
+    if result["recommended"] in ["testnet", "mainnet", "demo"]:
         logger.info("✅ API key is valid")
         sys.exit(0)
     else:

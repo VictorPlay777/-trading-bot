@@ -33,7 +33,12 @@ class ExecutionEngine:
         self.atr_multiplier_sl = self.risk_config.get("atr_multiplier_sl", 0.7)
         
         # API endpoints
-        self.base_url = "https://api-testnet.bybit.com" if testnet else "https://api.bybit.com"
+        if testnet == "demo":
+            self.base_url = "https://api-demo.bybit.com"
+        elif testnet:
+            self.base_url = "https://api-testnet.bybit.com"
+        else:
+            self.base_url = "https://api.bybit.com"
         
         # Order tracking
         self.last_order_time: Dict[str, float] = {}  # symbol -> timestamp
