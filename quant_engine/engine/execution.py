@@ -48,6 +48,9 @@ class ExecutionEngine:
         # Session
         self.session: Optional[aiohttp.ClientSession] = None
         
+        # Instrument info cache (symbol -> min_order_qty)
+        self.instrument_info: Dict[str, float] = {}
+        
     async def start(self):
         """Initialize HTTP session."""
         if not self.session:
@@ -57,6 +60,34 @@ class ExecutionEngine:
         """Close HTTP session."""
         if self.session:
             await self.session.close()
+            
+    async def fetch_instrument_info(self, symbol: str) -> Optional[float]:
+        """Fetch instrument info from Bybit and return minimum order qty."""
+        if symbol in self.instrument_info:
+            return self.instrument_info[symbol]
+            
+        params = {
+            "category": "linear",
+            "symbol": symbol
+        }
+        
+        response = await self._make_request("GET", "/v5/market/instruments-info", params)
+        
+        if response.get("retCode") == 0 and response.get("result", {}).get("list"):
+            instruments = response["result"]["list"]
+            for inst in instruments:
+                if inst["symbol"] == symbol:
+                    # Extract minimum order qty from lotSizeFilter
+                    lot_size = inst.get("lotSizeFilter", {})
+                    min_qty = float(lot_size.get("minOrderQty", 1.0))
+                    self.instrument_info[symbol] = min_qty
+                    logger.info(f"Instrument info for {symbol}: min_qty = {min_qty}")
+                    return min_qty
+                    
+        # Default fallback
+        logger.warning(f"Could not fetch instrument info for {symbol}, using default min_qty = 1.0")
+        self.instrument_info[symbol] = 1.0
+        return 1.0
             
     def _generate_signature(self, timestamp: str, query_string: str = "", body_str: str = "") -> str:
         """Generate V5 API signature - EXACT format as working api_client.py"""
@@ -139,6 +170,14 @@ class ExecutionEngine:
         Place order with adaptive TP/SL.
         Returns order info.
         """
+        # Fetch minimum order qty from Bybit
+        min_qty = await self.fetch_instrument_info(symbol)
+        
+        # Adjust qty to meet minimum requirements
+        if qty < min_qty:
+            logger.warning(f"Adjusting qty from {qty} to {min_qty} for {symbol} (minimum order requirement)")
+            qty = min_qty
+            
         # Check order delay
         last_time = self.last_order_time.get(symbol, 0)
         current_time = datetime.now().timestamp() * 1000
