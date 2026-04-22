@@ -59,6 +59,12 @@ class QuantFundEngine:
         self.warmup_min_atr = 50      # Minimum candles for ATR/volatility
         self.warmup_timeout = 300     # Maximum warmup time (seconds)
         
+        # INIT configuration
+        self.init_timeout = 60        # Maximum INIT time (seconds)
+        self.init_min_candles = 50    # Minimum candles to exit INIT
+        self.init_min_coverage = 0.7  # Minimum 70% symbols coverage to exit INIT
+        self.candles_collected = {}   # Track candles per symbol
+        
         # Shadow mode configuration
         self.shadow_min_signals = 0.1  # Minimum 10% of symbols must produce signals
         self.shadow_duration = 60      # Minimum shadow mode duration (seconds)
@@ -88,9 +94,9 @@ class QuantFundEngine:
         
         # INIT -> WARMUP
         if self.state == SystemState.INIT:
-            # Transition to WARMUP after market_data session is ready
-            if self.market_data and self.market_data.session and elapsed_in_state > 1:
-                logger.info("Market data session ready, transitioning to WARMUP")
+            # Check INIT exit conditions
+            if self._check_init_complete() or elapsed_in_state > self.init_timeout:
+                logger.info(f"INIT complete ({elapsed_in_state:.1f}s), transitioning to WARMUP")
                 self._transition_to(SystemState.WARMUP)
         
         # WARMUP -> SHADOW
@@ -111,6 +117,34 @@ class QuantFundEngine:
         self.state = new_state
         self.state_start_time = datetime.now()
         logger.info(f"State transition: {old_state.name} -> {new_state.name}")
+    
+    def _check_init_complete(self) -> bool:
+        """Check if INIT has collected enough data to proceed."""
+        if not self.market_data:
+            return False
+        
+        # Track candles per symbol
+        symbols_with_data = 0
+        for symbol in self.symbols:
+            price_history = self.market_data.get_price_history(symbol)
+            candle_count = len(price_history)
+            self.candles_collected[symbol] = candle_count
+            
+            if candle_count >= self.init_min_candles:
+                symbols_with_data += 1
+        
+        # Exit conditions:
+        # 1. All symbols have minimum candles
+        if symbols_with_data >= len(self.symbols):
+            return True
+        
+        # 2. Minimum coverage (70% symbols with 50+ candles)
+        coverage = symbols_with_data / len(self.symbols) if self.symbols else 0
+        if coverage >= self.init_min_coverage:
+            logger.info(f"INIT: {symbols_with_data}/{len(self.symbols)} symbols with {self.init_min_candles}+ candles")
+            return True
+        
+        return False
     
     def _check_warmup_complete(self) -> bool:
         """Check if warmup has collected enough data."""
@@ -140,10 +174,19 @@ class QuantFundEngine:
         return signal_ratio >= self.shadow_min_signals
     
     async def _handle_init(self):
-        """Handle INIT state - initialize and start data collection."""
-        logger.info("INIT: Starting data collection...")
-        # Data collection is already started in initialize()
-        pass
+        """Handle INIT state - collect initial data (finite, no infinite loop)."""
+        # Update market data without logging loop
+        for symbol in self.symbols:
+            current_price = self.market_data.get_current_price(symbol)
+            volume = self.market_data.get_volume(symbol)
+            if current_price:
+                self.signal_engine.update_price(symbol, current_price, volume)
+        
+        # Log progress only every 10 seconds to avoid spam
+        elapsed = (datetime.now() - self.state_start_time).total_seconds()
+        if int(elapsed) % 10 == 0 and int(elapsed) > 0:
+            symbols_with_data = sum(1 for c in self.candles_collected.values() if c >= self.init_min_candles)
+            logger.info(f"INIT: {symbols_with_data}/{len(self.symbols)} symbols with {self.init_min_candles}+ candles ({elapsed:.0f}s elapsed)")
     
     async def _handle_warmup(self):
         """Handle WARMUP state - collect historical candles, NO signals."""
