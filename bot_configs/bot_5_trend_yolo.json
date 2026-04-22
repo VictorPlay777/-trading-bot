@@ -16,7 +16,7 @@
     "description": "Breakout momentum with trend following and auto profit taking",
     
     "leverage": 25,
-    "max_positions": 6,
+    "max_positions": 999,
     "position_size_pct": 4.0,
     
     "probe_enabled": false,
