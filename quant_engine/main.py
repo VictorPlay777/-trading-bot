@@ -198,8 +198,28 @@ class QuantFundEngine:
         """Execute trades based on signals and allocations."""
         allocations = self.portfolio_manager.get_all_allocations()
         
+        # Check if we have any positions - if not, use probe trading
+        total_positions = len(self.portfolio_manager.get_all_allocations())
+        use_probe = total_positions == 0
+        
         for symbol, allocation in allocations.items():
             if self.survival_engine.is_blacklisted(symbol):
+                continue
+                
+            # PROBE TRADING: Open small positions without signals if no positions exist
+            if use_probe:
+                position = await self.execution_engine.get_position(symbol)
+                if not position or not position.get("size"):
+                    # Open small probe position (5% of allocation)
+                    probe_qty = (allocation * 0.05) / self.market_data.get_current_price(symbol) if self.market_data.get_current_price(symbol) > 0 else 0
+                    if probe_qty > 0:
+                        result = await self.execution_engine.place_order(
+                            symbol=symbol,
+                            side="Buy",  # Default to long for probe
+                            qty=probe_qty
+                        )
+                        if result:
+                            logger.info(f"[PROBE] Opened probe position in {symbol}")
                 continue
                 
             # Get signal
@@ -210,8 +230,8 @@ class QuantFundEngine:
             direction = signal["combined"]["direction"]
             confidence = signal["combined"]["confidence"]
             
-            # Only trade if confidence is high enough
-            if confidence < 0.6:
+            # Only trade if confidence is high enough (lowered for startup)
+            if confidence < 0.3:
                 continue
                 
             # Check risk limits
