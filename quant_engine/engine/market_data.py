@@ -233,19 +233,63 @@ class MarketDataEngine:
         logger.info("Market data engine stopped")
 
 
-async def get_usdt_futures_symbols(limit: int = 250) -> List[str]:
-    """Get list of USDT futures symbols from Bybit."""
+async def get_usdt_futures_symbols(limit: int = 250, min_volume_24h: float = 1000000) -> List[str]:
+    """
+    Get list of USDT futures symbols from Bybit with volume filtering.
+    Uses robust implementation from existing codebase.
+    """
     try:
         async with aiohttp.ClientSession() as session:
+            # Get instruments info
+            async with session.get("https://api.bybit.com/v5/market/instruments-info?category=linear") as resp:
+                instruments_data = await resp.json()
+                
+            if instruments_data.get("retCode") != 0:
+                logger.error(f"Error getting instruments: {instruments_data.get('retMsg')}")
+                return []
+                
+            instruments = instruments_data.get("result", {}).get("list", [])
+            logger.debug(f"Got {len(instruments)} instruments from API")
+            
+            # Get tickers for volume info
             async with session.get("https://api.bybit.com/v5/market/tickers?category=linear") as resp:
-                data = await resp.json()
-                if data["retCode"] == 0:
-                    symbols = [
-                        item["symbol"]
-                        for item in data["result"]["list"]
-                        if "USDT" in item["symbol"]
-                    ]
-                    return symbols[:limit]
+                tickers_data = await resp.json()
+                
+            if tickers_data.get("retCode") != 0:
+                logger.error(f"Error getting tickers: {tickers_data.get('retMsg')}")
+                return []
+                
+            tickers = tickers_data.get("result", {}).get("list", [])
+            logger.debug(f"Got {len(tickers)} tickers")
+            
+            ticker_map = {t.get("symbol"): t for t in tickers if isinstance(t, dict) and t.get("symbol")}
+            
+            symbols = []
+            for instrument in instruments:
+                if not isinstance(instrument, dict):
+                    continue
+                    
+                symbol = instrument.get("symbol", "")
+                
+                # Skip non-perpetual and inverse contracts
+                if not symbol or not symbol.endswith("USDT"):
+                    continue
+                    
+                # Check status
+                status = instrument.get("status", "")
+                if status != "Trading":
+                    continue
+                    
+                # Check volume
+                ticker = ticker_map.get(symbol, {})
+                volume_24h = float(ticker.get("turnover24h", 0))
+                
+                if volume_24h >= min_volume_24h:
+                    symbols.append(symbol)
+            
+            logger.info(f"Found {len(symbols)} active trading symbols with volume >= ${min_volume_24h:,.0f}")
+            return sorted(symbols)[:limit]
+            
     except Exception as e:
         logger.error(f"Error fetching symbols: {e}")
         return []
