@@ -18,6 +18,7 @@
     "leverage": 25,
     "max_positions": 999,
     "position_size_pct": 4.0,
+    "stats_file": "symbol_stats_bot_5_trend_yolo.json",
     
     "probe_enabled": false,
     "probe_frequency": 0,
@@ -171,13 +172,6 @@
     "pyramiding_only_profit": true,
     "aggressive_entry": true,
     "auto_save_enabled": true,
-    "skip_analytics_filter": true
-  },
-
-  "analytics": {
-    "stats_file": "symbol_stats_bot_5_trend_yolo.json",
-    "enabled": true,
-    "min_trades": 5,
-    "min_winrate": 0.0
+    "skip_analytics_filter": false
   }
 }

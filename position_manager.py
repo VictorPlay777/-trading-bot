@@ -9,7 +9,7 @@ from datetime import datetime
 from enum import Enum
 import pandas as pd
 
-from symbol_analytics import get_analytics
+from symbol_analytics import get_analytics, SymbolAnalytics
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +79,13 @@ class PositionManager:
         genius_cfg = bot_config.get('genius_features', {}) if bot_config else {}
         trend_cfg = bot_config.get('trend_yolo_features', {}) if bot_config else {}
         self.skip_analytics_filter = genius_cfg.get('skip_analytics_filter', False) or trend_cfg.get('skip_analytics_filter', False)
+        
+        # Get bot-specific stats file
+        strategy_cfg = bot_config.get('strategy', {}) if bot_config else {}
+        self.stats_file = strategy_cfg.get('stats_file', 'symbol_stats.json')
+        
+        # Create bot-specific analytics instance
+        self.analytics = SymbolAnalytics(self.stats_file)
         
         # Get max_positions from bot_config or fallback to global
         if bot_config and 'strategy' in bot_config:
@@ -158,8 +165,7 @@ class PositionManager:
                 position_size = max_position_size
             
             # [ADAPTIVE POSITION SIZING] Apply multiplier based on symbol performance
-            analytics = get_analytics()
-            size_multiplier = analytics.get_position_size_multiplier(symbol)
+            size_multiplier = self.analytics.get_position_size_multiplier(symbol)
             position_size = position_size * size_multiplier
             
             # Log the multiplier for transparency
@@ -168,7 +174,7 @@ class PositionManager:
             
             # Check if symbol should be traded at all (for non-Genius bots)
             # Genius bot uses risk adjustment instead of blocking
-            if not self.skip_analytics_filter and not analytics.should_trade_symbol(symbol):
+            if not self.skip_analytics_filter and not self.analytics.should_trade_symbol(symbol):
                 logger.warning(f"[FILTER] {symbol} blocked by analytics - poor performance detected")
                 return False
             
@@ -208,8 +214,7 @@ class PositionManager:
                 logger.warning(f"Using entry price as fallback for SL/TP calculation: {current_price}")
             
             # [DYNAMIC R:R] Calculate SL/TP based on symbol performance
-            analytics = get_analytics()
-            risk_reward = analytics.get_risk_reward_ratio(symbol)
+            risk_reward = self.analytics.get_risk_reward_ratio(symbol)
             
             sl_pct = 0.02  # Base 2% stop loss
             tp_pct = sl_pct * risk_reward  # TP based on R:R
@@ -433,8 +438,7 @@ class PositionManager:
                 is_win = net_pnl > 0
                 
                 # Record in analytics
-                analytics = get_analytics()
-                analytics.record_trade(
+                self.analytics.record_trade(
                     symbol=symbol,
                     pnl=pnl_pct,
                     is_win=is_win,
@@ -444,7 +448,7 @@ class PositionManager:
                 logger.info(f"Recorded trade: {symbol} {position.direction}, PnL: {net_pnl:.2f}% ({'WIN' if is_win else 'LOSS'}), Entry: {position.entry_price:.4f}, Exit: {exit_price:.4f}")
                 
                 # Log win/loss streaks
-                stats = analytics.stats.get(symbol)
+                stats = self.analytics.stats.get(symbol)
                 if stats:
                     if stats.consecutive_wins >= 3:
                         logger.info(f"🔥 {symbol}: {stats.consecutive_wins} consecutive wins!")
@@ -499,8 +503,7 @@ class PositionManager:
                 return False
             
             # Check symbol analytics - only pyramid if symbol is performing well
-            analytics = get_analytics()
-            stats = analytics.stats.get(symbol)
+            stats = self.analytics.stats.get(symbol)
             if stats and stats.consecutive_losses >= 2:
                 logger.warning(f"[SMART PYRAMID] {symbol}: {stats.consecutive_losses} consecutive losses, no pyramiding")
                 return False
