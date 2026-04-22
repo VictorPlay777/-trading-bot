@@ -170,6 +170,14 @@
   "trend_yolo_features": {
     "pyramiding_only_profit": true,
     "aggressive_entry": true,
-    "auto_save_enabled": true
+    "auto_save_enabled": true,
+    "skip_analytics_filter": true
+  },
+
+  "analytics": {
+    "stats_file": "symbol_stats_bot_5_trend_yolo.json",
+    "enabled": true,
+    "min_trades": 5,
+    "min_winrate": 0.0
   }
 }
