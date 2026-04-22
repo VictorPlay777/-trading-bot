@@ -173,11 +173,8 @@ class BotInstance:
                 self.logger.info(f"Leverage changed: {self.engine.leverage}x → {new_leverage}x")
                 self.engine.leverage = new_leverage
             
-            # Update max positions in both engine and position manager
-            new_max = self.config.get('strategy', {}).get('max_positions', 20)
-            if new_max != self.engine.position_manager.max_positions:
-                self.logger.info(f"Max positions changed: {self.engine.position_manager.max_positions} → {new_max}")
-                self.engine.position_manager.max_positions = new_max
+            # Reload position manager configuration (stats_file, skip_analytics_filter, max_positions, etc.)
+            self.engine.position_manager.reload_config(self.config)
         
         self.logger.info("Configuration hot-reloaded successfully")
     

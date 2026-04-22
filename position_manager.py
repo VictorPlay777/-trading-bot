@@ -97,19 +97,35 @@ class PositionManager:
         self.probe_pct = 0.05  # 5% of max position
         self.scout_pct = 0.20  # 20% of max position
         self.momentum_pct_min = 0.30  # 30% of max position
-        self.momentum_pct_max = 0.50  # 50% of max position
+    
+    def reload_config(self, bot_config: dict = None):
+        """Reload position manager configuration without full reinitialization"""
+        if not bot_config:
+            return
         
-        # Pyramiding multipliers
-        self.pyramiding_multipliers = [1.3, 1.5, 1.7]  # Level 1, 2, 3
-        self.max_pyramiding_levels = 3
+        self.bot_config = bot_config or {}
         
-        # Stop loss settings
-        self.sl_atr_multiplier = 1.0  # SL = 1x ATR
-        self.sl_fixed_pct = 0.02  # 2% fixed SL fallback (increased to ensure validity)
+        # Reload genius/trend features
+        genius_cfg = bot_config.get('genius_features', {})
+        trend_cfg = bot_config.get('trend_yolo_features', {})
+        self.skip_analytics_filter = genius_cfg.get('skip_analytics_filter', False) or trend_cfg.get('skip_analytics_filter', False)
         
-        # Trailing stop settings
-        self.trailing_stop_activation_pct = 0.01  # Activate at 1% profit
-        self.trailing_stop_distance_pct = 0.01  # 1% trailing distance
+        # Reload stats file and recreate analytics instance if changed
+        strategy_cfg = bot_config.get('strategy', {})
+        new_stats_file = strategy_cfg.get('stats_file', 'symbol_stats.json')
+        if new_stats_file != self.stats_file:
+            self.stats_file = new_stats_file
+            self.analytics = SymbolAnalytics(self.stats_file)
+            logger.info(f"[HOT-RELOAD] Analytics instance recreated with new stats file: {self.stats_file}")
+        
+        # Reload max_positions
+        if 'strategy' in bot_config:
+            new_max_positions = bot_config['strategy'].get('max_positions', 20)
+            if new_max_positions != self.max_positions:
+                self.max_positions = new_max_positions
+                logger.info(f"[HOT-RELOAD] max_positions updated: {self.max_positions}")
+        
+        logger.info("[HOT-RELOAD] Position manager configuration reloaded successfully")
         
     def open_position(
         self,
