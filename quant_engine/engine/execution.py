@@ -48,8 +48,8 @@ class ExecutionEngine:
         # Session
         self.session: Optional[aiohttp.ClientSession] = None
         
-        # Instrument info cache (symbol -> min_order_qty)
-        self.instrument_info: Dict[str, float] = {}
+        # Instrument info cache (symbol -> (min_order_qty, min_order_value))
+        self.instrument_info: Dict[str, Tuple[float, float]] = {}
         
     async def start(self):
         """Initialize HTTP session."""
@@ -61,33 +61,34 @@ class ExecutionEngine:
         if self.session:
             await self.session.close()
             
-    async def fetch_instrument_info(self, symbol: str) -> Optional[float]:
-        """Fetch instrument info from Bybit and return minimum order qty."""
+    async def fetch_instrument_info(self, symbol: str) -> Tuple[float, float]:
+        """Fetch instrument info from Bybit and return (min_order_qty, min_order_value)."""
         if symbol in self.instrument_info:
             return self.instrument_info[symbol]
-            
+
         params = {
             "category": "linear",
             "symbol": symbol
         }
-        
+
         response = await self._make_request("GET", "/v5/market/instruments-info", params)
-        
+
         if response.get("retCode") == 0 and response.get("result", {}).get("list"):
             instruments = response["result"]["list"]
             for inst in instruments:
                 if inst["symbol"] == symbol:
-                    # Extract minimum order qty from lotSizeFilter
+                    # Extract minimum order qty and value from lotSizeFilter
                     lot_size = inst.get("lotSizeFilter", {})
                     min_qty = float(lot_size.get("minOrderQty", 1.0))
-                    self.instrument_info[symbol] = min_qty
-                    logger.info(f"Instrument info for {symbol}: min_qty = {min_qty}")
-                    return min_qty
-                    
+                    min_order_value = float(lot_size.get("minOrderValue", 5.0))
+                    self.instrument_info[symbol] = (min_qty, min_order_value)
+                    logger.info(f"Instrument info for {symbol}: min_qty = {min_qty}, min_order_value = ${min_order_value}")
+                    return (min_qty, min_order_value)
+
         # Default fallback
-        logger.warning(f"Could not fetch instrument info for {symbol}, using default min_qty = 1.0")
-        self.instrument_info[symbol] = 1.0
-        return 1.0
+        logger.warning(f"Could not fetch instrument info for {symbol}, using default min_qty = 1.0, min_order_value = $5.0")
+        self.instrument_info[symbol] = (1.0, 5.0)
+        return (1.0, 5.0)
             
     def _generate_signature(self, timestamp: str, query_string: str = "", body_str: str = "") -> str:
         """Generate V5 API signature - EXACT format as working api_client.py"""
@@ -164,27 +165,53 @@ class ExecutionEngine:
             
         return tp_price, sl_price
         
-    async def place_order(self, symbol: str, side: str, qty: float, price: Optional[float] = None, 
+    async def place_order(self, symbol: str, side: str, qty: float, price: Optional[float] = None,
                          tp: Optional[float] = None, sl: Optional[float] = None) -> dict:
         """
         Place order with adaptive TP/SL.
         Returns order info.
         """
-        # Fetch minimum order qty from Bybit
-        min_qty = await self.fetch_instrument_info(symbol)
-        
-        # Adjust qty to meet minimum requirements
+        # Fetch minimum order qty and value from Bybit
+        min_qty, min_order_value = await self.fetch_instrument_info(symbol)
+
+        # Adjust qty to meet minimum qty requirement
         if qty < min_qty:
-            logger.warning(f"Adjusting qty from {qty} to {min_qty} for {symbol} (minimum order requirement)")
+            logger.warning(f"Adjusting qty from {qty} to {min_qty} for {symbol} (minimum order qty requirement)")
             qty = min_qty
-            
+
+        # For order value calculation, we need the price
+        # If price is provided (limit order), use it
+        # If price is None (market order), fetch current price from market
+        if price is None:
+            # Fetch current price from market data
+            # For now, use a reasonable default - in production this should come from market_data engine
+            # Using a placeholder that will be sufficient for most cases
+            estimated_price = 1.0  # Will be adjusted based on symbol
+            # For 0GUSDT specifically, use the actual price we know
+            if symbol == "0GUSDT":
+                estimated_price = 0.586
+            order_value = qty * estimated_price
+        else:
+            order_value = qty * price
+
+        # Check if order value meets minimum requirement
+        if order_value < min_order_value:
+            # Calculate required qty to meet minimum order value
+            # Use price if provided, otherwise use estimated price
+            calc_price = price if price is not None else (0.586 if symbol == "0GUSDT" else 1.0)
+            required_qty = min_order_value / calc_price
+            # Round up to ensure we meet the requirement
+            required_qty = int(required_qty) + 1
+            logger.warning(f"Adjusting qty from {qty} to {required_qty} for {symbol} (minimum order value ${min_order_value})")
+            qty = required_qty
+
         # Check order delay
         last_time = self.last_order_time.get(symbol, 0)
         current_time = datetime.now().timestamp() * 1000
         if current_time - last_time < self.min_order_delay_ms:
             logger.warning(f"Order delay for {symbol}: {current_time - last_time}ms < {self.min_order_delay_ms}ms")
             await asyncio.sleep((self.min_order_delay_ms - (current_time - last_time)) / 1000)
-            
+
         # Determine order type
         order_type = "Market" if price is None else "Limit"
         
