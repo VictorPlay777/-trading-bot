@@ -198,9 +198,13 @@ class QuantFundEngine:
         """Execute trades based on signals and allocations."""
         allocations = self.portfolio_manager.get_all_allocations()
         
-        # Check if we have any positions - if not, use probe trading
-        total_positions = len(self.portfolio_manager.get_all_allocations())
-        use_probe = total_positions == 0
+        # Check if we have any actual positions on exchange - if not, use probe trading
+        actual_positions = 0
+        for symbol in allocations.keys():
+            pos = await self.execution_engine.get_position(symbol)
+            if pos and pos.get("size", 0) != 0:
+                actual_positions += 1
+        use_probe = actual_positions == 0
         
         for symbol, allocation in allocations.items():
             if self.survival_engine.is_blacklisted(symbol):
