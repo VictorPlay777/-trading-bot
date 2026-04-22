@@ -238,6 +238,11 @@ class QuantFundEngine:
             volume = self.market_data.get_volume(symbol)
             if current_price:
                 self.signal_engine.update_price(symbol, current_price, volume)
+                
+                # Log signal for debugging
+                signal = self.signal_engine.get_current_signal(symbol)
+                if signal:
+                    logger.info(f"[LIVE] {symbol} signal: {signal}")
         
         # TEST: Skip portfolio rebalancing for now - focus on signal-based trading
         # health_scores = self.scoring_engine.calculate_health_scores(self.symbols, self.market_data)
@@ -245,6 +250,7 @@ class QuantFundEngine:
         # self.portfolio_manager.set_allocations(allocations)
         
         # Execute trades based on signals
+        logger.info("[LIVE] Executing trades...")
         await self._execute_trades()
         
         # Log status
