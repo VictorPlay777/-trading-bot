@@ -3,6 +3,8 @@ Position Manager - Manages all positions with PROBE/SCOUT/MOMENTUM trade types
 """
 import logging
 import time
+import json
+import os
 from typing import Optional, Dict, List
 from dataclasses import dataclass
 from datetime import datetime
@@ -10,6 +12,19 @@ from enum import Enum
 import pandas as pd
 
 from symbol_analytics import get_analytics, SymbolAnalytics
+
+# Load bot config for TP/SL settings
+BOT_CONFIG = {}
+try:
+    config_path = os.path.join(os.path.dirname(__file__), 'bot_configs', 'bot_5_trend_yolo.json')
+    if os.path.exists(config_path):
+        with open(config_path, 'r') as f:
+            BOT_CONFIG = json.load(f)
+        logging.getLogger(__name__).info(f"Loaded bot config from {config_path}")
+    else:
+        logging.getLogger(__name__).warning(f"Bot config not found at {config_path}")
+except Exception as e:
+    logging.getLogger(__name__).error(f"Failed to load bot config: {e}")
 
 logger = logging.getLogger(__name__)
 
@@ -229,13 +244,12 @@ class PositionManager:
                 current_price = entry_price
                 logger.warning(f"Using entry price as fallback for SL/TP calculation: {current_price}")
             
-            # [DYNAMIC R:R] Calculate SL/TP based on symbol performance
-            risk_reward = self.analytics.get_risk_reward_ratio(symbol)
+            # Get TP/SL from bot config (JSON) - priority over hardcoded values
+            risk_cfg = BOT_CONFIG.get('risk', {})
+            sl_pct = risk_cfg.get('dynamic_stop_loss', {}).get('base_pct', 0.2) / 100  # Convert % to decimal
+            tp_pct = risk_cfg.get('dynamic_take_profit', {}).get('base_pct', 0.4) / 100  # Convert % to decimal
             
-            sl_pct = 0.02  # Base 2% stop loss
-            tp_pct = sl_pct * risk_reward  # TP based on R:R
-            
-            logger.info(f"[DYNAMIC R:R] {symbol}: Risk/Reward = 1:{risk_reward:.1f}, SL={sl_pct*100:.1f}%, TP={tp_pct*100:.1f}%")
+            logger.info(f"[CONFIG TP/SL] {symbol}: SL={sl_pct*100:.2f}%, TP={tp_pct*100:.2f}% (from bot config)")
             
             if direction == "long":
                 stop_loss = current_price * (1 - sl_pct)   # 2% below current price

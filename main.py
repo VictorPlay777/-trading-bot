@@ -4,6 +4,8 @@ Main Trading Bot - Simple Synchronous Version
 import sys
 import time
 import threading
+import json
+import os
 from datetime import datetime, timedelta
 from typing import Optional, Dict
 
@@ -18,6 +20,19 @@ from risk_manager import risk_manager, format_quantity
 from portfolio import portfolio
 
 logger = setup_logger()
+
+# Load JSON config for YOLO bot
+JSON_CONFIG_PATH = 'bot_configs/bot_5_trend_yolo.json'
+json_config = {}
+if os.path.exists(JSON_CONFIG_PATH):
+    try:
+        with open(JSON_CONFIG_PATH, 'r') as f:
+            json_config = json.load(f)
+        logger.info(f"Loaded JSON config from {JSON_CONFIG_PATH}")
+    except Exception as e:
+        logger.error(f"Failed to load JSON config: {e}")
+else:
+    logger.warning(f"JSON config not found at {JSON_CONFIG_PATH}, using defaults")
 
 
 class TradingBot:
@@ -757,12 +772,17 @@ class TradingBot:
             )
             qty = position_size.size
 
-            # Calculate TP/SL from config (price-based)
-            # HARDCODED for scalping to bypass config caching: TP 0.2%, SL 0.08%
-            tp_pct = 0.002  # 0.2% take profit (20% PnL, 8% after fees with 100x lev)
-            sl_pct = 0.0008  # 0.08% stop loss (8% PnL loss with 100x lev)
-            # tp_pct = strategy_config.tp_pct  # 0.6%
-            # sl_pct = strategy_config.sl_pct  # 0.2%
+            # Calculate TP/SL from JSON config (price-based)
+            if json_config and 'risk' in json_config:
+                risk_cfg = json_config['risk']
+                tp_pct = risk_cfg.get('dynamic_take_profit', {}).get('base_pct', 0.003) / 100  # Convert % to decimal
+                sl_pct = risk_cfg.get('dynamic_stop_loss', {}).get('base_pct', 0.002) / 100  # Convert % to decimal
+                logger.info(f"Using TP/SL from JSON config: TP={tp_pct*100:.2f}%, SL={sl_pct*100:.2f}%")
+            else:
+                # Fallback to strategy_config
+                tp_pct = strategy_config.tp_pct
+                sl_pct = strategy_config.sl_pct
+                logger.info(f"Using TP/SL from strategy_config: TP={tp_pct*100:.2f}%, SL={sl_pct*100:.2f}%")
 
             # Calculate price levels
             # For long: SL below entry, TP above entry
@@ -842,12 +862,17 @@ class TradingBot:
             )
             qty = position_size.size
 
-            # Calculate TP/SL from config (price-based)
-            # HARDCODED for scalping to bypass config caching: TP 0.2%, SL 0.08%
-            tp_pct = 0.002  # 0.2% take profit (20% PnL, 8% after fees with 100x lev)
-            sl_pct = 0.0008  # 0.08% stop loss (8% PnL loss with 100x lev)
-            # tp_pct = strategy_config.tp_pct  # 0.6%
-            # sl_pct = strategy_config.sl_pct  # 0.2%
+            # Calculate TP/SL from JSON config (price-based)
+            if json_config and 'risk' in json_config:
+                risk_cfg = json_config['risk']
+                tp_pct = risk_cfg.get('dynamic_take_profit', {}).get('base_pct', 0.003) / 100  # Convert % to decimal
+                sl_pct = risk_cfg.get('dynamic_stop_loss', {}).get('base_pct', 0.002) / 100  # Convert % to decimal
+                logger.info(f"Using TP/SL from JSON config: TP={tp_pct*100:.2f}%, SL={sl_pct*100:.2f}%")
+            else:
+                # Fallback to strategy_config
+                tp_pct = strategy_config.tp_pct
+                sl_pct = strategy_config.sl_pct
+                logger.info(f"Using TP/SL from strategy_config: TP={tp_pct*100:.2f}%, SL={sl_pct*100:.2f}%")
 
             # Calculate price levels
             sl = current_price * (1 - sl_pct if new_direction == "long" else 1 + sl_pct)
@@ -979,12 +1004,17 @@ class TradingBot:
             )
             qty = position_size.size
 
-            # Calculate TP/SL from config (price-based)
-            # HARDCODED for scalping to bypass config caching: TP 0.2%, SL 0.08%
-            tp_pct = 0.002  # 0.2% take profit (20% PnL, 8% after fees with 100x lev)
-            sl_pct = 0.0008  # 0.08% stop loss (8% PnL loss with 100x lev)
-            # tp_pct = strategy_config.tp_pct  # 0.6%
-            # sl_pct = strategy_config.sl_pct  # 0.2%
+            # Calculate TP/SL from JSON config (price-based)
+            if json_config and 'risk' in json_config:
+                risk_cfg = json_config['risk']
+                tp_pct = risk_cfg.get('dynamic_take_profit', {}).get('base_pct', 0.003) / 100  # Convert % to decimal
+                sl_pct = risk_cfg.get('dynamic_stop_loss', {}).get('base_pct', 0.002) / 100  # Convert % to decimal
+                logger.info(f"Using TP/SL from JSON config: TP={tp_pct*100:.2f}%, SL={sl_pct*100:.2f}%")
+            else:
+                # Fallback to strategy_config
+                tp_pct = strategy_config.tp_pct
+                sl_pct = strategy_config.sl_pct
+                logger.info(f"Using TP/SL from strategy_config: TP={tp_pct*100:.2f}%, SL={sl_pct*100:.2f}%")
 
             # Calculate price levels
             sl = current_price * (1 - sl_pct if direction == "long" else 1 + sl_pct)

@@ -59,7 +59,7 @@
     
     "dynamic_stop_loss": {
       "enabled": true,
-      "base_pct": 3.5,
+      "base_pct": 2.0,
       "atr_multiplier": 1.5,
       "trailing_enabled": true,
       "trailing_trigger_pct": 4.0,
@@ -68,7 +68,7 @@
     
     "dynamic_take_profit": {
       "enabled": true,
-      "base_pct": 4.0,
+      "base_pct": 3.0,
       "rr_ratio": 1.14,
       "partial_close": true,
       "partial_close_pct": 50,

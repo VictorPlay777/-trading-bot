@@ -8,6 +8,8 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 import pandas as pd
 import numpy as np
+import json
+import os
 
 from indicators import (
     calculate_all_indicators,
@@ -22,6 +24,19 @@ from regime_detector import (
 )
 from config import strategy_config, trading_config, regime_config, risk_config, fee_config
 from logger import get_logger, log_event
+
+# Load bot config for TP/SL settings
+BOT_CONFIG = {}
+try:
+    config_path = os.path.join(os.path.dirname(__file__), 'bot_configs', 'bot_5_trend_yolo.json')
+    if os.path.exists(config_path):
+        with open(config_path, 'r') as f:
+            BOT_CONFIG = json.load(f)
+        logger.info(f"Strategy loaded bot config: TP={BOT_CONFIG.get('risk', {}).get('dynamic_take_profit', {}).get('base_pct', 0.4)}%, SL={BOT_CONFIG.get('risk', {}).get('dynamic_stop_loss', {}).get('base_pct', 0.2)}%")
+    else:
+        logger.warning(f"Bot config not found at {config_path}")
+except Exception as e:
+    logger.error(f"Failed to load bot config in strategy: {e}")
 
 logger = get_logger()
 
@@ -267,9 +282,12 @@ class SmartScalpingStrategy:
             tp1 = current_price + atr_tp
             tp2 = current_price + atr_tp * 1.5
         else:
-            # Use fixed percentage TP/SL
-            tp_pct = strategy_config.tp_pct  # 2%
-            sl_pct = strategy_config.sl_pct  # 1%
+            # Use TP/SL from JSON config (dashboard settings)
+            risk_cfg = BOT_CONFIG.get('risk', {})
+            tp_pct = risk_cfg.get('dynamic_take_profit', {}).get('base_pct', 0.4) / 100  # Convert % to decimal
+            sl_pct = risk_cfg.get('dynamic_stop_loss', {}).get('base_pct', 0.2) / 100  # Convert % to decimal
+            
+            logger.info(f"[STRATEGY] Using TP/SL from config: TP={tp_pct*100:.2f}%, SL={sl_pct*100:.2f}%")
 
             sl = current_price * (1 - sl_pct)
             tp1 = current_price * (1 + tp_pct)
@@ -402,9 +420,12 @@ class SmartScalpingStrategy:
             tp1 = current_price - atr_tp
             tp2 = current_price - atr_tp * 1.5
         else:
-            # Use fixed percentage TP/SL
-            tp_pct = strategy_config.tp_pct  # 2%
-            sl_pct = strategy_config.sl_pct  # 1%
+            # Use TP/SL from JSON config (dashboard settings)
+            risk_cfg = BOT_CONFIG.get('risk', {})
+            tp_pct = risk_cfg.get('dynamic_take_profit', {}).get('base_pct', 0.4) / 100  # Convert % to decimal
+            sl_pct = risk_cfg.get('dynamic_stop_loss', {}).get('base_pct', 0.2) / 100  # Convert % to decimal
+            
+            logger.info(f"[STRATEGY] Using TP/SL from config: TP={tp_pct*100:.2f}%, SL={sl_pct*100:.2f}%")
 
             sl = current_price * (1 + sl_pct)
             tp1 = current_price * (1 - tp_pct)
