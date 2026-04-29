@@ -25,6 +25,8 @@ from regime_detector import (
 from config import strategy_config, trading_config, regime_config, risk_config, fee_config
 from logger import get_logger, log_event
 
+logger = get_logger()
+
 # Load bot config for TP/SL settings
 BOT_CONFIG = {}
 try:
@@ -37,8 +39,6 @@ try:
         logger.warning(f"Bot config not found at {config_path}")
 except Exception as e:
     logger.error(f"Failed to load bot config in strategy: {e}")
-
-logger = get_logger()
 
 
 class SignalType(Enum):

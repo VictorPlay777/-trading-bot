@@ -43,7 +43,8 @@ class TradingBot:
     def __init__(self):
         self.api = BybitClient()
         self.market_data = MarketDataManager(self.api)
-        self.symbols = trading_config.symbols  # List of symbols for multi-symbol trading
+        # Load symbols from JSON config (whitelist) or fall back to trading_config
+        self.symbols = json_config.get('symbols', {}).get('whitelist', trading_config.symbols)
         self.interval = trading_config.main_timeframe
         self._running = False
         self._paused = False  # Pause state

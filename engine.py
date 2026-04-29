@@ -89,7 +89,15 @@ class TradingEngine:
         logger.info("Trading Engine initialized - fresh session statistics")
     
     def _load_symbols(self) -> List[str]:
-        """Load all trading symbols from Bybit API"""
+        """Load symbols from JSON config whitelist or fallback to API"""
+        # Try to load from JSON config whitelist first
+        if self.bot_config and 'symbols' in self.bot_config:
+            whitelist = self.bot_config['symbols'].get('whitelist', [])
+            if whitelist:
+                logger.info(f"Loading symbols from JSON config whitelist: {', '.join(whitelist)}")
+                return whitelist
+        
+        # Fallback to API if no whitelist in config
         try:
             logger.info("Loading symbols from Bybit API...")
             symbols = self.api.get_all_trading_symbols(min_volume_24h=500000)  # Min 500K volume

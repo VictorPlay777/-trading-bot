@@ -4,10 +4,7 @@ import hashlib
 import requests
 import json
 
-API_KEY = "rRsm08OPN027nk5hgF"
-API_SECRET = "GD1qBUUx1KROqmAKwJLOpAanLNDwG6zr1CyA"
-
-BASE_URL = "https://api-demo.bybit.com"
+ASE_URL = "https://api-demo.bybit.com"
 RECV_WINDOW = "5000"
 
 
@@ -28,8 +25,7 @@ def get_timestamp():
 
 
 # ======================
-# 📊 BALANCE
-# ======================
+# 📊 BALANCE# ======================
 def get_balance():
     ts = get_timestamp()
 
