@@ -122,7 +122,7 @@ class ProductionConfig:
     funding_penalty_threshold: float = 0.0005  # 0.05% per 8h
     funding_penalty_mult: float = 0.5  # Apply 50% size reduction when unfavorable
     # Correlation filter: prevent stacking same-direction positions
-    block_same_direction_stack: bool = True
+    block_same_direction_stack: bool = False
     # Dynamic TP: scale TPs based on model confidence and EV
     # DISABLED in v3: with inversion, "high confidence" no longer means "high upside"
     dynamic_tp_enabled: bool = False  # was True
