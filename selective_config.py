@@ -7,8 +7,8 @@ class ProductionConfig:
     # Strategy versioning: identifier persisted into each trade record and
     # used to snapshot the active config to strategies/<strategy_id>.json.
     # Bump this whenever you change parameters that should be tracked separately.
-    strategy_id: str = "v3_invert_clean_mirror_fix1_2026-05-04"
-    strategy_notes: str = "v3 fix1: exit_engine reworked — TP=1*ATR, SL=3.5*ATR (now truly asymmetric, was symmetric due to formula bug)."
+    strategy_id: str = "v4_invert_wideSL_unlimited_2026-05-04"
+    strategy_notes: str = "v4: SL=4*ATR (mirror of v1 TP3=4R, never hit), TP=1*ATR full-close, invert_signals, NO concurrent-position cap."
     # Experimental: flip every model direction (long<->short).
     # Justified by negative EV-PnL correlation in v1 (-0.18) — high-conf signals lose more.
     invert_signals: bool = True
@@ -22,16 +22,16 @@ class ProductionConfig:
     uncertainty_filter: float = 0.08
     min_trade_quality: float = 0.72
     # v3 CLEAN MIRROR of v1 geometry (inversion hypothesis):
-    # - SL = 3.5R: mirrors v1's TP2=3.5R which was almost never hit (~0.4% of trades).
-    #   In inversion, adverse moves rarely reach 3.5R → SL almost never triggered.
-    # - TP1 = 1R: mirrors v1's SL=1R which was hit in 64% of trades.
-    #   In inversion, favorable moves hit 1R frequently → TP fires often.
+    # - SL = 4*ATR: mirrors v1's TP3=4R which was essentially never hit in v1.
+    #   In inversion, adverse moves rarely reach 4 ATR → SL almost never triggered.
+    # - TP1 = 1*ATR: mirrors v1's SL=1R which was hit in 64% of v1 trades.
+    #   In inversion, favorable moves hit 1 ATR frequently → TP fires often.
     # - No TP2/TP3 partials (single_tp_full_close=True), no trailing.
-    sl_atr_mult: float = 3.5      # was 1.0 — wide stop to mirror v1's rarely-hit TP2
+    sl_atr_mult: float = 4.0      # v3 fix2: mirror of v1's TP3=4R (almost never hit)
     tp1_r: float = 1.0            # was 2.0 — tight TP to mirror v1's frequently-hit SL
     tp2_r: float = 1.0            # unused when single_tp_full_close=True
     trailing_atr_mult: float = 1.0  # unused
-    max_concurrent_positions: int = 2
+    max_concurrent_positions: int = 999  # v4: effectively no cap
     enable_kill_switch: bool = True
     daily_max_drawdown: float = 0.03
     signal_cooldown_minutes: int = 20
@@ -47,7 +47,7 @@ class ProductionConfig:
     max_positions_per_symbol: int = 1
     # Legacy sizing base. Not used when sizing is set to "max_exchange_qty".
     base_notional_usdt: float = 10000.0
-    max_portfolio_heat: float = 0.10
+    max_portfolio_heat: float = 1.0  # v4: effectively no heat cap (full equity usable)
     min_ev: float = 0.001  # Require minimum EV of 0.1%
 
     # --- Production risk controls (exchange-first) ---
@@ -104,8 +104,8 @@ class ProductionConfig:
         }
     )
     # Execution rate limits.
-    max_new_positions_per_cycle: int = 1
-    min_minutes_between_entries_global: int = 3
+    max_new_positions_per_cycle: int = 999  # v4: unlimited entries per cycle
+    min_minutes_between_entries_global: int = 0  # v4: no global gap between entries
     # Signal stickiness: require N consecutive cycles with allow=True before entry.
     stickiness_required_cycles: int = 1
     stickiness_conf_drop_threshold: float = 0.15
