@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import copy
 import json
 import os
 import signal
@@ -145,6 +146,9 @@ class SelectiveMLBot:
         self.exposure = ExposureLimits(self.prod.max_concurrent_positions, self.prod.max_positions_per_symbol)
         self.heat = PortfolioHeat(self.prod.max_portfolio_heat)
         self.models = {h: DirectionModel() for h in self.prod.horizons}
+        # Per-symbol model cache: {symbol: (timestamp, {horizon: trained_model})}
+        self._model_cache = {}
+        self._model_cache_ttl_sec = 300.0  # retrain every 5 minutes per symbol
         self.meta = MetaLabelModel()
         self.last_scan = 0.0
         self._last_entry_ts_global = 0.0  # global throttle between entries
@@ -276,14 +280,18 @@ class SelectiveMLBot:
 
     def _tier1_pass(self, c, ob):
         # Fast stage: liquidity/spread/volatility sanity (cheap only).
+        sym = c.get("symbol", "?")
         if c["vol24"] < self.prod.min_volume_24h_usdt:
+            logger.debug(f"[TIER1_REJECT] {sym} reason=low_vol24 vol24={c['vol24']:.0f}<{self.prod.min_volume_24h_usdt:.0f}")
             return False, 0.0
         depth = float(ob.get("depth_usdt", 0.0))
         spread = float(ob.get("spread_bps", 999.0))
         if c["pct"] < 0.01:
+            logger.debug(f"[TIER1_REJECT] {sym} reason=low_pct pct={c['pct']:.4f}<0.01")
             return False, 0.0
         # Relaxed gate: allow lower depth in tier1, spread is soft.
         if depth < self.prod.min_depth_usdt * 0.30:
+            logger.info(f"[TIER1_REJECT] {sym} reason=low_depth depth={depth:.0f}<{self.prod.min_depth_usdt * 0.30:.0f} spread={spread:.1f}bps pct={c['pct']:.4f}")
             return False, 0.0
         spread_q = max(0.0, min(1.0, 1.0 - spread / max(self.prod.max_spread_bps * 1.5, 1e-6)))
         depth_q = max(0.0, min(1.0, depth / (self.prod.min_depth_usdt * 2.0)))
@@ -292,7 +300,7 @@ class SelectiveMLBot:
         return True, tier1_score
 
     def train_and_predict(self, symbol: str, pre_ob: dict = None):
-        df = self._cached_ohlcv(symbol, limit=600)
+        df = self._cached_ohlcv(symbol, limit=300)
         if len(df) < 120:
             return None
         ob = pre_ob if pre_ob is not None else self.orderbook.snapshot(symbol)
@@ -300,25 +308,38 @@ class SelectiveMLBot:
         oi = self.ex.get_open_interest(symbol)
         x_row = self.feature_store.build(df, ob, funding=funding, oi_delta=oi)
 
-        # Online train from historical rows without lookahead in current bar usage.
-        feat_rows = []
-        for i in range(60, len(df) - max(self.prod.horizons) - 1):
-            sub = df.iloc[: i + 1]
-            feat_rows.append(self.feature_store.build(sub, ob, funding=funding, oi_delta=oi))
-        X = pd.DataFrame(feat_rows).fillna(0.0)
-        if len(X) < 80:
-            return None
+        # Check per-symbol model cache
+        now = time.time()
+        cached = self._model_cache.get(symbol)
+        use_cache = cached is not None and (now - cached[0]) < self._model_cache_ttl_sec
 
-        horizon_probs = {}
-        for h in self.prod.horizons:
-            y = np.where(
-                (df["close"].shift(-h) / df["close"] - 1).iloc[60 : 60 + len(X)] > 0,
-                1,
-                -1,
-            )
-            m = self.models[h]
-            m.fit(X, y)
-            horizon_probs[h] = m.predict_proba(x_row)
+        if use_cache:
+            # Use cached trained models, only predict
+            trained_models = cached[1]
+            horizon_probs = {h: trained_models[h].predict_proba(x_row) for h in self.prod.horizons}
+        else:
+            # Online train from historical rows without lookahead in current bar usage.
+            feat_rows = []
+            for i in range(60, len(df) - max(self.prod.horizons) - 1):
+                sub = df.iloc[: i + 1]
+                feat_rows.append(self.feature_store.build(sub, ob, funding=funding, oi_delta=oi))
+            X = pd.DataFrame(feat_rows).fillna(0.0)
+            if len(X) < 80:
+                return None
+
+            trained_models = {}
+            horizon_probs = {}
+            for h in self.prod.horizons:
+                y = np.where(
+                    (df["close"].shift(-h) / df["close"] - 1).iloc[60 : 60 + len(X)] > 0,
+                    1,
+                    -1,
+                )
+                m = copy.deepcopy(self.models[h])
+                m.fit(X, y)
+                trained_models[h] = m
+                horizon_probs[h] = m.predict_proba(x_row)
+            self._model_cache[symbol] = (now, trained_models)
 
         regime = self.regime.classify(df)
         direction, confidence, agreement = self.ensemble.vote(horizon_probs, regime)
@@ -363,14 +384,58 @@ class SelectiveMLBot:
         return sig["ev"] >= self.prod.ev_min_decision and sig["confidence"] >= self.prod.conf_min_decision
 
     def _build_exit_levels(self, sig):
+        # Dynamic TP scaling based on signal confidence and EV
+        # Base multipliers from config
+        base_tp1_r = float(self.prod.tp1_r)
+        base_tp2_r = float(self.prod.tp2_r)
+        base_tp3_r = float(self.prod.tp3_r)
+
+        if getattr(self.prod, "dynamic_tp_enabled", True):
+            conf = float(sig.get("confidence", 0.7))
+            ev = float(sig.get("ev", 0.0))
+            entry = float(sig["entry"])
+            atr_val = float(sig["atr"])
+            risk_pct = max(atr_val * self.prod.sl_atr_mult / max(entry, 1e-9), 0.001)
+
+            # Confidence factor: 0.70 → 1.0x, 0.85 → 1.30x, 0.95 → 1.50x (capped at 1.6x)
+            conf_factor = 1.0 + max(0.0, (conf - 0.70) * 2.0)
+            conf_factor = min(conf_factor, 1.6)
+
+            # EV-based factor: convert expected return to R-multiple
+            # ev=0.01 (1%) and risk_pct=0.5% → ev_in_r = 2.0R
+            ev_in_r = max(0.0, ev / max(risk_pct, 1e-9))
+            # Use 80% of expected R as TP (conservative)
+            ev_factor_target_tp1 = ev_in_r * 0.6
+            ev_factor_target_tp2 = ev_in_r * 1.0
+
+            # Take max of base * conf_factor and EV-derived target
+            tp1_r = max(base_tp1_r * conf_factor, ev_factor_target_tp1)
+            tp2_r = max(base_tp2_r * conf_factor, ev_factor_target_tp2)
+            tp3_r = max(base_tp3_r * conf_factor, ev_in_r * 1.5)
+
+            # Sanity caps to avoid extreme TPs
+            tp1_r = min(tp1_r, 5.0)
+            tp2_r = min(tp2_r, 8.0)
+            tp3_r = min(tp3_r, 12.0)
+
+            logger.info(
+                f"[DYNAMIC_TP] {sig['symbol']} conf={conf:.3f} ev={ev:.4f} risk_pct={risk_pct:.4f} "
+                f"ev_in_r={ev_in_r:.2f} conf_factor={conf_factor:.2f} "
+                f"tp1_r={tp1_r:.2f} tp2_r={tp2_r:.2f} tp3_r={tp3_r:.2f}"
+            )
+        else:
+            tp1_r = base_tp1_r
+            tp2_r = base_tp2_r
+            tp3_r = base_tp3_r
+
         brackets = self.exit_engine.compute_brackets(
-            sig["direction"], sig["entry"], sig["atr"], self.prod.sl_atr_mult, self.prod.tp1_r, self.prod.tp2_r
+            sig["direction"], sig["entry"], sig["atr"], self.prod.sl_atr_mult, tp1_r, tp2_r
         )
         r = brackets["risk"]
         if sig["direction"] == "long":
-            tp3 = sig["entry"] + self.prod.tp3_r * r
+            tp3 = sig["entry"] + tp3_r * r
         else:
-            tp3 = sig["entry"] - self.prod.tp3_r * r
+            tp3 = sig["entry"] - tp3_r * r
         brackets["tp3"] = tp3
         return brackets
 
@@ -854,6 +919,21 @@ class SelectiveMLBot:
             return False, "cooldown", 1.0
         if not self.exposure.allow(open_positions, sig["symbol"]):
             return False, "exposure", 1.0
+        # Correlation filter: block stacking same-direction positions across symbols
+        if getattr(self.prod, "block_same_direction_stack", False):
+            new_dir = sig.get("direction", "")
+            for p in open_positions:
+                try:
+                    if float(p.get("size", 0) or 0) <= 0:
+                        continue
+                    p_sym = p.get("symbol", "")
+                    if p_sym == sig["symbol"]:
+                        continue  # same symbol covered by exposure
+                    p_side = "long" if p.get("side") == "Buy" else "short"
+                    if p_side == new_dir:
+                        return False, f"correlation_stack(existing={p_sym}_{p_side})", 1.0
+                except Exception:
+                    continue
         if getattr(self.prod, "enable_risk_engine", True):
             sym_val = 0.0
             tot_val = 0.0
@@ -891,6 +971,15 @@ class SelectiveMLBot:
         # Spread/depth are now soft penalties, not hard rejects.
         spread_ok = self.spread_guard.allow(sig["spread_bps"])
         depth_ok = sig["depth_usdt"] >= self.prod.min_depth_usdt
+        
+        # ADX filter for trend confirmation
+        min_adx = getattr(self.prod, "min_adx", 0.0)
+        if min_adx > 0:
+            adx = self._calculate_adx(sig["symbol"])
+            if adx < min_adx:
+                return False, f"adx(adx={adx:.2f}<thr={min_adx})", 1.0
+            logger.info(f"[ADX] {sig['symbol']} ADX={adx:.2f} (threshold={min_adx})")
+        
         size_mult = 1.0
         if not spread_ok:
             ratio = self.prod.max_spread_bps / max(sig["spread_bps"], 1e-9)
@@ -900,6 +989,21 @@ class SelectiveMLBot:
             ratio = sig["depth_usdt"] / max(self.prod.min_depth_usdt, 1e-9)
             depth_mult = max(self.prod.depth_penalty_floor, min(self.prod.depth_penalty_cap, ratio))
             size_mult *= depth_mult
+        # Funding rate penalty: if funding works against direction, reduce size
+        funding_thr = float(getattr(self.prod, "funding_penalty_threshold", 0.0005))
+        funding_mult = float(getattr(self.prod, "funding_penalty_mult", 0.5))
+        if funding_thr > 0:
+            try:
+                funding_rate = float(self._funding_cache.get(sig["symbol"]) or self.ex.get_funding_rate(sig["symbol"]) or 0.0)
+            except Exception:
+                funding_rate = 0.0
+            # For long: positive funding means longs pay shorts (bad for long)
+            # For short: negative funding means shorts pay longs (bad for short)
+            unfavorable = (sig["direction"] == "long" and funding_rate > funding_thr) or \
+                          (sig["direction"] == "short" and funding_rate < -funding_thr)
+            if unfavorable:
+                logger.info(f"[FUNDING PENALTY] {sig['symbol']} dir={sig['direction']} funding={funding_rate:.5f} mult={funding_mult}")
+                size_mult *= funding_mult
 
         # Risk-based sizing limits disabled in "max_exchange_qty" mode.
         if getattr(self.prod, "sizing_mode", "notional_sizer") != "max_exchange_qty":
@@ -910,13 +1014,108 @@ class SelectiveMLBot:
             return True, "override_high_ev", size_mult
         return True, "ok", 1.0
 
-    def _entry_qty(self, sig, size_mult: float):
+    def _ensure_leverage_1x(self, symbol: str):
+        """Safeguard: ensure leverage is set to 1x before opening position."""
+        if not getattr(self.prod, "force_leverage_1x", False):
+            return True
+        try:
+            # Get current position info to check leverage
+            positions = self.ex.get_positions(symbol)
+            if positions and positions.get("result", {}).get("list"):
+                pos = positions["result"]["list"][0]
+                current_lev = int(float(pos.get("leverage", 1)))
+                if current_lev != 1:
+                    logger.warning(f"[LEVERAGE SAFEGUARD] {symbol} current leverage={current_lev}x, setting to 1x")
+                    self.ex.set_leverage(1, symbol)
+                    logger.info(f"[LEVERAGE SAFEGUARD] {symbol} leverage set to 1x")
+            else:
+                # No position exists, set leverage proactively
+                self.ex.set_leverage(1, symbol)
+                logger.info(f"[LEVERAGE SAFEGUARD] {symbol} leverage set to 1x (proactive)")
+            return True
+        except Exception as e:
+            logger.error(f"[LEVERAGE SAFEGUARD] Failed to set leverage for {symbol}: {e}")
+            return False
+
+    def _calculate_adx(self, symbol: str) -> float:
+        """Calculate ADX(14) for trend confirmation using cached OHLCV data."""
+        try:
+            df = self._cached_ohlcv(symbol, limit=50)
+            if df is None or len(df) < 15:
+                return 0.0
+            # Use last 15 candles for ADX(14) calculation
+            df = df.tail(15)
+            # Simple ADX calculation (14-period)
+            high = df['high'].values
+            low = df['low'].values
+            close = df['close'].values
+            
+            tr = np.zeros(len(high))
+            plus_dm = np.zeros(len(high))
+            minus_dm = np.zeros(len(high))
+            
+            for i in range(1, len(high)):
+                tr[i] = max(high[i] - low[i], abs(high[i] - close[i-1]), abs(low[i] - close[i-1]))
+                up = high[i] - high[i-1]
+                down = low[i-1] - low[i]
+                plus_dm[i] = up if up > down and up > 0 else 0
+                minus_dm[i] = down if down > up and down > 0 else 0
+            
+            atr = np.mean(tr)
+            plus_di = 100 * np.mean(plus_dm) / atr if atr > 0 else 0
+            minus_di = 100 * np.mean(minus_dm) / atr if atr > 0 else 0
+            dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di) if (plus_di + minus_di) > 0 else 0
+            adx = np.mean(dx)
+            
+            return adx
+        except Exception as e:
+            logger.error(f"[ADX] Failed to calculate ADX for {symbol}: {e}")
+            return 0.0
+
+    def _entry_qty(self, sig, size_mult: float, equity: float = None):
         """
         Compute entry quantity.
         - max_exchange_qty: use Bybit lotSizeFilter.maxMktOrderQty (floored to step via normalize_qty in router)
         - notional_sizer: legacy PositionSizer path
+        - risk_based: risk-based sizing using risk_per_trade % of equity
         """
         mode = getattr(self.prod, "sizing_mode", "notional_sizer")
+        
+        # Risk-based sizing implementation
+        if mode == "risk_based":
+            risk_per_trade = getattr(self.prod, "risk_per_trade", 0.003)  # 0.3% default
+            if equity is None:
+                equity = float(self.ex.get_wallet_balance().get("result", {}).get("totalWalletBalance", 0) or 0)
+            
+            atr = sig.get("atr", 0)
+            entry_price = sig.get("entry", 0)
+            stop_distance = atr * self.prod.sl_atr_mult
+            
+            if stop_distance > 0 and entry_price > 0:
+                # Position size = (equity * risk_per_trade) / stop_distance
+                risk_amount = equity * risk_per_trade
+                qty = Decimal(str(risk_amount / stop_distance))
+                
+                # Apply size_mult
+                qty = qty * Decimal(str(size_mult))
+                
+                # Hard cap by max_position_notional_usdt
+                cap_usd = float(getattr(self.prod, "max_position_notional_usdt", 0.0) or 0.0)
+                if cap_usd > 0:
+                    q_cap = Decimal(str(cap_usd / entry_price))
+                    if qty > q_cap:
+                        qty = q_cap
+                
+                logger.info(
+                    f"[SIZING RISK_BASED] {sig['symbol']} equity={equity:.2f} risk_per_trade={risk_per_trade:.1%} "
+                    f"risk_amount={risk_amount:.2f} stop_distance={stop_distance:.6f} "
+                    f"qty={qty} notional={float(qty) * entry_price:.2f}"
+                )
+                return qty
+            else:
+                logger.warning(f"[SIZING RISK_BASED] Invalid ATR or entry price for {sig['symbol']}")
+                return Decimal("0")
+        
         if mode == "max_exchange_qty":
             rules = self.ex._get_symbol_rules(sig["symbol"])
             # Some exchange wrappers expose only max_qty (no max_mkt_qty).
@@ -1009,6 +1208,17 @@ class SelectiveMLBot:
                         tier1_passed.append(cc)
                 tier1_passed.sort(key=lambda x: x["tier1_score"], reverse=True)
                 symbols = [x["symbol"] for x in tier1_passed[: self.prod.deep_eval_top_n]]
+                # Force-include open positions in evaluation for reversal exit logic
+                open_position_syms = list(self.position_states.keys())
+                for op_sym in open_position_syms:
+                    if op_sym not in symbols:
+                        symbols.append(op_sym)
+                        # Also need orderbook for it
+                        if op_sym not in ob_map:
+                            try:
+                                ob_map[op_sym] = self.orderbook.snapshot(op_sym)
+                            except Exception:
+                                ob_map[op_sym] = {"spread_bps": 999.0, "depth_usdt": 0.0, "imbalance": 0.0}
                 signals_after_tier1 = len(symbols)
 
                 try:
@@ -1033,6 +1243,35 @@ class SelectiveMLBot:
                         continue
                     evaluated.append(s)
                 signals_generated = len(evaluated)
+
+                # --- Signal Reversal Exit ---
+                # Close position early if ML model predicts strong reversal
+                reversal_conf_threshold = getattr(self.prod, "reversal_conf_threshold", 0.70)
+                reversal_exit_count = 0
+                for sig in evaluated:
+                    sym = sig["symbol"]
+                    st = self.position_states.get(sym)
+                    if st is None or st.exit_state != "open":
+                        continue
+                    rem = self._remaining_qty(st)
+                    if rem <= 0:
+                        continue
+                    # Check for opposite direction with high confidence
+                    sig_dir = sig.get("direction", "")
+                    sig_conf = float(sig.get("confidence", 0.0) or 0.0)
+                    is_reversal = (st.side == "long" and sig_dir == "short") or \
+                                  (st.side == "short" and sig_dir == "long")
+                    if is_reversal and sig_conf >= reversal_conf_threshold:
+                        logger.warning(
+                            f"[REVERSAL EXIT] {sym} position_side={st.side} "
+                            f"new_signal={sig_dir} conf={sig_conf:.3f}>={reversal_conf_threshold:.2f} "
+                            f"ev={sig.get('ev', 0):.4f} regime={sig.get('regime', '?')}"
+                        )
+                        if self._close_market_reduce_only(st, rem, "signal_reversal"):
+                            st.exit_state = "closed"
+                            reversal_exit_count += 1
+                if reversal_exit_count > 0:
+                    logger.info(f"[REVERSAL EXIT] Closed {reversal_exit_count} positions due to signal reversal")
 
                 # Per-cycle and global throttles for new entries.
                 max_new_per_cycle = int(getattr(self.prod, "max_new_positions_per_cycle", 999))
@@ -1113,7 +1352,12 @@ class SelectiveMLBot:
                         if reason == "override_high_ev":
                             override_count += 1
 
-                        qty = self._entry_qty(sig, size_mult)
+                        # Ensure leverage is 1x before opening position
+                        if not self._ensure_leverage_1x(sym):
+                            logger.warning(f"[ENTRY SKIP] {sym} leverage safeguard failed")
+                            continue
+                        
+                        qty = self._entry_qty(sig, size_mult, equity)
                         entry_res = self.router.enter(sym, "long" if sig["direction"] == "long" else "short", qty)
                         if int(entry_res.get("retCode", -1)) != 0:
                             logger.warning(f"[ENTRY FAIL] {sym} ret={entry_res}")
@@ -1125,11 +1369,27 @@ class SelectiveMLBot:
                         # Reset stickiness on entry so next signal builds fresh.
                         self._stickiness.pop(sym, None)
                         lv = self.position_states[sym].take_profit_levels
+                        st = self.position_states[sym]
+                        
+                        # Detailed risk engine logging
+                        entry_px = float(sig.get('entry', 0))
+                        sl_px = st.stop_loss_price
+                        atr = sig.get('atr', 0)
+                        stop_distance_pct = abs(sl_px - entry_px) / entry_px * 100 if entry_px > 0 else 0
+                        notional = float(qty * entry_px)
+                        equity_risk_pct = notional / equity * 100 if equity > 0 else 0
+                        expected_loss_at_sl = abs(qty * (sl_px - entry_px)) if sl_px and entry_px else 0
+                        
                         logger.info(
                             f"[OPEN] {sym} {sig['direction']} qty={qty} entry={sig['entry']:.6f} "
                             f"notional_cap={getattr(self.prod, 'max_position_notional_usdt', 0):.0f} "
                             f"tp1={lv['tp1']:.6f} tp2={lv['tp2']:.6f} tp3={lv['tp3']:.6f} "
-                            f"sl={self.position_states[sym].stop_loss_price:.6f}"
+                            f"sl={sl_px:.6f}"
+                        )
+                        logger.info(
+                            f"[RISK ENGINE] {sym} leverage=1x notional={notional:.2f} equity_risk={equity_risk_pct:.2f}% "
+                            f"stop_distance={stop_distance_pct:.2f}% ATR={atr:.6f} expected_loss_at_sl={expected_loss_at_sl:.2f} "
+                            f"risk_per_trade={getattr(self.prod, 'risk_per_trade', 0):.1%}"
                         )
                         self.cooldown.set_symbol_cooldown(sym, self.prod.symbol_reuse_cooldown_minutes)
                     except Exception as e:
