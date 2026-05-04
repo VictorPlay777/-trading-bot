@@ -7,13 +7,12 @@ class ProductionConfig:
     # Strategy versioning: identifier persisted into each trade record and
     # used to snapshot the active config to strategies/<strategy_id>.json.
     # Bump this whenever you change parameters that should be tracked separately.
-    strategy_id: str = "v4_invert_wideSL_unlimited_2026-05-04"
-    strategy_notes: str = "v4: SL=4*ATR (mirror of v1 TP3=4R, never hit), TP=1*ATR full-close, invert_signals, NO concurrent-position cap."
-    # Experimental: flip every model direction (long<->short).
-    # Justified by negative EV-PnL correlation in v1 (-0.18) — high-conf signals lose more.
-    invert_signals: bool = True
+    strategy_id: str = "v5_equal_tp_sl_1atr_noinvert_2026-05-05"
+    strategy_notes: str = "v5: TP=SL=1*ATR, NO invert (actual model direction), NO concurrent-position cap."
+    # v5: trade actual model direction (long=long, short=short) for pure winrate measurement.
+    # Previously inverted due to negative EV-PnL correlation in v1; now testing raw model edge.
+    invert_signals: bool = False
     # Clean-mirror mode: close 100% of position on TP1 hit (no TP2/TP3 partials).
-    # This mirrors v1's SL=-1R full-close behavior but on the profit side.
     single_tp_full_close: bool = True
     model: str = "catboost"
     scan_top_symbols: int = 40
@@ -21,14 +20,12 @@ class ProductionConfig:
     prob_threshold_base: float = 0.75
     uncertainty_filter: float = 0.08
     min_trade_quality: float = 0.72
-    # v3 CLEAN MIRROR of v1 geometry (inversion hypothesis):
-    # - SL = 4*ATR: mirrors v1's TP3=4R which was essentially never hit in v1.
-    #   In inversion, adverse moves rarely reach 4 ATR → SL almost never triggered.
-    # - TP1 = 1*ATR: mirrors v1's SL=1R which was hit in 64% of v1 trades.
-    #   In inversion, favorable moves hit 1 ATR frequently → TP fires often.
+    # v5: EQUAL TP/SL for fair winrate measurement.
+    # - TP = 1*ATR (same as v4)
+    # - SL = 1*ATR (reduced from 4 ATR to match TP — equal R/R for winrate test)
     # - No TP2/TP3 partials (single_tp_full_close=True), no trailing.
-    sl_atr_mult: float = 4.0      # v3 fix2: mirror of v1's TP3=4R (almost never hit)
-    tp1_r: float = 1.0            # was 2.0 — tight TP to mirror v1's frequently-hit SL
+    sl_atr_mult: float = 1.0      # v5: SL = 1*ATR (equal to TP for fair winrate)
+    tp1_r: float = 1.0            # TP = 1*ATR
     tp2_r: float = 1.0            # unused when single_tp_full_close=True
     trailing_atr_mult: float = 1.0  # unused
     max_concurrent_positions: int = 999  # v4: effectively no cap
