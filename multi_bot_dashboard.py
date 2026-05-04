@@ -6,6 +6,11 @@ from flask import Flask, jsonify, render_template_string, request
 import logging
 from typing import Dict, List
 from datetime import datetime
+import os
+try:
+    import psutil  # type: ignore
+except Exception:  # pragma: no cover
+    psutil = None
 
 from bot_manager import get_manager, BotManager
 
@@ -880,6 +885,26 @@ def get_leaderboard():
 def get_overview():
     """Get aggregate overview"""
     return jsonify(manager.get_aggregate_stats())
+
+
+@app.route('/healthz', methods=['GET'])
+def healthz():
+    """Lightweight healthcheck endpoint for watchdog/systemd/docker probes."""
+    overview = manager.get_aggregate_stats()
+    payload = {
+        "status": "ok",
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "bots": overview,
+    }
+    if psutil:
+        p = psutil.Process(os.getpid())
+        payload["runtime"] = {
+            "ram_mb": round(p.memory_info().rss / (1024 * 1024), 2),
+            "cpu_pct": p.cpu_percent(interval=0.0),
+            "threads": p.num_threads(),
+            "connections": len(p.connections(kind="inet")),
+        }
+    return jsonify(payload)
 
 
 @app.route('/bots/<bot_id>/edit')

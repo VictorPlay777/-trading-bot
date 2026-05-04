@@ -1,0 +1,25 @@
+mode: paper
+testnet: true
+symbol: PEPEUSDT
+timeframe: 1h
+leverage: 1
+risk_per_trade: 0.001
+tp_atr_mult: 1.6
+sl_atr_mult: 1.0
+horizon_bars: 6
+prob_threshold: 0.62
+start_capital: 1000.0
+maker_fee: 0.0002
+taker_fee: 0.0006
+max_concurrent_positions: 1
+ccxt:
+  enableRateLimit: true
+  options:
+    defaultType: "swap"
+    adjustForTimeDifference: true
+paths:
+  db_url: "sqlite:///storage/trading_pepe.db"
+  models_dir: "models"
+  logs_dir: "logs"
+data:
+  csv_path: "data/PEPEUSDT_1H.csv"

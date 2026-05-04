@@ -9,6 +9,7 @@ import time
 import threading
 import signal
 from datetime import datetime
+import io
 
 # Ensure directories exist
 for directory in ['bot_configs', 'bot_logs', 'bot_data']:
@@ -19,7 +20,7 @@ from multi_bot_dashboard import start_dashboard
 
 
 def print_banner():
-    print("""
+    banner = """
 ╔═══════════════════════════════════════════════════════════════╗
 ║           🤖 MULTI-BOT TRADING SYSTEM v1.0                    ║
 ║                                                               ║
@@ -30,7 +31,13 @@ def print_banner():
 ║                                                               ║
 ║  Dashboard: http://localhost:5001                            ║
 ╚═══════════════════════════════════════════════════════════════╝
-    """)
+    """
+    # Avoid hard crash on cp1251/legacy consoles.
+    try:
+        print(banner)
+    except UnicodeEncodeError:
+        safe = banner.encode("ascii", "replace").decode("ascii")
+        print(safe)
 
 
 def main():
@@ -42,9 +49,9 @@ def main():
     
     print(f"[INIT] Found {len(manager.bots)} bot configurations:")
     for bot_id, bot in manager.bots.items():
-        enabled = "✓ enabled" if bot.config.get('enabled') else "✗ disabled"
+        enabled = "[enabled]" if bot.config.get('enabled') else "[disabled]"
         testnet = "TESTNET" if bot.config.get('api', {}).get('testnet') else "LIVE"
-        print(f"       • {bot_id}: {bot.config.get('name', 'Unknown')} [{enabled}] [{testnet}]")
+        print(f"       - {bot_id}: {bot.config.get('name', 'Unknown')} {enabled} [{testnet}]")
     
     # Start all enabled bots
     print("\n[START] Starting enabled bots...")
@@ -52,11 +59,11 @@ def main():
     
     for bot_id, result in results.items():
         if result is True:
-            print(f"  ✓ {bot_id} started")
+            print(f"  [OK] {bot_id} started")
         elif result is False:
-            print(f"  ✗ {bot_id} failed to start")
+            print(f"  [FAIL] {bot_id} failed to start")
         else:
-            print(f"  ○ {bot_id} skipped (disabled)")
+            print(f"  [SKIP] {bot_id} skipped (disabled)")
     
     # Start dashboard in separate thread
     print("\n[DASHBOARD] Starting web interface on http://0.0.0.0:5001...")

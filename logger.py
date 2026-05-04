@@ -1,14 +1,13 @@
 """
-Structured logging for trading bot
+Structured logging for trading bot.
 """
+import json
 import logging
 import logging.handlers
 import os
-import json
 from datetime import datetime
-from typing import Dict, Any, Optional
-from dataclasses import asdict
 from pathlib import Path
+from typing import Any, Dict
 
 from config import logging_config
 
@@ -107,17 +106,33 @@ def setup_logger(name: str = "trading_bot") -> logging.Logger:
     console_handler.setFormatter(console_format)
     logger.addHandler(console_handler)
     
-    # File handler with structured JSON format
+    # File handlers with structured JSON format
     if logging_config.log_to_file:
         Path(logging_config.log_dir).mkdir(parents=True, exist_ok=True)
-        log_file = os.path.join(logging_config.log_dir, "bot.log")
-        file_handler = logging.handlers.RotatingFileHandler(
-            log_file,
-            maxBytes=logging_config.max_log_size_mb * 1024 * 1024,
-            backupCount=logging_config.backup_count
-        )
-        file_handler.setFormatter(StructuredLogFormatter())
-        logger.addHandler(file_handler)
+        for component_file in (
+            "bot.log",
+            "errors.log",
+            "trades.log",
+            "ml.log",
+            "api.log",
+            "websocket.log",
+            "risk.log",
+        ):
+            file_handler = logging.handlers.RotatingFileHandler(
+                os.path.join(logging_config.log_dir, component_file),
+                maxBytes=logging_config.max_log_size_mb * 1024 * 1024,
+                backupCount=logging_config.backup_count
+            )
+            file_handler.setFormatter(StructuredLogFormatter())
+            # Keep component handlers mostly independent:
+            # only bot.log should collect everything from this logger.
+            if component_file != "bot.log":
+                if component_file == "errors.log":
+                    file_handler.setLevel(logging.ERROR)
+                else:
+                    # Component-specific files are fed by dedicated loggers.
+                    file_handler.setLevel(logging.CRITICAL + 1)
+            logger.addHandler(file_handler)
     
     return logger
 
@@ -132,6 +147,42 @@ def log_event(level: str, message: str, **kwargs):
     logger = get_logger()
     extra = {"extra": kwargs}
     getattr(logger, level.lower())(message, extra=extra)
+
+
+def get_component_logger(component: str) -> logging.Logger:
+    """
+    Returns a dedicated structured logger with its own rotating file.
+    Supported components include: trades/errors/ml/api/websocket/risk.
+    """
+    logger_name = f"trading_bot.{component}"
+    component_logger = logging.getLogger(logger_name)
+    component_logger.setLevel(getattr(logging, logging_config.log_level))
+    component_logger.propagate = False
+    if component_logger.handlers:
+        return component_logger
+
+    Path(logging_config.log_dir).mkdir(parents=True, exist_ok=True)
+    component_log_path = os.path.join(logging_config.log_dir, f"{component}.log")
+    fh = logging.handlers.RotatingFileHandler(
+        component_log_path,
+        maxBytes=logging_config.max_log_size_mb * 1024 * 1024,
+        backupCount=logging_config.backup_count,
+    )
+    fh.setFormatter(StructuredLogFormatter())
+    component_logger.addHandler(fh)
+
+    # Mirror ERROR+ into shared errors log for centralized triage.
+    if component != "errors":
+        err_fh = logging.handlers.RotatingFileHandler(
+            os.path.join(logging_config.log_dir, "errors.log"),
+            maxBytes=logging_config.max_log_size_mb * 1024 * 1024,
+            backupCount=logging_config.backup_count,
+        )
+        err_fh.setLevel(logging.ERROR)
+        err_fh.setFormatter(StructuredLogFormatter())
+        component_logger.addHandler(err_fh)
+
+    return component_logger
 
 
 # Initialize global trade logger

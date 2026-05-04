@@ -169,6 +169,147 @@ def analyze_trades(trades, verbose=True):
         cost_ratio = (total_fees + total_funding) / abs(gross_pnl_est) * 100
         print(f"  Costs as % of gross PnL:            {cost_ratio:.1f}%")
     
+    # --- ATR / DISTANCES ANALYSIS ---
+    print("\n" + "=" * 90)
+    print("ATR / DISTANCES (movements expected at entry):")
+    print("=" * 90)
+    atr_pcts = []
+    tp1_pcts = []
+    tp2_pcts = []
+    tp3_pcts = []
+    sl_pcts = []
+    for t in trades:
+        entry = t.get("entry_price", 0) or 0
+        if entry <= 0:
+            continue
+        sl = t.get("stop_loss_price", 0) or 0
+        tps = t.get("take_profit_levels", {}) or {}
+        side = t.get("direction", "long")
+        if sl > 0:
+            sl_dist = abs(entry - sl) / entry * 100
+            sl_pcts.append(sl_dist)
+            atr_pcts.append(sl_dist)  # since sl_atr_mult=1.0, atr_pct ≈ sl_pct
+        for key, lst in [("tp1", tp1_pcts), ("tp2", tp2_pcts), ("tp3", tp3_pcts)]:
+            tp = tps.get(key, 0) or 0
+            if tp > 0:
+                d = abs(tp - entry) / entry * 100
+                lst.append(d)
+    
+    def stats(lst, label):
+        if not lst:
+            print(f"  {label}: no data")
+            return
+        s = sorted(lst)
+        n = len(s)
+        avg = sum(s) / n
+        med = s[n // 2]
+        p10 = s[max(0, n // 10)]
+        p90 = s[min(n - 1, n - n // 10 - 1)]
+        mn, mx = s[0], s[-1]
+        print(f"  {label:24s}: avg={avg:.3f}%  median={med:.3f}%  p10={p10:.3f}%  p90={p90:.3f}%  min={mn:.3f}%  max={mx:.3f}%")
+    
+    print(f"  Sample size: {len(atr_pcts)} trades with valid prices")
+    stats(atr_pcts, "ATR_pct (≈SL dist)")
+    stats(sl_pcts, "SL distance from entry")
+    stats(tp1_pcts, "TP1 distance from entry")
+    stats(tp2_pcts, "TP2 distance from entry")
+    stats(tp3_pcts, "TP3 distance from entry")
+    
+    # ATR buckets
+    print("\n  ATR_pct buckets (volatility regime):")
+    atr_buckets = [
+        ("<0.3%   (very low)",  lambda x: x < 0.3),
+        ("0.3-0.5% (low)",      lambda x: 0.3 <= x < 0.5),
+        ("0.5-1.0% (normal)",   lambda x: 0.5 <= x < 1.0),
+        ("1.0-2.0% (high)",     lambda x: 1.0 <= x < 2.0),
+        (">=2.0%   (very high)",lambda x: x >= 2.0),
+    ]
+    # Need to map back: trades with atr_pct
+    trades_with_atr = []
+    for t in trades:
+        entry = t.get("entry_price", 0) or 0
+        sl = t.get("stop_loss_price", 0) or 0
+        if entry > 0 and sl > 0:
+            atr_p = abs(entry - sl) / entry * 100
+            trades_with_atr.append((atr_p, t))
+    for name, pred in atr_buckets:
+        group = [t for ap, t in trades_with_atr if pred(ap)]
+        if group:
+            wins = len([t for t in group if t.get("realized_pnl_net", 0) > 0])
+            pnl = sum(t.get("realized_pnl_net", 0) for t in group)
+            print(f"    {name:24s}: {len(group):3d} trades | {wins/len(group)*100:5.1f}% WR | PnL=${pnl:+,.2f}")
+    
+    # --- PnL BY EXIT OUTCOME ---
+    print("\n" + "=" * 90)
+    print("PnL BY EXIT OUTCOME (per-trade classification):")
+    print("=" * 90)
+    
+    def classify(t):
+        reasons = {er.get("reason", "") for er in (t.get("exit_reasons") or [])}
+        if "signal_reversal" in reasons:
+            return "signal_reversal"
+        has_tp = any(r in reasons for r in ("tp1", "tp2", "tp3", "trailing_exit"))
+        has_sl = "stop_loss" in reasons
+        if has_tp and has_sl:
+            return "tp_then_sl"  # took some TP, then SL on remainder
+        if has_tp and not has_sl:
+            return "tp_only"
+        if has_sl and not has_tp:
+            return "sl_only"
+        return "other"
+    
+    by_outcome = defaultdict(list)
+    for t in trades:
+        by_outcome[classify(t)].append(t)
+    
+    print(f"  {'OUTCOME':18} {'TRADES':>7} {'%':>6} {'WR%':>6} {'TOTAL_PnL':>14} {'AVG':>10} {'BEST':>10} {'WORST':>10}")
+    print("  " + "-" * 90)
+    order = ["tp_only", "tp_then_sl", "sl_only", "signal_reversal", "other"]
+    for outcome in order:
+        group = by_outcome.get(outcome, [])
+        if not group:
+            continue
+        n = len(group)
+        wins = len([t for t in group if t.get("realized_pnl_net", 0) > 0])
+        pnl_total = sum(t.get("realized_pnl_net", 0) for t in group)
+        pnls = [t.get("realized_pnl_net", 0) for t in group]
+        avg = pnl_total / n
+        best = max(pnls)
+        worst = min(pnls)
+        print(f"  {outcome:18} {n:7d} {n/len(trades)*100:5.1f}% {wins/n*100:5.1f}% "
+              f"{pnl_total:+14,.2f} {avg:+10,.2f} {best:+10,.2f} {worst:+10,.2f}")
+    
+    # PnL contribution by partial-close reason (split each trade's PnL evenly across its reasons)
+    # Better: count exit events with their notional close
+    print("\n  PnL attribution by reason (events × avg PnL per event group):")
+    by_reason_pnl = defaultdict(lambda: {"events": 0, "pnl": 0.0, "trades": set()})
+    for t in trades:
+        er_list = t.get("exit_reasons") or []
+        if not er_list:
+            continue
+        pnl = t.get("realized_pnl_net", 0)
+        # Distribute PnL proportional to qty in each reason
+        reasons_qty = {}
+        total_q = 0.0
+        for er in er_list:
+            r = er.get("reason", "unknown")
+            q = float(er.get("qty", 0) or 0)
+            reasons_qty[r] = reasons_qty.get(r, 0.0) + q
+            total_q += q
+        if total_q <= 0:
+            continue
+        for r, q in reasons_qty.items():
+            by_reason_pnl[r]["events"] += 1
+            by_reason_pnl[r]["pnl"] += pnl * (q / total_q)
+            by_reason_pnl[r]["trades"].add(t.get("trade_id"))
+    
+    print(f"  {'REASON':20} {'EVENTS':>7} {'TRADES':>7} {'TOTAL_PnL':>14} {'AVG_PER_EVENT':>14}")
+    print("  " + "-" * 70)
+    for reason, d in sorted(by_reason_pnl.items(), key=lambda x: x[1]["pnl"], reverse=True):
+        avg = d["pnl"] / d["events"] if d["events"] else 0
+        print(f"  {reason:20} {d['events']:7d} {len(d['trades']):7d} "
+              f"{d['pnl']:+14,.2f} {avg:+14,.2f}")
+    
     # --- DIAGNOSIS ---
     print("\n" + "=" * 90)
     print("DIAGNOSIS: WHY IN MINUS?")
@@ -320,18 +461,60 @@ def analyze_trades(trades, verbose=True):
         
     print("=" * 70)
 
+def _print_strategies_summary(trades):
+    by_strat = defaultdict(list)
+    for t in trades:
+        sid = t.get("strategy_id", "<no_strategy_id>")
+        by_strat[sid].append(t)
+    print("\n" + "#" * 90)
+    print("# AVAILABLE STRATEGIES IN LOG")
+    print("#" * 90)
+    print(f"  {'STRATEGY_ID':40} {'TRADES':>7} {'WR%':>6} {'TOTAL_PnL':>14} {'PERIOD':30}")
+    print("  " + "-" * 100)
+    for sid, group in sorted(by_strat.items(), key=lambda x: min((t.get("opened_ts", 0) for t in x[1]), default=0)):
+        wins = len([t for t in group if t.get("realized_pnl_net", 0) > 0])
+        pnl = sum(t.get("realized_pnl_net", 0) for t in group)
+        wr = wins / len(group) * 100 if group else 0
+        ts_min = min(t.get("opened_ts", 0) for t in group)
+        ts_max = max(t.get("closed_ts", 0) for t in group)
+        period = f"{datetime.fromtimestamp(ts_min, tz=timezone.utc).strftime('%m-%d %H:%M')}..{datetime.fromtimestamp(ts_max, tz=timezone.utc).strftime('%m-%d %H:%M')}"
+        print(f"  {sid:40} {len(group):7d} {wr:5.1f}% {pnl:+14,.2f}  {period}")
+
+
 if __name__ == "__main__":
+    # Args: <path> [split_ts | --strategy <id> | --list]
     path = sys.argv[1] if len(sys.argv) > 1 else "logs/trades.jsonl"
     split_ts = None
-    if len(sys.argv) > 2:
-        # Accept split timestamp as either unix ts or "YYYY-MM-DD HH:MM:SS"
-        arg = sys.argv[2]
-        try:
-            split_ts = float(arg)
-        except ValueError:
-            split_ts = datetime.strptime(arg, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc).timestamp()
+    strategy_filter = None
+    list_only = False
+    args = sys.argv[2:]
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if a == "--list":
+            list_only = True
+        elif a == "--strategy" and i + 1 < len(args):
+            strategy_filter = args[i + 1]
+            i += 1
+        else:
+            try:
+                split_ts = float(a)
+            except ValueError:
+                try:
+                    split_ts = datetime.strptime(a, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc).timestamp()
+                except ValueError:
+                    pass
+        i += 1
 
     trades = load_trades(path)
+    if list_only:
+        _print_strategies_summary(trades)
+        sys.exit(0)
+
+    if strategy_filter:
+        trades = [t for t in trades if t.get("strategy_id") == strategy_filter]
+        print(f"[FILTER] strategy_id={strategy_filter} -> {len(trades)} trades")
+
     if split_ts:
         before = [t for t in trades if t.get("opened_ts", 0) < split_ts]
         after = [t for t in trades if t.get("opened_ts", 0) >= split_ts]
@@ -345,3 +528,4 @@ if __name__ == "__main__":
         analyze_trades(after, verbose=False)
     else:
         analyze_trades(trades)
+        _print_strategies_summary(trades)

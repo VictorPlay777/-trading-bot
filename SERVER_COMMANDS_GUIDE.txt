@@ -1,0 +1,185 @@
+================================================================================
+TRADING BOT - SERVER MANAGEMENT GUIDE
+Generated: 2026-05-01
+================================================================================
+
+--- 1. CONNECT TO SERVER -------------------------------------------------------
+
+ssh svy1990@111.88.150.44
+
+--- 2. ACTIVATE VIRTUAL ENVIRONMENT --------------------------------------------
+
+cd ~/-trading-bot
+source venv/bin/activate
+
+--- 3. VIEW LOGS NONSTOP (Real-time) ------------------------------------------
+
+# View supervisor log (bot output)
+tail -f ~/-trading-bot/selective_ml_supervisor.log
+
+# View only trades and signals
+tail -f ~/-trading-bot/selective_ml_supervisor.log | grep -E "(OPEN|TRADE RECORDED|CLOSED|EXIT|PNL)"
+
+# View trades JSON file (if trade recorder active)
+tail -f ~/-trading-bot/ml_bot/logs/trades.jsonl
+
+# View with pager (scrollable)
+less ~/-trading-bot/selective_ml_supervisor.log
+
+--- 4. CHECK BOT STATUS -------------------------------------------------------
+
+# Is bot running?
+ps aux | grep selective_ml_bot
+
+# Check supervisor process
+ps aux | grep run_selective_ml_forever
+
+# Check last 50 lines of log
+tail -50 ~/-trading-bot/selective_ml_supervisor.log
+
+--- 5. STOP THE BOT -----------------------------------------------------------
+
+# Stop supervisor (and bot)
+pkill -f run_selective_ml_forever
+
+# OR stop just the bot
+pkill -f selective_ml_bot.py
+
+# Verify stopped
+ps aux | grep selective_ml_bot
+
+--- 6. START/RESTART THE BOT --------------------------------------------------
+
+# Method A: Start with supervisor (auto-restart on crash)
+cd ~/-trading-bot
+source venv/bin/activate
+nohup ./run_selective_ml_forever.sh >> selective_ml_supervisor.log 2>&1 &
+
+# Method B: Start directly (no auto-restart)
+cd ~/-trading-bot/ml_bot
+source ../venv/bin/activate
+python3 selective_ml_bot.py --config config_scanner.yaml
+
+# Method C: Using screen (persistent session)
+screen -S bot
+cd ~/-trading-bot/ml_bot
+source ../venv/bin/activate
+python3 selective_ml_bot.py --config config_scanner.yaml
+# Press Ctrl+A, then D to detach
+# To reattach: screen -r bot
+
+--- 7. RESTART FULLY (Stop + Start) -------------------------------------------
+
+pkill -f selective_ml_bot.py
+pkill -f run_selective_ml_forever
+cd ~/-trading-bot
+source venv/bin/activate
+nohup ./run_selective_ml_forever.sh >> selective_ml_supervisor.log 2>&1 &
+
+--- 8. VIEW TRADE STATISTICS --------------------------------------------------
+
+# Run analyzer on server
+cd ~/-trading-bot
+source venv/bin/activate
+python3 analyze_trades.py
+
+# Backfill old trades from logs
+cd ~/-trading-bot
+source venv/bin/activate
+python3 parse_log_trades.py ml_bot/logs/supervisor.log >> ml_bot/logs/trades.jsonl
+
+--- 9. UPLOAD FILES FROM LOCAL TO SERVER --------------------------------------
+
+# In Windows PowerShell / MINGW (from C:\!trading-bot folder):
+
+scp selective_ml_bot.py svy1990@111.88.150.44:~/-trading-bot/ml_bot/
+scp analyze_trades.py svy1990@111.88.150.44:~/-trading-bot/
+scp parse_log_trades.py svy1990@111.88.150.44:~/-trading-bot/
+
+--- 10. QUICK HEALTH CHECK COMMANDS -------------------------------------------
+
+# All-in-one status check:
+ssh svy1990@111.88.150.44 "ps aux | grep selective_ml_bot; echo '---'; tail -10 ~/-trading-bot/selective_ml_supervisor.log"
+
+# Check if trades.jsonl is being written:
+ssh svy1990@111.88.150.44 "ls -la ~/-trading-bot/ml_bot/logs/trades.jsonl 2>/dev/null || echo 'No trades file yet'"
+
+--- TROUBLESHOOTING -----------------------------------------------------------
+
+# Bot crashes with module error -> reinstall packages:
+cd ~/-trading-bot
+source venv/bin/activate
+pip install loguru numpy pandas pyyaml requests scikit-learn catboost
+
+# Permission denied on SSH:
+# - Make sure you use correct login: svy1990 (NOT user)
+
+# No logs folder:
+mkdir -p ~/-trading-bot/ml_bot/logs
+
+================================================================================
+IMPORTANT:
+- Server IP: 111.88.150.44
+- Login: svy1990
+- Bot path: ~/-trading-bot/ml_bot/selective_ml_bot.py
+- Config: ~/-trading-bot/ml_bot/config_scanner.yaml
+- Supervisor: ~/-trading-bot/run_selective_ml_forever.sh
+- Logs: ~/-trading-bot/selective_ml_supervisor.log
+- Trades: ~/-trading-bot/ml_bot/logs/trades.jsonl
+================================================================================
+
+Может для теста все сигналы включим? Мы сможем вернуться к моменту до изменений? К текущим настройкам?
+
+Да, бекап есть — config_scanner_backup_20260501.yaml. Можно тестировать и вернуться.
+
+Для теста включи все сигналы:
+
+bash
+cd ~/-trading-bot/ml_bot
+nano config_scanner.yaml
+# Измени:
+# min_ev: 0.0 (или очень маленькое, например -0.01)
+# Пороги confidence: 0.0 для всех regimes
+# Или временно закомментируй фильтры в коде
+Или быстрый способ — временно отключить фильтры в боте:
+
+bash
+# В selective_ml_bot.py временно закомментируй quality gate
+# Но лучше через config
+Вернуться к текущим настройкам:
+
+bash
+cd ~/-trading-bot/ml_bot
+cp config_scanner_backup_20260501.yaml config_scanner.yaml
+# Перезапустить бота
+pkill -f selective_ml_bot
+cd ~/-trading-bot
+source venv/bin/activate
+nohup ./run_selective_ml_forever.sh >> selective_ml_supervisor.log 2>&1 &
+Какой способ предпочитаешь — через config или временно в коде?
+
+Теперь все сигналы будут проходить. Для возврата к настройкам:
+
+bash
+cd ~/-trading-bot/ml_bot
+cp selective_config_backup_20260501.yaml selective_config.py
+# Перезапустить бота
+Feedback submitted
+
+# На сервере
+ssh svy1990@111.88.150.44
+tmux new -s logs    # создать сессию "logs"
+tail -f ~/-trading-bot/selective_ml_supervisor.log
+# Ctrl+b затем d — отключиться (сессия продолжит работать)
+
+# Если соединение разорвалось, подключись заново:
+ssh svy1990@111.88.150.44
+tmux attach -t logs    # вернуться в ту же сессию
+
+# Локально
+scp c:\!trading-bot\analyze_trades.py svy1990@111.88.150.44:~/-trading-bot/analyze_trades.py
+
+# На сервере
+ssh svy1990@111.88.150.44
+cd ~/-trading-bot
+python3 analyze_trades.py ml_bot/logs/trades.jsonl

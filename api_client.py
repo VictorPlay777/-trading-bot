@@ -11,9 +11,10 @@ from urllib.parse import urlencode
 import requests
 
 from config import api_config
-from logger import get_logger, log_event
+from logger import get_logger, log_event, get_component_logger
 
 logger = get_logger()
+api_logger = get_component_logger("api")
 
 
 class BybitAPIError(Exception):
@@ -94,12 +95,24 @@ class BybitClient:
         # Retry logic for connection errors
         for attempt in range(self.max_retries):
             try:
+                started = time.perf_counter()
                 timeout = 30  # 30 second timeout
                 if method.upper() == "GET":
                     r = requests.get(url, headers=headers, timeout=timeout)
                 else:  # POST
                     headers["Content-Type"] = "application/json"
                     r = requests.post(url, headers=headers, data=body_str, timeout=timeout)
+                latency_ms = (time.perf_counter() - started) * 1000.0
+                api_logger.info(
+                    "api_request",
+                    extra={"extra": {
+                        "method": method.upper(),
+                        "endpoint": endpoint,
+                        "status_code": r.status_code,
+                        "latency_ms": round(latency_ms, 3),
+                        "attempt": attempt + 1
+                    }},
+                )
                 
                 # Log response details for debugging
                 logger.debug(f"Response status: {r.status_code}")
@@ -108,12 +121,20 @@ class BybitClient:
                 # Check HTTP status
                 if r.status_code != 200:
                     logger.error(f"HTTP {r.status_code}: {r.text[:500]}")
+                    api_logger.error(
+                        "api_http_error",
+                        extra={"extra": {"status_code": r.status_code, "endpoint": endpoint, "response": r.text[:500]}},
+                    )
                     raise BybitAPIError(r.status_code, r.text[:200])
                 
                 data = r.json()
                 
                 # Check for API errors
                 if data.get("retCode") != 0:
+                    api_logger.error(
+                        "api_business_error",
+                        extra={"extra": {"endpoint": endpoint, "ret_code": data.get("retCode"), "ret_msg": data.get("retMsg", "")}},
+                    )
                     raise BybitAPIError(data.get("retCode"), data.get("retMsg", "Unknown error"))
                 
                 return data

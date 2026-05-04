@@ -9,6 +9,7 @@ import time
 import signal
 import logging
 import threading
+import traceback
 from datetime import datetime
 from typing import Dict, Optional, Callable
 from dataclasses import dataclass, asdict
@@ -20,6 +21,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from api_client import BybitClient
 from engine import TradingEngine
 from config import trading_config, strategy_config
+from logger import get_component_logger
+from resilience import CrashSnapshotter, RuntimeMonitor, StateStore
 
 
 class BotStatus(Enum):
@@ -90,9 +93,16 @@ class BotInstance:
         self._pause_event = threading.Event()
         self._config_watcher: Optional[threading.Thread] = None
         self._last_config_mtime: float = 0
+        self._consecutive_errors: int = 0
+        self._last_heartbeat_ts: float = time.time()
         
         # Logger
         self.logger: Optional[logging.Logger] = None
+        self.error_logger = get_component_logger("errors")
+        self.risk_logger = get_component_logger("risk")
+        self.snapshotter = CrashSnapshotter()
+        self.monitor = RuntimeMonitor()
+        self.state_store = StateStore(os.path.join("bot_data", f"{os.path.basename(config_path)}.state.json"))
         
         self._load_config()
     
@@ -234,8 +244,15 @@ class BotInstance:
                 
                 # Run trading cycle
                 if self.engine:
+                    cycle_start = time.perf_counter()
                     self.engine.run_cycle()
+                    cycle_latency_ms = (time.perf_counter() - cycle_start) * 1000.0
+                    self.monitor.record_cycle_latency(cycle_latency_ms)
+                    self.monitor.heartbeat()
+                    self._last_heartbeat_ts = time.time()
+                    self._consecutive_errors = 0
                     self._update_stats()
+                    self._persist_runtime_state()
                 
                 cycle_count += 1
                 
@@ -243,13 +260,71 @@ class BotInstance:
                 time.sleep(60)  # 1-minute cycles
                 
             except Exception as e:
+                self._consecutive_errors += 1
                 self.logger.error(f"Trading cycle error: {e}")
+                self.error_logger.error(
+                    "Bot cycle crash",
+                    extra={"extra": {"bot_id": self.stats.bot_id, "error": str(e), "traceback": traceback.format_exc()}},
+                )
                 self.stats.error_count += 1
                 self.stats.last_error = str(e)
+                dump_path = self.snapshotter.dump(
+                    reason="trading_cycle_exception",
+                    context={
+                        "bot_id": self.stats.bot_id,
+                        "status": self.status.value,
+                        "consecutive_errors": self._consecutive_errors,
+                        "health": self.monitor.snapshot(),
+                    },
+                    exc=e,
+                )
+                self.risk_logger.error(
+                    "Persistent crash snapshot saved",
+                    extra={"extra": {"bot_id": self.stats.bot_id, "snapshot": dump_path}},
+                )
                 self._notify_stats_update()
+                if self._consecutive_errors >= 5:
+                    self.logger.error("Circuit breaker: too many consecutive errors, pausing bot")
+                    self.status = BotStatus.PAUSED
+                    self.stats.status = "paused"
+                    self._pause_event.set()
                 time.sleep(5)
         
         self.logger.info("Trading loop stopped")
+
+    def _persist_runtime_state(self) -> None:
+        """Persist minimal state for crash recovery."""
+        if not self.engine:
+            return
+        positions = []
+        try:
+            positions = list(self.engine.position_manager.get_all_positions().keys())
+        except Exception:
+            positions = []
+        self.state_store.save(
+            {
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "bot_id": self.stats.bot_id,
+                "status": self.status.value,
+                "active_positions": positions,
+                "stats": self.stats.to_dict(),
+                "health": self.monitor.snapshot(),
+                "last_heartbeat_ts": self._last_heartbeat_ts,
+            }
+        )
+
+    def _restore_runtime_state(self) -> None:
+        """Restore last known state and log recovery event."""
+        state = self.state_store.load()
+        if not state:
+            return
+        self.logger.info(f"Recovered previous bot state snapshot from {self.state_store.path}")
+        try:
+            restored_stats = state.get("stats", {})
+            self.stats.error_count = restored_stats.get("error_count", self.stats.error_count)
+            self.stats.last_error = restored_stats.get("last_error", self.stats.last_error)
+        except Exception:
+            pass
     
     def _update_stats(self):
         """Update bot statistics"""
@@ -333,6 +408,7 @@ class BotInstance:
         if not self._init_engine():
             self.status = BotStatus.ERROR
             return False
+        self._restore_runtime_state()
         
         # Start config watcher
         self._start_config_watcher()
@@ -356,6 +432,7 @@ class BotInstance:
         self.logger.info("Stopping bot...")
         self.status = BotStatus.STOPPING
         self.stats.status = "stopping"
+        self._persist_runtime_state()
         
         # Signal stop
         self._stop_event.set()

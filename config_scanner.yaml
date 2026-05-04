@@ -1,0 +1,30 @@
+mode: live
+testnet: true
+symbol: BTCUSDT
+timeframe: 1m
+leverage: 1
+risk_per_trade: 0.003
+tp_atr_mult: 1.5
+sl_atr_mult: 1.5
+horizon_bars: 6
+prob_threshold: 0.72
+uncertainty_filter: 0.08
+min_trade_quality: 0.68
+start_capital: 500000.0
+maker_fee: 0.0002
+taker_fee: 0.0006
+max_concurrent_positions: 2
+max_portfolio_heat: 0.10
+force_leverage_1x: true
+min_adx: 18
+ccxt:
+  enableRateLimit: true
+  options:
+    defaultType: "swap"
+    adjustForTimezone: true
+paths:
+  db_url: "sqlite:///storage/trading.db"
+  models_dir: "models"
+  logs_dir: "logs"
+data:
+  csv_path: "data/BTCUSDT_1H.csv"

@@ -3,9 +3,12 @@ import hmac
 import hashlib
 import requests
 import json
+import os
 
-ASE_URL = "https://api-demo.bybit.com"
+BASE_URL = "https://api-demo.bybit.com"
 RECV_WINDOW = "5000"
+API_KEY = os.getenv("BYBIT_API_KEY", "")
+API_SECRET = os.getenv("BYBIT_API_SECRET", "")
 
 
 # ======================
@@ -27,6 +30,8 @@ def get_timestamp():
 # ======================
 # 📊 BALANCE# ======================
 def get_balance():
+    if not API_KEY or not API_SECRET:
+        raise RuntimeError("BYBIT_API_KEY/BYBIT_API_SECRET are required")
     ts = get_timestamp()
 
     query = "accountType=UNIFIED"
