@@ -5,6 +5,7 @@ import json
 import os
 import signal
 import sys
+import threading
 import time
 import traceback
 from dataclasses import dataclass, field
@@ -626,6 +627,13 @@ class SelectiveMLBot:
             realized_net = float(st.cum_realised_pnl) - float(st.cum_realised_pnl_entry)
         except Exception:
             realized_net = 0.0
+        # Fallback: if entry PnL was not captured at open, schedule async closed-pnl fetch.
+        if st.cum_realised_pnl_entry == 0.0:
+            threading.Thread(
+                target=self._fetch_closed_pnl_async,
+                args=(st.symbol, st.opened_ts),
+                daemon=True,
+            ).start()
         # Weighted avg exit price by qty from recorded exit reasons.
         avg_exit = 0.0
         total_qty = 0.0
@@ -679,6 +687,54 @@ class SelectiveMLBot:
             )
         except Exception as e:
             logger.warning(f"[TRADE RECORDER] write failed {st.symbol}: {e}")
+
+    def _fetch_closed_pnl_async(self, symbol: str, opened_ts: float):
+        """Fetch closed PnL from exchange after a delay and patch trades.jsonl."""
+        time.sleep(5)  # Wait for Bybit to settle closed-pnl data
+        try:
+            resp = self.ex._request(
+                "GET",
+                "/v5/position/closed-pnl",
+                {"category": "linear", "symbol": symbol, "limit": "1"},
+                auth=True,
+            )
+            if resp.get("retCode") == 0:
+                items = resp.get("result", {}).get("list", [])
+                if items:
+                    closed_pnl = float(items[0].get("closedPnl", 0))
+                    self._update_trade_pnl(symbol, opened_ts, closed_pnl)
+                    logger.info(f"[CLOSED_PNL] {symbol} patched realized_pnl_net={closed_pnl:.2f}")
+        except Exception as e:
+            logger.debug(f"[CLOSED_PNL] fallback failed {symbol}: {e}")
+
+    def _update_trade_pnl(self, symbol: str, opened_ts: float, corrected_pnl: float):
+        """Update realized_pnl_net in trades.jsonl for a closed trade."""
+        try:
+            trade_log_path = Path(__file__).parent / "logs" / "trades.jsonl"
+            if not trade_log_path.exists():
+                return
+            lines = []
+            updated = False
+            with open(trade_log_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if not line.strip():
+                        continue
+                    rec = json.loads(line.strip())
+                    if (
+                        rec.get("symbol") == symbol
+                        and abs(rec.get("opened_ts", 0) - opened_ts) < 1
+                        and rec.get("schema") == "selective_trade_v1"
+                    ):
+                        rec["realized_pnl_net"] = corrected_pnl
+                        rec["_patched_by"] = "closed_pnl_fallback"
+                        updated = True
+                    lines.append(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
+            if updated:
+                with open(trade_log_path, "w", encoding="utf-8") as f:
+                    f.writelines(lines)
+                logger.info(f"[TRADE PATCHED] {symbol} realized_pnl_net={corrected_pnl:.2f}")
+        except Exception as e:
+            logger.warning(f"[TRADE PATCH] {symbol} failed: {e}")
 
     def _save_state(self):
         payload = {
@@ -1407,7 +1463,14 @@ class SelectiveMLBot:
                             logger.warning(f"[ENTRY FAIL] {sym} ret={entry_res}")
                             continue
                         sig["_size_mult"] = float(size_mult)
-                        self._create_state(sig, qty)
+                        # Fetch current position from exchange to get cumRealisedPnl (symbol-specific for speed)
+                        pos_resp = self.ex.get_positions(sym)
+                        ex_row = None
+                        if pos_resp and pos_resp.get("retCode") == 0:
+                            positions = pos_resp.get("result", {}).get("list", [])
+                            if positions:
+                                ex_row = positions[0]
+                        self._create_state(sig, qty, ex_row=ex_row)
                         executed_orders += 1
                         self._last_entry_ts_global = time.time()
                         # Reset stickiness on entry so next signal builds fresh.
@@ -1459,7 +1522,14 @@ class SelectiveMLBot:
                         if int(entry_res.get("retCode", -1)) != 0:
                             logger.warning(f"[ENTRY FAIL] {sig['symbol']} ret={entry_res}")
                             continue
-                        self._create_state(sig, qty)
+                        # Fetch current position from exchange to get cumRealisedPnl (symbol-specific for speed)
+                        pos_resp = self.ex.get_positions(sig["symbol"])
+                        ex_row = None
+                        if pos_resp and pos_resp.get("retCode") == 0:
+                            positions = pos_resp.get("result", {}).get("list", [])
+                            if positions:
+                                ex_row = positions[0]
+                        self._create_state(sig, qty, ex_row=ex_row)
                         executed_orders += 1
                         logger.info(
                             f"[FALLBACK OPEN] {sig['symbol']} dir={sig['direction']} ev={sig['ev']:.5f} "
