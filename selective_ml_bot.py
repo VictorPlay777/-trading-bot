@@ -122,10 +122,31 @@ class SelectiveMLBot:
         try:
             logger.info(
                 f"[BOOT] selective_ml_bot start sizing_mode={getattr(self.prod, 'sizing_mode', None)} "
-                f"base_notional_usdt={getattr(self.prod, 'base_notional_usdt', None)}"
+                f"base_notional_usdt={getattr(self.prod, 'base_notional_usdt', None)} "
+                f"strategy_id={getattr(self.prod, 'strategy_id', 'unknown')}"
             )
         except Exception:
             pass
+        # Persist a snapshot of the active strategy config (idempotent: only writes if missing)
+        try:
+            from dataclasses import asdict
+            sid = getattr(self.prod, "strategy_id", "unknown")
+            strat_dir = Path(__file__).parent / "strategies"
+            strat_dir.mkdir(parents=True, exist_ok=True)
+            snap_path = strat_dir / f"{sid}.json"
+            if not snap_path.exists():
+                snapshot = {
+                    "strategy_id": sid,
+                    "created_ts": time.time(),
+                    "config": asdict(self.prod),
+                    "yaml_cfg_path": str(cfg_path),
+                }
+                snap_path.write_text(json.dumps(snapshot, indent=2, default=str), encoding="utf-8")
+                logger.info(f"[STRATEGY] saved snapshot {snap_path}")
+            else:
+                logger.info(f"[STRATEGY] snapshot exists {snap_path}")
+        except Exception as e:
+            logger.warning(f"[STRATEGY] failed to save snapshot: {e}")
         self.market = MarketStream(self.ex)
         self.orderbook = OrderbookStream(self.ex)
         self.feature_store = FeatureStore()
@@ -347,6 +368,14 @@ class SelectiveMLBot:
         primary_dir, p_primary, unc = self.edge.compute(probs)
         if primary_dir != direction:
             confidence *= 0.8
+        # Experimental: invert model direction (long<->short).
+        # Justified by negative EV-PnL correlation in v1 (-0.18).
+        # Note: confidence/probability values are NOT swapped — only the side of execution.
+        if getattr(self.prod, "invert_signals", False):
+            original_dir = direction
+            direction = "short" if direction == "long" else "long"
+            primary_dir = -primary_dir if isinstance(primary_dir, (int, float)) else primary_dir
+            logger.debug(f"[INVERT] {symbol} {original_dir} -> {direction} (conf={confidence:.3f})")
 
         ob_imb = (ob.get("imbalance", 0.0) + 1.0) / 2.0
         spread_q = max(0.0, min(1.0, 1.0 - ob.get("spread_bps", 999.0) / max(self.prod.max_spread_bps, 1e-6)))
@@ -431,11 +460,12 @@ class SelectiveMLBot:
         brackets = self.exit_engine.compute_brackets(
             sig["direction"], sig["entry"], sig["atr"], self.prod.sl_atr_mult, tp1_r, tp2_r
         )
-        r = brackets["risk"]
+        # TP3 scales with ATR (same semantics as tp1_r / tp2_r in the new exit engine).
+        atr_unit = max(float(sig["atr"]), float(sig["entry"]) * 0.001)
         if sig["direction"] == "long":
-            tp3 = sig["entry"] + tp3_r * r
+            tp3 = sig["entry"] + tp3_r * atr_unit
         else:
-            tp3 = sig["entry"] - tp3_r * r
+            tp3 = sig["entry"] - tp3_r * atr_unit
         brackets["tp3"] = tp3
         return brackets
 
@@ -611,6 +641,7 @@ class SelectiveMLBot:
         duration = max(0.0, now - float(st.opened_ts or now))
         record = {
             "schema": "selective_trade_v1",
+            "strategy_id": getattr(self.prod, "strategy_id", "unknown"),
             "trade_id": f"{st.symbol}_{int(st.opened_ts or now)}",
             "symbol": st.symbol,
             "direction": st.side,
@@ -875,14 +906,27 @@ class SelectiveMLBot:
                 tp2_hit = price >= tp2 if st.side == "long" else price <= tp2
                 tp3_hit = price >= tp3 if st.side == "long" else price <= tp3
 
-                if tp1_hit and not st.tp1_done:
-                    q = self._fit_exit_qty(st, st.qty_original * Decimal("0.50"))
-                    if self._close_market_reduce_only(st, q, "tp1"):
-                        st.tp1_done = True
-                if tp2_hit and not st.tp2_done:
-                    q = self._fit_exit_qty(st, st.qty_original * Decimal("0.25"))
-                    if self._close_market_reduce_only(st, q, "tp2"):
-                        st.tp2_done = True
+                # Single-TP full-close mode (v3 clean mirror):
+                # Close 100% of position on TP1 hit, skip TP2/TP3/trailing.
+                single_tp_full = bool(getattr(self.prod, "single_tp_full_close", False))
+                if single_tp_full:
+                    if tp1_hit and not st.tp1_done:
+                        q = self._fit_exit_qty(st, self._remaining_qty(st))
+                        if self._close_market_reduce_only(st, q, "tp1_full"):
+                            st.tp1_done = True
+                            st.tp2_done = True  # prevent later partial logic
+                            st.tp3_done = True
+                            st.exit_state = "closed"
+                            continue
+                else:
+                    if tp1_hit and not st.tp1_done:
+                        q = self._fit_exit_qty(st, st.qty_original * Decimal("0.50"))
+                        if self._close_market_reduce_only(st, q, "tp1"):
+                            st.tp1_done = True
+                    if tp2_hit and not st.tp2_done:
+                        q = self._fit_exit_qty(st, st.qty_original * Decimal("0.25"))
+                        if self._close_market_reduce_only(st, q, "tp2"):
+                            st.tp2_done = True
 
                 rem = self._remaining_qty(st)
                 if rem <= 0:

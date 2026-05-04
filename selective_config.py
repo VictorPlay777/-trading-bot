@@ -4,16 +4,33 @@ from typing import Dict, List
 
 @dataclass
 class ProductionConfig:
+    # Strategy versioning: identifier persisted into each trade record and
+    # used to snapshot the active config to strategies/<strategy_id>.json.
+    # Bump this whenever you change parameters that should be tracked separately.
+    strategy_id: str = "v3_invert_clean_mirror_fix1_2026-05-04"
+    strategy_notes: str = "v3 fix1: exit_engine reworked — TP=1*ATR, SL=3.5*ATR (now truly asymmetric, was symmetric due to formula bug)."
+    # Experimental: flip every model direction (long<->short).
+    # Justified by negative EV-PnL correlation in v1 (-0.18) — high-conf signals lose more.
+    invert_signals: bool = True
+    # Clean-mirror mode: close 100% of position on TP1 hit (no TP2/TP3 partials).
+    # This mirrors v1's SL=-1R full-close behavior but on the profit side.
+    single_tp_full_close: bool = True
     model: str = "catboost"
     scan_top_symbols: int = 40
     horizons: List[int] = field(default_factory=lambda: [3, 5, 10])
     prob_threshold_base: float = 0.75
     uncertainty_filter: float = 0.08
     min_trade_quality: float = 0.72
-    sl_atr_mult: float = 1.0
-    tp1_r: float = 2.0
-    tp2_r: float = 3.5
-    trailing_atr_mult: float = 2.0
+    # v3 CLEAN MIRROR of v1 geometry (inversion hypothesis):
+    # - SL = 3.5R: mirrors v1's TP2=3.5R which was almost never hit (~0.4% of trades).
+    #   In inversion, adverse moves rarely reach 3.5R → SL almost never triggered.
+    # - TP1 = 1R: mirrors v1's SL=1R which was hit in 64% of trades.
+    #   In inversion, favorable moves hit 1R frequently → TP fires often.
+    # - No TP2/TP3 partials (single_tp_full_close=True), no trailing.
+    sl_atr_mult: float = 3.5      # was 1.0 — wide stop to mirror v1's rarely-hit TP2
+    tp1_r: float = 1.0            # was 2.0 — tight TP to mirror v1's frequently-hit SL
+    tp2_r: float = 1.0            # unused when single_tp_full_close=True
+    trailing_atr_mult: float = 1.0  # unused
     max_concurrent_positions: int = 2
     enable_kill_switch: bool = True
     daily_max_drawdown: float = 0.03
@@ -62,7 +79,7 @@ class ProductionConfig:
     funding_refresh_sec: int = 45
     circuit_breaker_errors: int = 8
     circuit_breaker_cooldown_sec: int = 30
-    tp3_r: float = 4.0
+    tp3_r: float = 3.0  # was 4.0
     emergency_close_on_mismatch: bool = True
     high_ev_override_ev: float = 0.003  # High EV threshold for override
     high_ev_override_conf: float = 0.62
@@ -99,12 +116,14 @@ class ProductionConfig:
     # Force leverage to 1x for all symbols
     force_leverage_1x: bool = True
     # Signal reversal exit: close position if model predicts strong opposite direction
-    reversal_conf_threshold: float = 0.70
+    # DISABLED in v2: was 0% WR over 53 trades, -$48k loss attribution
+    reversal_conf_threshold: float = 999.0  # was 0.70
     # Funding rate filter: reduce size when funding works against position direction
     funding_penalty_threshold: float = 0.0005  # 0.05% per 8h
     funding_penalty_mult: float = 0.5  # Apply 50% size reduction when unfavorable
     # Correlation filter: prevent stacking same-direction positions
     block_same_direction_stack: bool = True
     # Dynamic TP: scale TPs based on model confidence and EV
-    dynamic_tp_enabled: bool = True
+    # DISABLED in v3: with inversion, "high confidence" no longer means "high upside"
+    dynamic_tp_enabled: bool = False  # was True
 
