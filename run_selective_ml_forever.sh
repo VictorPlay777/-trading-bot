@@ -32,7 +32,7 @@ fi
 # shellcheck source=/dev/null
 source "venv/bin/activate"
 
-CFG="${SELECTIVE_CFG:-ml_bot/selective_config.py}"
+CFG="${SELECTIVE_CFG:-ml_bot/config.yaml}"
 SLEEP_SEC="${SELECTIVE_RESTART_SEC:-5}"
 
 echo "[supervisor] cwd=$BOT_DIR cfg=$CFG restart_sleep=${SLEEP_SEC}s"
