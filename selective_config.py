@@ -7,8 +7,8 @@ class ProductionConfig:
     # Strategy versioning: identifier persisted into each trade record and
     # used to snapshot the active config to strategies/<strategy_id>.json.
     # Bump this whenever you change parameters that should be tracked separately.
-    strategy_id: str = "v5_equal_tp_sl_1atr_noinvert_2026-05-05"
-    strategy_notes: str = "v5: TP=SL=1*ATR, NO invert (actual model direction), NO concurrent-position cap."
+    strategy_id: str = "v6_equal_tp_sl_0.5atr_noinvert_2026-05-05"
+    strategy_notes: str = "v6: TP=SL=0.5*ATR (more achievable vs model EV 1-4%), NO invert, NO concurrent-position cap."
     # v5: trade actual model direction (long=long, short=short) for pure winrate measurement.
     # Previously inverted due to negative EV-PnL correlation in v1; now testing raw model edge.
     invert_signals: bool = False
@@ -20,13 +20,13 @@ class ProductionConfig:
     prob_threshold_base: float = 0.75
     uncertainty_filter: float = 0.08
     min_trade_quality: float = 0.72
-    # v5: EQUAL TP/SL for fair winrate measurement.
-    # - TP = 1*ATR (same as v4)
-    # - SL = 1*ATR (reduced from 4 ATR to match TP — equal R/R for winrate test)
-    # - No TP2/TP3 partials (single_tp_full_close=True), no trailing.
-    sl_atr_mult: float = 1.0      # v5: SL = 1*ATR (equal to TP for fair winrate)
-    tp1_r: float = 1.0            # TP = 1*ATR
-    tp2_r: float = 1.0            # unused when single_tp_full_close=True
+    # v6: EQUAL TP/SL = 0.5 ATR for higher achievability.
+    # Model EV typically 1-4% per signal, 1 ATR was often too far (1.4-5%).
+    # 0.5 ATR (0.7-2.5%) brings target within model's expected move range.
+    # Fees ~0.12%, so 0.5 ATR keeps fee-eat at 5-17% (acceptable).
+    sl_atr_mult: float = 0.5      # v6: SL = 0.5*ATR
+    tp1_r: float = 0.5            # v6: TP = 0.5*ATR
+    tp2_r: float = 0.5            # unused when single_tp_full_close=True
     trailing_atr_mult: float = 1.0  # unused
     max_concurrent_positions: int = 999  # v4: effectively no cap
     enable_kill_switch: bool = True
