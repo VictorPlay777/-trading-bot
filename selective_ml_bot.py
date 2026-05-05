@@ -5,6 +5,8 @@ import json
 import os
 import signal
 import sys
+# Ensure project root is in path for local imports (data/, execution/, ml/, etc.)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import threading
 import time
 import traceback
