@@ -44,6 +44,7 @@ from quality_gate import QualityGate
 from trader.exchange_demo import Exchange
 from execution_tracker import ExecutionTracker
 from pnl_engine import build_net_expectancy
+from stats_collector import StatsCollector
 
 try:
     import psutil  # type: ignore
@@ -166,6 +167,8 @@ class SelectiveMLBot:
         self.slip_guard = SlippageGuard()
         self.router = SmartRouter(self.ex, self.prod.limit_timeout_ms, self.prod.requote_attempts)
         self.exec_tracker = ExecutionTracker(self.ex, log_dir="logs")
+        # v7: stats collector for signal/trade logging and per-bucket aggregates.
+        self.stats = StatsCollector(stats_print_every=20)
         self.cooldown = CooldownManager()
         self.exposure = ExposureLimits(self.prod.max_concurrent_positions, self.prod.max_positions_per_symbol)
         self.heat = PortfolioHeat(self.prod.max_portfolio_heat)
@@ -503,6 +506,8 @@ class SelectiveMLBot:
             "spread_bps": float(sig.get("spread_bps", 0.0) or 0.0),
             "depth_usdt": float(sig.get("depth_usdt", 0.0) or 0.0),
             "atr": float(sig.get("atr", 0.0) or 0.0),
+            "adx": float(sig.get("adx", 0.0) or 0.0),
+            "funding_rate": float(sig.get("funding_rate", 0.0) or 0.0),
             "size_mult": float(sig.get("_size_mult", 1.0) or 1.0),
         }
         if ex_row is not None:
@@ -689,6 +694,18 @@ class SelectiveMLBot:
             )
         except Exception as e:
             logger.warning(f"[TRADE RECORDER] write failed {st.symbol}: {e}")
+        # v7: update stats collector (CSV + aggregates). Best-effort — never break close flow.
+        try:
+            exit_reasons_list = list(st.exit_reasons or [])
+            exit_reason_label = exit_reasons_list[-1].get("reason", "") if exit_reasons_list else ""
+            self.stats.log_trade_close(
+                record=record,
+                realized_pnl_net=float(realized_net),
+                exit_reason=str(exit_reason_label),
+                exit_price=0.0,
+            )
+        except Exception as _e_stats:
+            logger.debug(f"[STATS] log_trade_close wrap failed: {_e_stats}")
 
     def _fetch_closed_pnl_async(self, symbol: str, opened_ts: float):
         """Fetch closed PnL from exchange after a delay and patch trades.jsonl."""
@@ -1182,7 +1199,27 @@ class SelectiveMLBot:
         - risk_based: risk-based sizing using risk_per_trade % of equity
         """
         mode = getattr(self.prod, "sizing_mode", "notional_sizer")
-        
+
+        # v7: fixed notional sizing — every trade has the same USDT exposure.
+        if mode == "fixed_notional":
+            fixed_notional = float(getattr(self.prod, "base_notional_usdt", 10000.0) or 10000.0)
+            entry_px = float(sig.get("entry", 0) or 0)
+            if entry_px <= 0:
+                logger.warning(f"[SIZING FIXED] {sig['symbol']} invalid entry_px={entry_px}")
+                return Decimal("0")
+            qty = Decimal(str(fixed_notional / entry_px))
+            # Respect hard cap (should equal base_notional in v7 but stay safe).
+            cap_usd = float(getattr(self.prod, "max_position_notional_usdt", 0.0) or 0.0)
+            if cap_usd > 0:
+                q_cap = Decimal(str(cap_usd / entry_px))
+                if qty > q_cap:
+                    qty = q_cap
+            logger.info(
+                f"[SIZING FIXED] {sig['symbol']} fixed_notional={fixed_notional:.2f} entry={entry_px} "
+                f"qty={qty} notional={float(qty) * entry_px:.2f}"
+            )
+            return qty
+
         # Risk-based sizing implementation
         if mode == "risk_based":
             risk_per_trade = getattr(self.prod, "risk_per_trade", 0.003)  # 0.3% default
@@ -1391,6 +1428,11 @@ class SelectiveMLBot:
                             f"[SIGNAL] {sym} dir={sig['direction']} conf={sig['confidence']:.3f} score={sig['score']:.3f} "
                             f"ev={sig['ev']:.5f} regime={sig['regime']} allow={ok} reason={reason} size_mult={size_mult:.2f}"
                         )
+                        # v7: record every evaluated signal for post-hoc analysis.
+                        try:
+                            self.stats.log_signal(sig, ok, reason)
+                        except Exception as _e_stats:
+                            logger.debug(f"[STATS] log_signal wrap failed: {_e_stats}")
                         if not ok:
                             # Reset stickiness on hard reject.
                             if sym in self._stickiness:

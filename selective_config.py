@@ -7,8 +7,12 @@ class ProductionConfig:
     # Strategy versioning: identifier persisted into each trade record and
     # used to snapshot the active config to strategies/<strategy_id>.json.
     # Bump this whenever you change parameters that should be tracked separately.
-    strategy_id: str = "v6_equal_tp_sl_0.5atr_noinvert_2026-05-05"
-    strategy_notes: str = "v6: TP=SL=0.5*ATR (more achievable vs model EV 1-4%), NO invert, NO concurrent-position cap."
+    strategy_id: str = "v7_stats_collection_buckets_2026-05-05"
+    strategy_notes: str = (
+        "v7: DATA COLLECTION MODE. Multi-bucket entries (conf >= 0.55), fixed notional 10k, "
+        "leverage 1x, TP=SL=0.5 ATR (inherited from v6 for cleanliness), no cooldowns. "
+        "Goal: find edge threshold by confidence and by symbol. NOT optimized for profit."
+    )
     # v5: trade actual model direction (long=long, short=short) for pure winrate measurement.
     # Previously inverted due to negative EV-PnL correlation in v1; now testing raw model edge.
     invert_signals: bool = False
@@ -17,9 +21,10 @@ class ProductionConfig:
     model: str = "catboost"
     scan_top_symbols: int = 40
     horizons: List[int] = field(default_factory=lambda: [3, 5, 10])
-    prob_threshold_base: float = 0.75
-    uncertainty_filter: float = 0.08
-    min_trade_quality: float = 0.72
+    # v7: lowered base prob threshold to 0.55 (was 0.75) to allow multi-bucket entries.
+    prob_threshold_base: float = 0.55
+    uncertainty_filter: float = 0.0  # v7: disabled (code rejects if unc < filter)
+    min_trade_quality: float = 0.0    # v7: quality gate disabled
     # v6: EQUAL TP/SL = 0.5 ATR for higher achievability.
     # Model EV typically 1-4% per signal, 1 ATR was often too far (1.4-5%).
     # 0.5 ATR (0.7-2.5%) brings target within model's expected move range.
@@ -31,10 +36,11 @@ class ProductionConfig:
     max_concurrent_positions: int = 999  # v4: effectively no cap
     enable_kill_switch: bool = True
     daily_max_drawdown: float = 0.03
-    signal_cooldown_minutes: int = 20
-    symbol_reuse_cooldown_minutes: int = 60
-    loss_streak_pause_minutes: int = 15
-    loss_streak_threshold: int = 3
+    # v7: all cooldowns disabled to collect stats faster.
+    signal_cooldown_minutes: int = 0
+    symbol_reuse_cooldown_minutes: int = 0
+    loss_streak_pause_minutes: int = 0
+    loss_streak_threshold: int = 999
     limit_timeout_ms: int = 600
     requote_attempts: int = 3
     max_spread_bps: float = 4.0
@@ -42,10 +48,10 @@ class ProductionConfig:
     min_volume_24h_usdt: float = 5_000_000.0
     max_wick_ratio: float = 2.5
     max_positions_per_symbol: int = 1
-    # Legacy sizing base. Not used when sizing is set to "max_exchange_qty".
+    # v7: fixed notional sizing — every trade is an equal experiment.
     base_notional_usdt: float = 10000.0
-    max_portfolio_heat: float = 1.0  # v4: effectively no heat cap (full equity usable)
-    min_ev: float = 0.001  # Require minimum EV of 0.1%
+    max_portfolio_heat: float = 1.0  # no heat cap (full equity usable)
+    min_ev: float = -999.0  # v7: EV filter disabled
 
     # --- Production risk controls (exchange-first) ---
     # These are enforced in the bot loop; keep defaults permissive to avoid breaking existing flow.
@@ -55,15 +61,15 @@ class ProductionConfig:
     max_daily_drawdown_usdt: float = 0.0  # 0 disables
     max_consecutive_losses: int = 0  # 0 disables
 
-    # Sizing mode: risk-based sizing
-    sizing_mode: str = "risk_based"  # "max_exchange_qty" | "notional_sizer" | "risk_based"
-    risk_per_trade: float = 0.003  # 0.3% equity risk per trade
+    # v7: fixed notional sizing (new mode handled in _compute_qty).
+    sizing_mode: str = "fixed_notional"  # v7: qty = base_notional_usdt / entry_price
+    risk_per_trade: float = 0.0  # unused in fixed_notional mode
     # Decision/execution optimization
     max_concurrency: int = 15
     market_cache_ttl_sec: int = 3
     deep_eval_top_n: int = 25
-    ev_min_decision: float = 0.003  # Require reasonable EV for override
-    conf_min_decision: float = 0.55  # Require min 55% confidence for override
+    ev_min_decision: float = -999.0  # v7: override EV gate disabled
+    conf_min_decision: float = 0.55  # v7: min bucket threshold
     spread_penalty_floor: float = 0.2
     spread_penalty_cap: float = 0.7
     depth_penalty_floor: float = 0.2
@@ -83,33 +89,34 @@ class ProductionConfig:
     override_size_mult_min: float = 0.30
     override_size_mult_max: float = 0.60
     override_size_mult_default: float = 0.50
+    # v7: unified 0.55 threshold across regimes (including chop) for data collection.
     regime_thresholds: Dict[str, float] = field(
         default_factory=lambda: {
-            "trend": 0.68,
-            "breakout": 0.65,
-            "chop": 999.0,  # DISABLED: chop regime rejected
-            "panic": 0.72,
+            "trend": 0.55,
+            "breakout": 0.55,
+            "chop": 0.55,
+            "panic": 0.55,
         }
     )
-    # Adaptive per-regime quality gate (overrides min_trade_quality when present).
+    # v7: quality gate disabled — trade everything above confidence bucket.
     regime_quality_thresholds: Dict[str, float] = field(
         default_factory=lambda: {
-            "trend": 0.60,
-            "breakout": 0.60,
-            "chop": 0.65,
-            "panic": 0.65,
+            "trend": 0.0,
+            "breakout": 0.0,
+            "chop": 0.0,
+            "panic": 0.0,
         }
     )
     # Execution rate limits.
     max_new_positions_per_cycle: int = 999  # v4: unlimited entries per cycle
     min_minutes_between_entries_global: int = 0  # v4: no global gap between entries
-    # Signal stickiness: require N consecutive cycles with allow=True before entry.
+    # v7: stickiness disabled (enter immediately on first allow).
     stickiness_required_cycles: int = 1
     stickiness_conf_drop_threshold: float = 0.15
-    # Hard cap for position notional (applies even in max_exchange_qty mode).
-    max_position_notional_usdt: float = 25000.0
-    # ADX filter for trend confirmation
-    min_adx: float = 22.0
+    # v7: hard cap matches base_notional for fixed-size experiments.
+    max_position_notional_usdt: float = 10000.0
+    # v7: ADX filter disabled (was 22.0) — collect stats across all trend strengths.
+    min_adx: float = 0.0
     # Force leverage to 1x for all symbols
     force_leverage_1x: bool = True
     # Signal reversal exit: close position if model predicts strong opposite direction
