@@ -630,19 +630,33 @@ class SelectiveMLBot:
         """Append one JSON line per closed trade to logs/trades.jsonl for post-trade analysis."""
         now = time.time()
         try:
-            # Realized net PnL from exchange (cumRealisedPnl delta since entry).
             realized_net = float(st.cum_realised_pnl) - float(st.cum_realised_pnl_entry)
         except Exception:
             realized_net = 0.0
-        # Fallback: if entry PnL was not captured at open, schedule async closed-pnl fetch.
-        if st.cum_realised_pnl_entry == 0.0:
+        pnl_source = "cum_realised_pnl_delta"
+        closed_pnl_item = self._get_closed_pnl_for_trade(st.symbol, st.opened_ts, now)
+        if closed_pnl_item is not None:
+            try:
+                realized_net = float(closed_pnl_item.get("closedPnl", realized_net) or realized_net)
+                pnl_source = "bybit_closed_pnl"
+            except Exception:
+                pass
+        elif abs(realized_net) < 1e-9:
+            estimated_net, estimated_exit = self._estimate_closed_trade_pnl(st)
+            if estimated_net is not None:
+                realized_net = estimated_net
+                pnl_source = "price_fallback"
+        if pnl_source != "bybit_closed_pnl":
             threading.Thread(
                 target=self._fetch_closed_pnl_async,
-                args=(st.symbol, st.opened_ts),
+                args=(st.symbol, st.opened_ts, now),
                 daemon=True,
             ).start()
-        # Weighted avg exit price by qty from recorded exit reasons.
         avg_exit = 0.0
+        if closed_pnl_item is not None:
+            avg_exit = self._f(closed_pnl_item.get("avgExitPrice", 0.0))
+        elif "estimated_exit" in locals():
+            avg_exit = float(estimated_exit or 0.0)
         total_qty = 0.0
         reason_counts = {}
         for er in (st.exit_reasons or []):
@@ -675,10 +689,12 @@ class SelectiveMLBot:
             "cum_realised_pnl_entry": float(st.cum_realised_pnl_entry),
             "cum_realised_pnl_close": float(st.cum_realised_pnl),
             "realized_pnl_net": float(realized_net),
+            "pnl_source": pnl_source,
             "entry_fees_est": float(st.entry_fees),
             "exit_fees_est": float(st.exit_fees_estimate),
             "funding_estimate": float(st.funding_estimate),
             "notional_entry": float(st.entry_price) * float(st.qty_total or 0),
+            "exit_price": float(avg_exit),
         }
         try:
             # Absolute path to ensure consistent location
@@ -702,31 +718,85 @@ class SelectiveMLBot:
                 record=record,
                 realized_pnl_net=float(realized_net),
                 exit_reason=str(exit_reason_label),
-                exit_price=0.0,
+                exit_price=float(avg_exit),
             )
         except Exception as _e_stats:
             logger.debug(f"[STATS] log_trade_close wrap failed: {_e_stats}")
 
-    def _fetch_closed_pnl_async(self, symbol: str, opened_ts: float):
-        """Fetch closed PnL from exchange after a delay and patch trades.jsonl."""
-        time.sleep(5)  # Wait for Bybit to settle closed-pnl data
+    def _get_closed_pnl_for_trade(self, symbol: str, opened_ts: float, closed_ts: float = None):
         try:
+            start_ms = max(0, int((float(opened_ts or 0.0) - 120.0) * 1000))
+            end_ms = int((float(closed_ts or time.time()) + 120.0) * 1000)
             resp = self.ex._request(
                 "GET",
                 "/v5/position/closed-pnl",
-                {"category": "linear", "symbol": symbol, "limit": "1"},
+                {
+                    "category": getattr(self.ex, "category", "linear"),
+                    "symbol": symbol,
+                    "startTime": str(start_ms),
+                    "endTime": str(end_ms),
+                    "limit": "50",
+                },
                 auth=True,
             )
-            if resp.get("retCode") == 0:
-                items = resp.get("result", {}).get("list", [])
-                if items:
-                    closed_pnl = float(items[0].get("closedPnl", 0))
-                    self._update_trade_pnl(symbol, opened_ts, closed_pnl)
-                    logger.info(f"[CLOSED_PNL] {symbol} patched realized_pnl_net={closed_pnl:.2f}")
+            items = resp.get("result", {}).get("list", []) if resp.get("retCode") == 0 else []
+            if not items:
+                return None
+            opened_ms = int(float(opened_ts or 0.0) * 1000)
+            candidates = []
+            for item in items:
+                item_ts = int(item.get("updatedTime") or item.get("createdTime") or 0)
+                if item_ts >= opened_ms - 120000:
+                    candidates.append((item_ts, item))
+            if not candidates:
+                return None
+            candidates.sort(key=lambda x: x[0], reverse=True)
+            return candidates[0][1]
+        except Exception as e:
+            logger.debug(f"[CLOSED_PNL] lookup failed {symbol}: {e}")
+            return None
+
+    def _estimate_closed_trade_pnl(self, st: PositionState):
+        try:
+            exit_price = 0.0
+            reasons = list(st.exit_reasons or [])
+            last_reason = str(reasons[-1].get("reason", "")) if reasons else ""
+            if "stop_loss" in last_reason:
+                exit_price = float(st.stop_loss_price or 0.0)
+            elif "tp1" in last_reason:
+                exit_price = float((st.take_profit_levels or {}).get("tp1", 0.0) or 0.0)
+            elif "tp2" in last_reason:
+                exit_price = float((st.take_profit_levels or {}).get("tp2", 0.0) or 0.0)
+            elif "tp3" in last_reason or "trailing" in last_reason:
+                exit_price = float((st.take_profit_levels or {}).get("tp3", 0.0) or 0.0)
+            if exit_price <= 0:
+                return None, 0.0
+            qty = float(st.qty_closed or st.qty_total or 0.0)
+            entry = float(st.entry_price or 0.0)
+            if qty <= 0 or entry <= 0:
+                return None, exit_price
+            gross = (exit_price - entry) * qty if st.side == "long" else (entry - exit_price) * qty
+            fee_rate = float(self.cfg.get("taker_fee", 0.0006) or 0.0006)
+            fees = (entry * qty * fee_rate) + (exit_price * qty * fee_rate)
+            return float(gross - fees - float(st.funding_estimate or 0.0)), exit_price
+        except Exception as e:
+            logger.debug(f"[PNL FALLBACK] estimate failed {st.symbol}: {e}")
+            return None, 0.0
+
+    def _fetch_closed_pnl_async(self, symbol: str, opened_ts: float, closed_ts: float = None):
+        """Fetch closed PnL from exchange after a delay and patch trades.jsonl."""
+        time.sleep(5)  # Wait for Bybit to settle closed-pnl data
+        try:
+            item = self._get_closed_pnl_for_trade(symbol, opened_ts, closed_ts)
+            if item is not None:
+                closed_pnl = float(item.get("closedPnl", 0))
+                exit_price = self._f(item.get("avgExitPrice", 0.0))
+                self._update_trade_pnl(symbol, opened_ts, closed_pnl, exit_price)
+                logger.info(f"[CLOSED_PNL] {symbol} patched realized_pnl_net={closed_pnl:.2f}")
         except Exception as e:
             logger.debug(f"[CLOSED_PNL] fallback failed {symbol}: {e}")
 
-    def _update_trade_pnl(self, symbol: str, opened_ts: float, corrected_pnl: float):
+    def _update_trade_pnl(self, symbol: str, opened_ts: float, corrected_pnl: float, exit_price: float = 0.0):
         """Update realized_pnl_net in trades.jsonl for a closed trade."""
         try:
             trade_log_path = Path(__file__).parent / "logs" / "trades.jsonl"
@@ -745,6 +815,9 @@ class SelectiveMLBot:
                         and rec.get("schema") == "selective_trade_v1"
                     ):
                         rec["realized_pnl_net"] = corrected_pnl
+                        rec["pnl_source"] = "bybit_closed_pnl_patch"
+                        if exit_price:
+                            rec["exit_price"] = exit_price
                         rec["_patched_by"] = "closed_pnl_fallback"
                         updated = True
                     lines.append(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
@@ -1527,9 +1600,10 @@ class SelectiveMLBot:
                         sl_px = st.stop_loss_price
                         atr = sig.get('atr', 0)
                         stop_distance_pct = abs(sl_px - entry_px) / entry_px * 100 if entry_px > 0 else 0
-                        notional = float(qty * entry_px)
+                        qty_float = float(qty)
+                        notional = qty_float * entry_px
                         equity_risk_pct = notional / equity * 100 if equity > 0 else 0
-                        expected_loss_at_sl = abs(qty * (sl_px - entry_px)) if sl_px and entry_px else 0
+                        expected_loss_at_sl = abs(qty_float * (sl_px - entry_px)) if sl_px and entry_px else 0
                         
                         logger.info(
                             f"[OPEN] {sym} {sig['direction']} qty={qty} entry={sig['entry']:.6f} "
