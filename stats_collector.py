@@ -1,4 +1,4 @@
-"""
+ с"""
 v7 Stats Collector: per-signal and per-trade logging + aggregates.
 
 Goal: understand where model edge begins (by confidence bucket)
