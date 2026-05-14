@@ -1,0 +1,1 @@
+{"hash":"af2e1172b49ded1775458af6","ts":1778601302.463241,"symbol":"USELESSUSDT","side":"long","confidence":0.0,"score":0.0,"model_version":"catboost","feature_names":null,"features":{"symbol":"USELESSUSDT","direction":"long","entry":0.08085251,"atr":0.004719285714285716},"extra":{"trade_id":"59744d034be345d8","strategy_id":"v10_research_2026-05-12"}}

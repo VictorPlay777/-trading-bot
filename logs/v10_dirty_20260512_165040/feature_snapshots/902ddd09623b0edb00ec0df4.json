@@ -1,0 +1,1 @@
+{"hash":"902ddd09623b0edb00ec0df4","ts":1778604201.456306,"symbol":"FARTCOINUSDT","side":"long","confidence":0.0,"score":0.0,"model_version":"catboost","feature_names":null,"features":{"symbol":"FARTCOINUSDT","direction":"long","entry":0.23118,"atr":0.004386428571428573},"extra":{"trade_id":"d4917d93aa5649c9","strategy_id":"v10_research_2026-05-12b_conf051"}}

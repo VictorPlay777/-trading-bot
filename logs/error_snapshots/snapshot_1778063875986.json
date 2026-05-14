@@ -1,0 +1,32 @@
+{
+  "ts": 1778063875986,
+  "reason": "entry_exception",
+  "error": "unsupported operand type(s) for *: 'decimal.Decimal' and 'float'",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/svy1990/-trading-bot/ml_bot/selective_ml_bot.py\", line 1603, in run\n    notional = float(qty * entry_px)\n                     ~~~~^~~~~~~~~~\nTypeError: unsupported operand type(s) for *: 'decimal.Decimal' and 'float'\n",
+  "positions": [
+    "STXUSDT",
+    "B3USDT",
+    "1000LUNCUSDT",
+    "CFXUSDT",
+    "LITUSDT",
+    "PARTIUSDT",
+    "BOMEUSDT",
+    "BLENDUSDT",
+    "NOTUSDT",
+    "FILUSDT",
+    "CFGUSDT",
+    "HMSTRUSDT",
+    "ICPUSDT",
+    "PRLUSDT",
+    "ZECUSDT",
+    "TONUSDT",
+    "ZENUSDT",
+    "AKTUSDT",
+    "ATHUSDT",
+    "POPCATUSDT",
+    "FARTCOINUSDT",
+    "FHEUSDT",
+    "CLUSDT",
+    "PIPPINUSDT"
+  ]
+}

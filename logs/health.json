@@ -1,0 +1,15 @@
+{
+  "timestamp": 1778601213.759407,
+  "heartbeat_age_sec": 0.001,
+  "cycle_ms": 19235,
+  "signals_generated": 19,
+  "executed_orders": 0,
+  "active_positions": 6,
+  "equity": 1060048.00183872,
+  "reconnect_count": 0,
+  "dropped_messages": 0,
+  "ram_mb": null,
+  "cpu_pct": null,
+  "open_connections": null,
+  "event_loop_lag_ms": 0.0
+}

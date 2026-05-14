@@ -1,0 +1,1 @@
+{"hash":"319806d86d046c3ab7967d87","ts":1778600700.9248018,"symbol":"MEGAUSDT","side":"short","confidence":0.0,"score":0.0,"model_version":"catboost","feature_names":null,"features":{"symbol":"MEGAUSDT","direction":"short","entry":0.11055,"atr":0.0017235714285714265},"extra":{"trade_id":"8113dd26c56e424a","strategy_id":"v10_research_2026-05-12"}}

@@ -1,0 +1,499 @@
+{
+  "STRKUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=15, winrate=46.7%, avg_pnl=-35.89)",
+    "timestamp": 1778534228.3518958,
+    "total_trades": 15,
+    "winrate": 0.4666666666666667,
+    "avg_pnl": -35.88504325133333
+  },
+  "CFGUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=19, winrate=31.6%, avg_pnl=-305.12)",
+    "timestamp": 1778534228.2848742,
+    "total_trades": 19,
+    "winrate": 0.3157894736842105,
+    "avg_pnl": -305.11930146210534
+  },
+  "ZECUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=11, winrate=9.1%, avg_pnl=-269.23)",
+    "timestamp": 1778534228.3300052,
+    "total_trades": 11,
+    "winrate": 0.09090909090909091,
+    "avg_pnl": -269.22780078727277
+  },
+  "FARTCOINUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=10, winrate=40.0%, avg_pnl=-97.68)",
+    "timestamp": 1778534228.3324242,
+    "total_trades": 10,
+    "winrate": 0.4,
+    "avg_pnl": -97.67933018600002
+  },
+  "ARBUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=10, winrate=30.0%, avg_pnl=-77.84)",
+    "timestamp": 1778534223.0657022,
+    "total_trades": 10,
+    "winrate": 0.3,
+    "avg_pnl": -77.83882328500002
+  },
+  "FILUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=11, winrate=45.5%, avg_pnl=-126.72)",
+    "timestamp": 1778534228.3442543,
+    "total_trades": 11,
+    "winrate": 0.45454545454545453,
+    "avg_pnl": -126.71865341438557
+  },
+  "BIOUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=22, winrate=45.5%, avg_pnl=-10.99)",
+    "timestamp": 1778534228.3689268,
+    "total_trades": 22,
+    "winrate": 0.45454545454545453,
+    "avg_pnl": -10.99296759727274
+  },
+  "AKTUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=10, winrate=40.0%, avg_pnl=-30.22)",
+    "timestamp": 1778534228.3652227,
+    "total_trades": 10,
+    "winrate": 0.4,
+    "avg_pnl": -30.221611800000005
+  },
+  "TIAUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=13, winrate=46.2%, avg_pnl=-104.34)",
+    "timestamp": 1778534223.052904,
+    "total_trades": 13,
+    "winrate": 0.46153846153846156,
+    "avg_pnl": -104.33621356076924
+  },
+  "VVVUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=23, winrate=39.1%, avg_pnl=-0.82)",
+    "timestamp": 1778534223.0048616,
+    "total_trades": 23,
+    "winrate": 0.391304347826087,
+    "avg_pnl": -0.8215122808695672
+  },
+  "GALAUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=26, winrate=34.6%, avg_pnl=-2.32)",
+    "timestamp": 1778316943.8757906,
+    "total_trades": 26,
+    "winrate": 0.34615384615384615,
+    "avg_pnl": -2.3228913337077115
+  },
+  "OPUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=13, winrate=46.2%, avg_pnl=-2.23)",
+    "timestamp": 1778534228.3813996,
+    "total_trades": 13,
+    "winrate": 0.46153846153846156,
+    "avg_pnl": -2.2332285038461492
+  },
+  "AEROUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=11, winrate=36.4%, avg_pnl=-3.38)",
+    "timestamp": 1778534223.084034,
+    "total_trades": 11,
+    "winrate": 0.36363636363636365,
+    "avg_pnl": -3.378746620909091
+  },
+  "SEIUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=15, winrate=46.7%, avg_pnl=-18.02)",
+    "timestamp": 1778534223.0915358,
+    "total_trades": 15,
+    "winrate": 0.4666666666666667,
+    "avg_pnl": -18.019030992
+  },
+  "PLUMEUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=12, winrate=33.3%, avg_pnl=-9.92)",
+    "timestamp": 1778534223.0689652,
+    "total_trades": 12,
+    "winrate": 0.3333333333333333,
+    "avg_pnl": -9.922750560833332
+  },
+  "CHIPUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=19, winrate=47.4%, avg_pnl=-19.72)",
+    "timestamp": 1778344798.5191228,
+    "total_trades": 19,
+    "winrate": 0.47368421052631576,
+    "avg_pnl": -19.717682329999995
+  },
+  "COREUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=10, winrate=30.0%, avg_pnl=-60.90)",
+    "timestamp": 1778534223.087215,
+    "total_trades": 10,
+    "winrate": 0.3,
+    "avg_pnl": -60.898599602999994
+  },
+  "AIGENSYNUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=11, winrate=27.3%, avg_pnl=-26.26)",
+    "timestamp": 1778534223.04771,
+    "total_trades": 11,
+    "winrate": 0.2727272727272727,
+    "avg_pnl": -26.262022459999994
+  },
+  "JASMYUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=20, winrate=15.0%, avg_pnl=-0.92)",
+    "timestamp": 1778354129.8486357,
+    "total_trades": 20,
+    "winrate": 0.15,
+    "avg_pnl": -0.9157948275000004
+  },
+  "CCUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=11, winrate=9.1%, avg_pnl=-8.30)",
+    "timestamp": 1778534223.110938,
+    "total_trades": 11,
+    "winrate": 0.09090909090909091,
+    "avg_pnl": -8.302468236363637
+  },
+  "DASHUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=28, winrate=46.4%, avg_pnl=-11.59)",
+    "timestamp": 1778534228.3218188,
+    "total_trades": 28,
+    "winrate": 0.4642857142857143,
+    "avg_pnl": -11.59415597964286
+  },
+  "HUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=10, winrate=20.0%, avg_pnl=-41.99)",
+    "timestamp": 1778534223.0630991,
+    "total_trades": 10,
+    "winrate": 0.2,
+    "avg_pnl": -41.986374329
+  },
+  "ACEUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=15, winrate=20.0%, avg_pnl=-1.75)",
+    "timestamp": 1778534223.0979097,
+    "total_trades": 15,
+    "winrate": 0.2,
+    "avg_pnl": -1.747734183458067
+  },
+  "IPUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=16, winrate=31.2%, avg_pnl=-0.91)",
+    "timestamp": 1778534223.1055212,
+    "total_trades": 16,
+    "winrate": 0.3125,
+    "avg_pnl": -0.9126190131249997
+  },
+  "ONDOUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=79, winrate=34.2%, avg_pnl=-1.98)",
+    "timestamp": 1778534223.0400198,
+    "total_trades": 79,
+    "winrate": 0.34177215189873417,
+    "avg_pnl": -1.9839256582481046
+  },
+  "SUIUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=19, winrate=15.8%, avg_pnl=-0.79)",
+    "timestamp": 1778360895.664231,
+    "total_trades": 19,
+    "winrate": 0.15789473684210525,
+    "avg_pnl": -0.7889046126315808
+  },
+  "1000LUNCUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=22, winrate=36.4%, avg_pnl=-10.25)",
+    "timestamp": 1778534228.370903,
+    "total_trades": 22,
+    "winrate": 0.36363636363636365,
+    "avg_pnl": -10.249603759545467
+  },
+  "XPLUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=12, winrate=41.7%, avg_pnl=-5.03)",
+    "timestamp": 1778534223.0299225,
+    "total_trades": 12,
+    "winrate": 0.4166666666666667,
+    "avg_pnl": -5.0262956849999965
+  },
+  "ICPUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=87, winrate=34.5%, avg_pnl=-1.93)",
+    "timestamp": 1778534228.353061,
+    "total_trades": 87,
+    "winrate": 0.3448275862068966,
+    "avg_pnl": -1.930571330000009
+  },
+  "JTOUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=83, winrate=27.7%, avg_pnl=-7.08)",
+    "timestamp": 1778534228.316879,
+    "total_trades": 83,
+    "winrate": 0.27710843373493976,
+    "avg_pnl": -7.083164117193261
+  },
+  "NILUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=53, winrate=37.7%, avg_pnl=-1.54)",
+    "timestamp": 1778534223.0123355,
+    "total_trades": 53,
+    "winrate": 0.37735849056603776,
+    "avg_pnl": -1.5427519158029543
+  },
+  "ORDIUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=10, winrate=40.0%, avg_pnl=-78.89)",
+    "timestamp": 1778377141.7937932,
+    "total_trades": 10,
+    "winrate": 0.4,
+    "avg_pnl": -78.89118232499997
+  },
+  "BSBUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=36, winrate=47.2%, avg_pnl=-97.43)",
+    "timestamp": 1778534228.3562436,
+    "total_trades": 36,
+    "winrate": 0.4722222222222222,
+    "avg_pnl": -97.43028597740003
+  },
+  "BASEDUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=10, winrate=0.0%, avg_pnl=-19.92)",
+    "timestamp": 1778534228.306152,
+    "total_trades": 10,
+    "winrate": 0.0,
+    "avg_pnl": -19.922084696000002
+  },
+  "MOODENGUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=15, winrate=33.3%, avg_pnl=-9.53)",
+    "timestamp": 1778534223.1141942,
+    "total_trades": 15,
+    "winrate": 0.3333333333333333,
+    "avg_pnl": -9.526016517333336
+  },
+  "ORCAUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=11, winrate=36.4%, avg_pnl=-59.47)",
+    "timestamp": 1778534228.371918,
+    "total_trades": 11,
+    "winrate": 0.36363636363636365,
+    "avg_pnl": -59.46910442460112
+  },
+  "OPGUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=10, winrate=10.0%, avg_pnl=-55.15)",
+    "timestamp": 1778534228.377367,
+    "total_trades": 10,
+    "winrate": 0.1,
+    "avg_pnl": -55.15016164139996
+  },
+  "UNIUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=10, winrate=20.0%, avg_pnl=-19.76)",
+    "timestamp": 1778405065.420649,
+    "total_trades": 10,
+    "winrate": 0.2,
+    "avg_pnl": -19.756475864
+  },
+  "VIRTUALUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=41, winrate=36.6%, avg_pnl=-0.36)",
+    "timestamp": 1778534228.382769,
+    "total_trades": 41,
+    "winrate": 0.36585365853658536,
+    "avg_pnl": -0.3604205654427037
+  },
+  "RIVERUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=10, winrate=40.0%, avg_pnl=-3.60)",
+    "timestamp": 1778534223.1007357,
+    "total_trades": 10,
+    "winrate": 0.4,
+    "avg_pnl": -3.597395294990325
+  },
+  "SOLAYERUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=11, winrate=36.4%, avg_pnl=-7.20)",
+    "timestamp": 1778422767.54325,
+    "total_trades": 11,
+    "winrate": 0.36363636363636365,
+    "avg_pnl": -7.202280683729007
+  },
+  "LABUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=13, winrate=46.2%, avg_pnl=-69.13)",
+    "timestamp": 1778534222.9988325,
+    "total_trades": 13,
+    "winrate": 0.46153846153846156,
+    "avg_pnl": -69.13074887334284
+  },
+  "BRETTUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=13, winrate=46.2%, avg_pnl=-66.41)",
+    "timestamp": 1778432503.9359527,
+    "total_trades": 13,
+    "winrate": 0.46153846153846156,
+    "avg_pnl": -66.40505120384614
+  },
+  "AAVEUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=12, winrate=33.3%, avg_pnl=-34.45)",
+    "timestamp": 1778534223.1297584,
+    "total_trades": 12,
+    "winrate": 0.3333333333333333,
+    "avg_pnl": -34.454846286666665
+  },
+  "ATOMUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=11, winrate=45.5%, avg_pnl=-45.95)",
+    "timestamp": 1778534223.1318996,
+    "total_trades": 11,
+    "winrate": 0.45454545454545453,
+    "avg_pnl": -45.94798846536197
+  },
+  "HBARUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=11, winrate=27.3%, avg_pnl=-57.23)",
+    "timestamp": 1778534223.1231427,
+    "total_trades": 11,
+    "winrate": 0.2727272727272727,
+    "avg_pnl": -57.23369259454546
+  },
+  "DEEPUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=38, winrate=44.7%, avg_pnl=-1.34)",
+    "timestamp": 1778534223.0761518,
+    "total_trades": 38,
+    "winrate": 0.4473684210526316,
+    "avg_pnl": -1.3416318721214044
+  },
+  "ADAUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=11, winrate=36.4%, avg_pnl=-205.86)",
+    "timestamp": 1778534223.136151,
+    "total_trades": 11,
+    "winrate": 0.36363636363636365,
+    "avg_pnl": -205.86493685454545
+  },
+  "XLMUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=10, winrate=40.0%, avg_pnl=-52.11)",
+    "timestamp": 1778534223.14313,
+    "total_trades": 10,
+    "winrate": 0.4,
+    "avg_pnl": -52.11253896200001
+  },
+  "POPCATUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=39, winrate=46.2%, avg_pnl=-2.96)",
+    "timestamp": 1778438976.539432,
+    "total_trades": 39,
+    "winrate": 0.46153846153846156,
+    "avg_pnl": -2.96139064974358
+  },
+  "ENSUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=12, winrate=33.3%, avg_pnl=-52.47)",
+    "timestamp": 1778534223.1211407,
+    "total_trades": 12,
+    "winrate": 0.3333333333333333,
+    "avg_pnl": -52.47305435166667
+  },
+  "1000BONKUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=12, winrate=41.7%, avg_pnl=-27.36)",
+    "timestamp": 1778534223.148189,
+    "total_trades": 12,
+    "winrate": 0.4166666666666667,
+    "avg_pnl": -27.364087846666667
+  },
+  "APTUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=15, winrate=46.7%, avg_pnl=-14.67)",
+    "timestamp": 1778534223.07087,
+    "total_trades": 15,
+    "winrate": 0.4666666666666667,
+    "avg_pnl": -14.66641271133334
+  },
+  "LDOUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=12, winrate=41.7%, avg_pnl=-32.38)",
+    "timestamp": 1778445937.0743635,
+    "total_trades": 12,
+    "winrate": 0.4166666666666667,
+    "avg_pnl": -32.378495613333335
+  },
+  "WLDUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=15, winrate=40.0%, avg_pnl=-18.03)",
+    "timestamp": 1778448943.0622067,
+    "total_trades": 15,
+    "winrate": 0.4,
+    "avg_pnl": -18.03101776733333
+  },
+  "PENGUUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=13, winrate=7.7%, avg_pnl=-7.00)",
+    "timestamp": 1778534228.275248,
+    "total_trades": 13,
+    "winrate": 0.07692307692307693,
+    "avg_pnl": -6.997485225384612
+  },
+  "BANANAUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=11, winrate=45.5%, avg_pnl=-22.94)",
+    "timestamp": 1778534223.1171272,
+    "total_trades": 11,
+    "winrate": 0.45454545454545453,
+    "avg_pnl": -22.93501313090909
+  },
+  "SPXUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=11, winrate=36.4%, avg_pnl=-77.63)",
+    "timestamp": 1778461327.3634028,
+    "total_trades": 11,
+    "winrate": 0.36363636363636365,
+    "avg_pnl": -77.63479585454546
+  },
+  "SONICUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=10, winrate=30.0%, avg_pnl=-15.79)",
+    "timestamp": 1778534223.1271417,
+    "total_trades": 10,
+    "winrate": 0.3,
+    "avg_pnl": -15.786396919999996
+  },
+  "PIEVERSEUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=19, winrate=47.4%, avg_pnl=-8.69)",
+    "timestamp": 1778534223.1578271,
+    "total_trades": 19,
+    "winrate": 0.47368421052631576,
+    "avg_pnl": -8.689254373684209
+  },
+  "MOVEUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=13, winrate=30.8%, avg_pnl=-12.53)",
+    "timestamp": 1778534223.1532402,
+    "total_trades": 13,
+    "winrate": 0.3076923076923077,
+    "avg_pnl": -12.52766039313521
+  },
+  "ZENUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=12, winrate=41.7%, avg_pnl=-64.06)",
+    "timestamp": 1778516946.6331184,
+    "total_trades": 12,
+    "winrate": 0.4166666666666667,
+    "avg_pnl": -64.05673913666666
+  },
+  "USUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=10, winrate=0.0%, avg_pnl=-24.61)",
+    "timestamp": 1778505399.608039,
+    "total_trades": 10,
+    "winrate": 0.0,
+    "avg_pnl": -24.610550001
+  },
+  "PUMPFUNUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=16, winrate=43.8%, avg_pnl=-11.48)",
+    "timestamp": 1778510959.1310468,
+    "total_trades": 16,
+    "winrate": 0.4375,
+    "avg_pnl": -11.484142201250002
+  },
+  "WIFUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=21, winrate=47.6%, avg_pnl=-11.41)",
+    "timestamp": 1778509755.8848925,
+    "total_trades": 21,
+    "winrate": 0.47619047619047616,
+    "avg_pnl": -11.409518176199448
+  },
+  "ASTERUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=10, winrate=30.0%, avg_pnl=-18.84)",
+    "timestamp": 1778534223.1078324,
+    "total_trades": 10,
+    "winrate": 0.3,
+    "avg_pnl": -18.839433206000002
+  },
+  "GIGGLEUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=11, winrate=36.4%, avg_pnl=-12.44)",
+    "timestamp": 1778534228.3386762,
+    "total_trades": 11,
+    "winrate": 0.36363636363636365,
+    "avg_pnl": -12.435514237272729
+  },
+  "JUPUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=10, winrate=30.0%, avg_pnl=-5.94)",
+    "timestamp": 1778534223.0829248,
+    "total_trades": 10,
+    "winrate": 0.3,
+    "avg_pnl": -5.939602056000003
+  },
+  "NEARUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=22, winrate=45.5%, avg_pnl=-1.19)",
+    "timestamp": 1778534228.3731072,
+    "total_trades": 22,
+    "winrate": 0.45454545454545453,
+    "avg_pnl": -1.193796542511687
+  },
+  "XAGUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=11, winrate=36.4%, avg_pnl=-17.76)",
+    "timestamp": 1778534223.1661043,
+    "total_trades": 11,
+    "winrate": 0.36363636363636365,
+    "avg_pnl": -17.757819784545458
+  },
+  "WLFIUSDT": {
+    "reason": "low_winrate_negative_pnl(trades=30, winrate=36.7%, avg_pnl=-41.42)",
+    "timestamp": 1778534223.020828,
+    "total_trades": 30,
+    "winrate": 0.36666666666666664,
+    "avg_pnl": -41.42484221491818
+  }
+}}

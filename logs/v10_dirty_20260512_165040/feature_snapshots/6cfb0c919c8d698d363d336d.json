@@ -1,0 +1,1 @@
+{"hash":"6cfb0c919c8d698d363d336d","ts":1778604201.7311573,"symbol":"SPXUSDT","side":"long","confidence":0.0,"score":0.0,"model_version":"catboost","feature_names":null,"features":{"symbol":"SPXUSDT","direction":"long","entry":0.4384,"atr":0.008028571428571432},"extra":{"trade_id":"28fd6d3fec964d7f","strategy_id":"v10_research_2026-05-12b_conf051"}}

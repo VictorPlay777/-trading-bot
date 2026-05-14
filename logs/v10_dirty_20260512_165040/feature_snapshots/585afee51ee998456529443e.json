@@ -1,0 +1,1 @@
+{"hash":"585afee51ee998456529443e","ts":1778604202.0918276,"symbol":"ORDIUSDT","side":"short","confidence":0.0,"score":0.0,"model_version":"catboost","feature_names":null,"features":{"symbol":"ORDIUSDT","direction":"short","entry":4.595,"atr":0.06285714285714297},"extra":{"trade_id":"9149a41053c04932","strategy_id":"v10_research_2026-05-12b_conf051"}}

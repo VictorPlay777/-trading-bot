@@ -1,0 +1,1 @@
+{"hash":"4830988a69dc48255828f6d8","ts":1778604201.1786945,"symbol":"ONDOUSDT","side":"long","confidence":0.0,"score":0.0,"model_version":"catboost","feature_names":null,"features":{"symbol":"ONDOUSDT","direction":"long","entry":0.3904,"atr":0.008735714285714288},"extra":{"trade_id":"9d8d3311e6ee4091","strategy_id":"v10_research_2026-05-12b_conf051"}}

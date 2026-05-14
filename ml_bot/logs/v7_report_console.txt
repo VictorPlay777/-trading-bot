@@ -1,0 +1,94 @@
+========================================================================================================================
+V7 ALL SYMBOLS REPORT
+========================================================================================================================
+v7_start_utc: 2026-05-05 13:41:26
+bybit_closed_symbols: 49
+bybit_closed_trades: 491
+bybit_closed_pnl: +50443.18 USDT
+bybit_winrate: 58.66% wins=288 losses=203
+trade_meta_rows_with_conf: 87
+signals_total: 19465 allowed=1088 blocked=18377
+
+NOTE:
+- closed_pnl_bybit / winrate_bybit are the most reliable realized PnL metrics.
+- trade confidence/regime metadata before the PnL fix may be incomplete or not perfectly matched to Bybit closed-pnl rows.
+- restored positions after restart may have conf=0/regime empty and should not be used for bucket conclusions.
+
+TOP PROFIT SYMBOLS BY BYBIT CLOSED PNL
+------------------------------------------------------------------------------------------------------------------------
+symbol                      pnl     n     wr%        avg       best      worst  meta_n  avg_conf  allowed  signals
+FHEUSDT               +32900.58    20    80.0   +1645.03   +6790.93    -573.46       7     0.654       35      713
+1000NEIROCTOUSDT       +8381.42    15    86.7    +558.76   +1871.58    -256.80       0     0.000       70      682
+TONUSDT                +8142.85    18    77.8    +452.38   +3213.46    -326.03       0     0.000       52      713
+1000LUNCUSDT           +6198.10    18    55.6    +344.34   +4486.98    -455.91       2     0.743       46      433
+PRLUSDT                +4854.66    17   100.0    +285.57   +1682.19    +105.68       0     0.000       50      717
+ORCAUSDT               +4339.53    35    60.0    +123.99    +363.42    -106.77       1     0.813       54      640
+ZROUSDT                +2861.92    15    86.7    +190.79    +984.99    -102.11       1     0.606       50      576
+TSTBSCUSDT             +2306.81     8    75.0    +288.35    +658.18    -130.72       0     0.000       20      489
+CFXUSDT                +1808.34     9    88.9    +200.93    +441.84    -111.39       0     0.000       15      289
+AXLUSDT                +1340.24    10    90.0    +134.02    +412.86    -163.18       3     0.844       18      342
+ICPUSDT                +1163.96    10    70.0    +116.40    +523.34     -90.93       2     0.592       16      682
+PARTIUSDT              +1142.56    38    78.9     +30.07     +88.79     -56.20       0     0.000       65      711
+AKTUSDT                 +742.52     4   100.0    +185.63    +316.50    +125.77       1     0.978       11       92
+HIVEUSDT                +674.54     3   100.0    +224.85    +453.27     +95.96       1     0.885        4      383
+MAVIAUSDT               +572.53     3   100.0    +190.84    +199.30    +183.21       0     0.000       17       87
+PIPPINUSDT              +552.93     4    75.0    +138.23    +466.00    -151.58       2     0.712       10      177
+ORDIUSDT                +489.71     3   100.0    +163.24    +388.46     +16.60       1     0.781        4      103
+SPXUSDT                 +371.20     6    66.7     +61.87    +316.30     -94.90       1     0.817       12      229
+BASEDUSDT               +240.93    10    70.0     +24.09    +154.06    -159.16       5     0.670       35      249
+ENAUSDT                 +154.60     8    62.5     +19.33    +204.53    -223.97       4     0.811       21      407
+GALAUSDT                +130.83     8    62.5     +16.35    +158.75    -140.86       5     0.638        8      446
+BIOUSDT                 +115.82     6    66.7     +19.30    +132.19    -151.62       5     0.626       10      286
+JTOUSDT                  +62.08     7    42.9      +8.87    +187.21    -114.77       2     0.600       13      146
+STEEMUSDT                +26.20     9    44.4      +2.91    +348.57    -203.85       3     0.737       24      558
+CLUSDT                    +0.00     0     0.0      +0.00      +0.00      +0.00       0     0.000        0        1
+EIGENUSDT                 +0.00     0     0.0      +0.00      +0.00      +0.00       0     0.000        0        1
+JUPUSDT                   +0.00     0     0.0      +0.00      +0.00      +0.00       0     0.000        0        8
+LABUSDT                   +0.00     0     0.0      +0.00      +0.00      +0.00       0     0.000        2        2
+MORPHOUSDT                +0.00     0     0.0      +0.00      +0.00      +0.00       0     0.000        0        4
+NEARUSDT                  +0.00     0     0.0      +0.00      +0.00      +0.00       0     0.000        0        2
+
+TOP LOSS SYMBOLS BY BYBIT CLOSED PNL
+------------------------------------------------------------------------------------------------------------------------
+symbol                      pnl     n     wr%        avg       best      worst  meta_n  avg_conf  allowed  signals
+NOTUSDT                -8105.12    12    41.7    -675.43    +324.94   -5609.46       0     0.000       30      717
+ZECUSDT                -5253.57     9    33.3    -583.73    +308.03   -4089.66       6     0.703       17      352
+BSBUSDT                -3066.91     3     0.0   -1022.30    -263.21   -2463.26       1     0.569        7      365
+FARTCOINUSDT           -1874.47    18    38.9    -104.14    +150.70    -919.69       1     0.934       31      458
+HMSTRUSDT              -1723.80    24    20.8     -71.83   +1074.63    -620.41       0     0.000       52      717
+ZENUSDT                -1051.02     4    25.0    -262.76    +228.56    -914.83       1     0.767        7      147
+LITUSDT                 -957.99    15    53.3     -63.87    +481.52    -889.15       0     0.000       38      491
+FILUSDT                 -841.27    12    41.7     -70.11    +171.19    -339.98       1     0.956       17      226
+BOMEUSDT                -824.59    10    30.0     -82.46     +88.46    -234.27       0     0.000       17      710
+ZBTUSDT                 -701.18     3     0.0    -233.73     -91.32    -466.08       0     0.000       20      218
+STXUSDT                 -650.28     8    37.5     -81.28    +281.11    -366.93       4     0.846       22      474
+WIFUSDT                 -615.26    11    36.4     -55.93    +243.25    -423.93       0     0.000       13      230
+BLENDUSDT               -505.43     4    25.0    -126.36      +8.70    -245.46       0     0.000       11      621
+DASHUSDT                -392.35     5    80.0     -78.47    +316.91   -1091.19       0     0.000       11      453
+HYPERUSDT               -361.89     6     0.0     -60.31     -35.10     -88.86       1     0.595        9      351
+PENGUUSDT               -354.84    14    42.9     -25.35    +222.53    -375.26       8     0.674       16      670
+1000TAGUSDT             -343.97     1     0.0    -343.97    -343.97    -343.97       1     0.673        5       70
+CFGUSDT                 -342.00    16    43.8     -21.37    +346.58    -249.97       3     0.784       30      680
+MUSDT                   -330.69     1     0.0    -330.69    -330.69    -330.69       1     0.837        1       36
+STORJUSDT               -251.88     5    40.0     -50.38    +308.51    -346.18       0     0.000       17      119
+B3USDT                  -241.70     2    50.0    -120.85     +22.34    -264.04       0     0.000        8       95
+STRKUSDT                -174.73     4    50.0     -43.68    +104.74    -233.22       3     0.696        4       92
+ATHUSDT                 -105.54     1     0.0    -105.54    -105.54    -105.54       0     0.000        3       30
+VIRTUALUSDT              -50.18    12    50.0      -4.18    +124.47    -146.77      10     0.773       20      519
+GIGGLEUSDT               -10.99     7    42.9      -1.57    +590.53    -248.92       0     0.000       20      435
+CLUSDT                    +0.00     0     0.0      +0.00      +0.00      +0.00       0     0.000        0        1
+EIGENUSDT                 +0.00     0     0.0      +0.00      +0.00      +0.00       0     0.000        0        1
+JUPUSDT                   +0.00     0     0.0      +0.00      +0.00      +0.00       0     0.000        0        8
+LABUSDT                   +0.00     0     0.0      +0.00      +0.00      +0.00       0     0.000        2        2
+MORPHOUSDT                +0.00     0     0.0      +0.00      +0.00      +0.00       0     0.000        0        4
+
+DETAILS: confidence buckets / regimes / signal funnel
+------------------------------------------------------------------------------------------------------------------------
+FHEUSDT: pnl=+32900.58 n=20 wr=80.0% meta_n=7 avg_conf=0.654 trade_dirs=[long:6;short:2] regimes=[trend:5;chop:2] buckets=[0.70-0.75:2;0.65-0.70:2;0.55-0.60:2;0.60-0.65:1] pnl_sources=[missing:8] signals=713 allowed=35 signal_buckets=[<0.55:547;0.75+:48;0.55-0.60:35;0.70-0.75:33;0.65-0.70:26;0.60-0.65:24] block=[exposure:481;risk_total_exposure:82;horizon_disagree(agreement=1<2):13;low_conf(conf=0.388<thr=0.55@trend):3;low_conf(conf=0.417<thr=0.55@chop):2]
+1000NEIROCTOUSDT: pnl=+8381.42 n=15 wr=86.7% meta_n=0 avg_conf=0.000 trade_dirs=[long:1] regimes=[-] buckets=[-] pnl_sources=[bybit_closed_pnl:1] signals=682 allowed=70 signal_buckets=[<0.55:259;0.75+:227;0.70-0.75:63;0.60-0.65:59;0.65-0.70:41;0.55-0.60:33] block=[exposure:574;low_conf(conf=0.407<thr=0.55@chop):2;low_conf(conf=0.448<thr=0.55@chop):1;low_conf(conf=0.432<thr=0.55@chop):1;low_conf(conf=0.445<thr=0.55@chop):1]
+TONUSDT: pnl=+8142.85 n=18 wr=77.8% meta_n=0 avg_conf=0.000 trade_dirs=[long:3] regimes=[-] buckets=[-] pnl_sources=[missing:2;bybit_closed_pnl:1] signals=713 allowed=52 signal_buckets=[0.75+:332;<0.55:141;0.70-0.75:99;0.65-0.70:73;0.60-0.65:37;0.55-0.60:31] block=[exposure:651;low_conf(conf=0.422<thr=0.55@chop):1;low_conf(conf=0.339<thr=0.55@chop):1;low_conf(conf=0.505<thr=0.55@chop):1;low_conf(conf=0.417<thr=0.55@trend):1]
+1000LUNCUSDT: pnl=+6198.10 n=18 wr=55.6% meta_n=2 avg_conf=0.743 trade_dirs=[long:2] regimes=[chop:2] buckets=[0.75+:1;0.60-0.65:1] pnl_sources=[missing:2] signals=433 allowed=46 signal_buckets=[<0.55:163;0.75+:160;0.70-0.75:41;0.65-0.70:39;0.60-0.65:25;0.55-0.60:5] block=[exposure:290;risk_total_exposure:41;horizon_disagree(agreement=1<2):5;low_conf(conf=0.134<thr=0.55@trend):2;low_conf(conf=0.201<thr=0.55@chop):2]
+
+Reports written:
+  /home/svy1990/-trading-bot/ml_bot/logs/v7_all_symbols_report.txt
+  /home/svy1990/-trading-bot/ml_bot/logs/v7_all_symbols_report.csv

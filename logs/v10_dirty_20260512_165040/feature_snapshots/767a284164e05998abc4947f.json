@@ -1,0 +1,1 @@
+{"hash":"767a284164e05998abc4947f","ts":1778604202.3658543,"symbol":"INJUSDT","side":"long","confidence":0.0,"score":0.0,"model_version":"catboost","feature_names":null,"features":{"symbol":"INJUSDT","direction":"long","entry":4.602,"atr":0.15542857142857144},"extra":{"trade_id":"b007999eefb44b2a","strategy_id":"v10_research_2026-05-12b_conf051"}}

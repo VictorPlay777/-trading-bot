@@ -1,0 +1,1 @@
+{"hash":"1d28fe29ba22886756e139ef","ts":1778604200.833134,"symbol":"DYMUSDT","side":"long","confidence":0.0,"score":0.0,"model_version":"catboost","feature_names":null,"features":{"symbol":"DYMUSDT","direction":"long","entry":0.02859,"atr":0.0014292857142857139},"extra":{"trade_id":"cb51b23af2fe400b","strategy_id":"v10_research_2026-05-12b_conf051"}}

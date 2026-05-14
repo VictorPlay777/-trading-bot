@@ -1,0 +1,1 @@
+{"hash":"b882fcbcaa3515256a748730","ts":1778604203.0587916,"symbol":"XPLUSDT","side":"short","confidence":0.0,"score":0.0,"model_version":"catboost","feature_names":null,"features":{"symbol":"XPLUSDT","direction":"short","entry":0.09493,"atr":0.0013249999999999998},"extra":{"trade_id":"f4b085bdc97a4402","strategy_id":"v10_research_2026-05-12b_conf051"}}

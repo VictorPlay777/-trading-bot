@@ -1,0 +1,7 @@
+{
+  "ts": 1777632743499,
+  "reason": "entry_exception",
+  "error": "API Error 10001: The number of contracts exceeds maximum limit allowed: too large, order_qty:28873000000000 > max_qty:18100000000000",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/svy1990/-trading-bot/ml_bot/selective_ml_bot.py\", line 957, in run\n    entry_res = self.router.enter(sym, \"long\" if sig[\"direction\"] == \"long\" else \"short\", qty)\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/svy1990/-trading-bot/ml_bot/execution/smart_router.py\", line 24, in enter\n    return self.ex.market_buy_symbol(symbol, qty_norm)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/svy1990/-trading-bot/ml_bot/trader/exchange_demo.py\", line 447, in market_buy_symbol\n    return self._request(\"POST\", \"/v5/order/create\", params, auth=True)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/svy1990/-trading-bot/ml_bot/trader/exchange_demo.py\", line 106, in _request\n    raise Exception(f\"API Error {data.get('retCode')}: {data.get('retMsg')}\")\nException: API Error 10001: The number of contracts exceeds maximum limit allowed: too large, order_qty:28873000000000 > max_qty:18100000000000\n",
+  "positions": []
+}

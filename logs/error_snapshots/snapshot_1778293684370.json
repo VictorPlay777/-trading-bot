@@ -1,0 +1,7 @@
+{
+  "ts": 1778293684370,
+  "reason": "loop_exception",
+  "error": "ExitEngine.compute_brackets() got an unexpected keyword argument 'position_notional'",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/svy1990/-trading-bot/ml_bot/selective_ml_bot.py\", line 1495, in run\n    self._sync_state_from_exchange(positions)\n  File \"/home/svy1990/-trading-bot/ml_bot/selective_ml_bot.py\", line 659, in _sync_state_from_exchange\n    self._create_state(sig, sz, ex_row=p)\n  File \"/home/svy1990/-trading-bot/ml_bot/selective_ml_bot.py\", line 565, in _create_state\n    levels = self._build_exit_levels(sig, position_notional=position_notional)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/svy1990/-trading-bot/ml_bot/selective_ml_bot.py\", line 491, in _build_exit_levels\n    brackets = self.exit_engine.compute_brackets(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: ExitEngine.compute_brackets() got an unexpected keyword argument 'position_notional'\n",
+  "positions": []
+}

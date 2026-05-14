@@ -1,0 +1,7 @@
+{
+  "ts": 1777638422958,
+  "reason": "entry_exception",
+  "error": "Exchange.normalize_qty() got an unexpected keyword argument 'is_market'",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/svy1990/-trading-bot/ml_bot/selective_ml_bot.py\", line 963, in run\n    entry_res = self.router.enter(sym, \"long\" if sig[\"direction\"] == \"long\" else \"short\", qty)\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/svy1990/-trading-bot/ml_bot/execution/smart_router.py\", line 16, in enter\n    qty_norm = self.ex.normalize_qty(symbol, qty, price=px, qty_in_notional=False, is_market=True)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: Exchange.normalize_qty() got an unexpected keyword argument 'is_market'\n",
+  "positions": []
+}

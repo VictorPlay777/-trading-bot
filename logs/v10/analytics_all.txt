@@ -1,0 +1,1980 @@
+
+=== V10 LOG HEALTH ===
+  signals_all.jsonl: 19989 rows, 12,893,539 bytes (logs/v10/signals_all.jsonl)
+  trades_v10.jsonl: 301 rows, 445,016 bytes (logs/v10/trades_v10.jsonl)
+  shadow_trades.jsonl: 11422 rows, 7,198,975 bytes (logs/v10/shadow_trades.jsonl)
+
+=== V10 OVERALL SUMMARY ===
+Trades:        301
+Wins/Losses:   135 / 166
+Winrate:       44.9%
+Total PnL:     $-10,395.98
+Avg PnL:       $-34.54
+Median PnL:    $-76.17
+Avg Win:       $131.07
+Avg Loss:      $-169.22
+Profit Factor: 0.63
+
+MFE/MAE (R-units, from 211 trades):
+  Avg MFE:  0.73R
+  Avg MAE:  -0.71R
+  Avg Exit: -0.09R
+  Avg keep ratio (exit/mfe): -26.08%
+
+=== BY SIDE ===
+side  | n   | W/L    | WR    | Total PnL  | Avg PnL | PF  
+------+-----+--------+-------+------------+---------+-----
+long  | 124 | 59/65  | 47.6% | $-6,643.85 | $-53.58 | 0.59
+short | 177 | 76/101 | 42.9% | $-3,752.13 | $-21.20 | 0.68
+
+=== BY CONFIDENCE ===
+confidence | n  | W/L   | WR    | Total PnL  | Avg PnL  | PF  
+-----------+----+-------+-------+------------+----------+-----
+0.50-0.55  | 63 | 34/29 | 54.0% | $76.40     | $1.21    | 1.02
+0.55-0.60  | 42 | 21/21 | 50.0% | $-576.63   | $-13.73  | 0.81
+0.60-0.65  | 29 | 13/16 | 44.8% | $-868.19   | $-29.94  | 0.62
+0.65-0.70  | 24 | 13/11 | 54.2% | $395.27    | $16.47   | 1.21
+0.70-0.75  | 29 | 12/17 | 41.4% | $-1,366.03 | $-47.10  | 0.48
+0.75-0.80  | 23 | 6/17  | 26.1% | $-1,284.16 | $-55.83  | 0.41
+0.80-0.85  | 27 | 9/18  | 33.3% | $-1,406.00 | $-52.07  | 0.41
+0.85-0.90  | 24 | 11/13 | 45.8% | $-949.50   | $-39.56  | 0.54
+0.90-0.95  | 26 | 12/14 | 46.2% | $-2,567.77 | $-98.76  | 0.52
+0.95-1.01  | 14 | 4/10  | 28.6% | $-1,849.36 | $-132.10 | 0.34
+
+=== BY REGIME ===
+regime   | n   | W/L   | WR     | Total PnL  | Avg PnL | PF  
+---------+-----+-------+--------+------------+---------+-----
+breakout | 1   | 1/0   | 100.0% | $117.87    | $117.87 | inf 
+chop     | 170 | 77/93 | 45.3%  | $-3,287.27 | $-19.34 | 0.76
+trend    | 130 | 57/73 | 43.8%  | $-7,226.58 | $-55.59 | 0.50
+
+=== BY MARKET PHASE (signals_all.jsonl) ===
+Signals with phase: 1517
+  Anti-trend (model vs phase):  642 (42.3%)
+  Trend-following (model aligns): 344 (22.7%)
+
+
+=== PHASE DISTRIBUTION ===
+phase       | total | long | short | anti-trend
+------------+-------+------+-------+-----------
+downtrend   | 377   | 193  | 184   | 193       
+dump        | 77    | 59   | 18    | 59        
+dump_bottom | 167   | 104  | 63    | 104       
+flat        | 468   | 236  | 232   | 0         
+pump        | 76    | 48   | 28    | 28        
+uptrend     | 352   | 94   | 258   | 258       
+
+Phase-gate on anti-trend:
+  Would BLOCK:   87 (13.6%)
+  Would reduce:  555 (86.4%)
+  No action:     0 (0.0%)
+
+Top 5 most confident anti-trend signals:
+  STXUSDT            short conf=0.95 phase=uptrend          pc24=+11.1% allow=False
+  STXUSDT            short conf=0.95 phase=uptrend          pc24=+11.1% allow=False
+  STXUSDT            short conf=0.95 phase=uptrend          pc24=+11.1% allow=False
+  STXUSDT            short conf=0.95 phase=uptrend          pc24=+11.3% allow=False
+  STXUSDT            short conf=0.95 phase=uptrend          pc24=+11.2% allow=False
+
+=== BY SYMBOL (worst 30 by total PnL) ===
+symbol         | n  | W/L  | WR    | Total PnL  | Avg PnL  | PF  
+---------------+----+------+-------+------------+----------+-----
+SAGAUSDT       | 9  | 2/7  | 22.2% | $-4,638.56 | $-515.40 | 0.24
+INJUSDT        | 14 | 4/10 | 28.6% | $-1,147.34 | $-81.95  | 0.30
+VVVUSDT        | 11 | 3/8  | 27.3% | $-1,109.22 | $-100.84 | 0.16
+TIAUSDT        | 11 | 2/9  | 18.2% | $-1,040.70 | $-94.61  | 0.18
+JELLYJELLYUSDT | 11 | 3/8  | 27.3% | $-1,006.65 | $-91.51  | 0.30
+USELESSUSDT    | 8  | 3/5  | 37.5% | $-786.23   | $-98.28  | 0.45
+1000LUNCUSDT   | 12 | 4/8  | 33.3% | $-588.01   | $-49.00  | 0.46
+HUSDT          | 2  | 0/2  | 0.0%  | $-536.47   | $-268.24 | 0.00
+AEROUSDT       | 7  | 1/6  | 14.3% | $-478.34   | $-68.33  | 0.14
+BASEDUSDT      | 2  | 0/2  | 0.0%  | $-388.52   | $-194.26 | 0.00
+FARTCOINUSDT   | 11 | 4/7  | 36.4% | $-379.34   | $-34.49  | 0.43
+SNDKUSDT       | 4  | 1/3  | 25.0% | $-322.04   | $-80.51  | 0.29
+PLUMEUSDT      | 6  | 2/4  | 33.3% | $-254.45   | $-42.41  | 0.35
+TONUSDT        | 6  | 2/4  | 33.3% | $-251.66   | $-41.94  | 0.42
+BUSDT          | 1  | 0/1  | 0.0%  | $-251.07   | $-251.07 | 0.00
+CHIPUSDT       | 12 | 5/7  | 41.7% | $-236.58   | $-19.72  | 0.73
+ORDIUSDT       | 4  | 1/3  | 25.0% | $-226.18   | $-56.55  | 0.24
+ATOMUSDT       | 15 | 7/8  | 46.7% | $-204.32   | $-13.62  | 0.78
+MONUSDT        | 5  | 2/3  | 40.0% | $-185.28   | $-37.06  | 0.48
+XPLUSDT        | 2  | 0/2  | 0.0%  | $-159.15   | $-79.58  | 0.00
+NEARUSDT       | 1  | 0/1  | 0.0%  | $-145.37   | $-145.37 | 0.00
+ETHFIUSDT      | 5  | 2/3  | 40.0% | $-130.03   | $-26.01  | 0.46
+BIOUSDT        | 1  | 0/1  | 0.0%  | $-98.06    | $-98.06  | 0.00
+PENGUUSDT      | 3  | 1/2  | 33.3% | $-96.18    | $-32.06  | 0.39
+ZECUSDT        | 1  | 0/1  | 0.0%  | $-94.62    | $-94.62  | 0.00
+PUMPFUNUSDT    | 1  | 0/1  | 0.0%  | $-81.01    | $-81.01  | 0.00
+VIRTUALUSDT    | 1  | 0/1  | 0.0%  | $-79.55    | $-79.55  | 0.00
+DOTUSDT        | 1  | 0/1  | 0.0%  | $-73.19    | $-73.19  | 0.00
+AIGENSYNUSDT   | 7  | 4/3  | 57.1% | $-72.13    | $-10.30  | 0.72
+SOLAYERUSDT    | 7  | 4/3  | 57.1% | $-47.49    | $-6.78   | 0.84
+
+=== MFE / MAE / EXIT (R-units) ===
+Trades with MFE/MAE: 211
+  MFE   p50=0.86R  mean=0.73R  max=2.19R
+  MAE   p50=-0.93R  mean=-0.71R  min=-1.76R
+  Exit  p50=-0.10R  mean=-0.11R
+
+MFE distribution:
+  trades that hit > 1R MFE: 94 (44.5%)
+  trades that hit > 2R MFE: 1 (0.5%)
+
+MAE distribution:
+  trades with MAE worse than -1R: 97 (46.0%)
+
+=== REJECT REASON HISTOGRAM (raw signal log) ===
+Total signals: 19989
+  allowed:  337 (1.7%)
+  rejected: 19652 (98.3%)
+
+=== Reject reasons ===
+reason                                         | count | share
+-----------------------------------------------+-------+------
+position_already_exists(symbol=SAGAUSDT)       | 712   | 3.6% 
+position_already_exists(symbol=SOLVUSDT)       | 690   | 3.5% 
+position_already_exists(symbol=USELESSUSDT)    | 685   | 3.5% 
+position_already_exists(symbol=JELLYJELLYUSDT) | 674   | 3.4% 
+position_already_exists(symbol=VVVUSDT)        | 649   | 3.3% 
+position_already_exists(symbol=SOLAYERUSDT)    | 638   | 3.2% 
+position_already_exists(symbol=FARTCOINUSDT)   | 635   | 3.2% 
+position_already_exists(symbol=DYMUSDT)        | 610   | 3.1% 
+position_already_exists(symbol=1000LUNCUSDT)   | 539   | 2.7% 
+position_already_exists(symbol=TONUSDT)        | 525   | 2.7% 
+position_already_exists(symbol=PIEVERSEUSDT)   | 516   | 2.6% 
+position_already_exists(symbol=ONDOUSDT)       | 500   | 2.5% 
+position_already_exists(symbol=AIGENSYNUSDT)   | 479   | 2.4% 
+position_already_exists(symbol=CHIPUSDT)       | 475   | 2.4% 
+horizon_disagree(agreement=1<2)                | 465   | 2.4% 
+position_already_exists(symbol=BILLUSDT)       | 453   | 2.3% 
+position_already_exists(symbol=OPGUSDT)        | 426   | 2.2% 
+position_already_exists(symbol=ATOMUSDT)       | 424   | 2.2% 
+position_already_exists(symbol=INJUSDT)        | 422   | 2.1% 
+position_already_exists(symbol=TRUMPUSDT)      | 418   | 2.1% 
+position_already_exists(symbol=ORDIUSDT)       | 288   | 1.5% 
+position_already_exists(symbol=PENGUUSDT)      | 285   | 1.5% 
+position_already_exists(symbol=PUMPFUNUSDT)    | 278   | 1.4% 
+position_already_exists(symbol=SPXUSDT)        | 270   | 1.4% 
+position_already_exists(symbol=HUSDT)          | 270   | 1.4% 
+position_already_exists(symbol=SEIUSDT)        | 260   | 1.3% 
+position_already_exists(symbol=XPLUSDT)        | 258   | 1.3% 
+position_already_exists(symbol=TIAUSDT)        | 246   | 1.3% 
+position_already_exists(symbol=FFUSDT)         | 245   | 1.2% 
+position_already_exists(symbol=NEARUSDT)       | 240   | 1.2% 
+position_already_exists(symbol=MEGAUSDT)       | 239   | 1.2% 
+position_already_exists(symbol=MONUSDT)        | 239   | 1.2% 
+position_already_exists(symbol=ETHFIUSDT)      | 221   | 1.1% 
+position_already_exists(symbol=PLUMEUSDT)      | 220   | 1.1% 
+position_already_exists(symbol=JTOUSDT)        | 198   | 1.0% 
+position_already_exists(symbol=CCUSDT)         | 189   | 1.0% 
+position_already_exists(symbol=AKTUSDT)        | 189   | 1.0% 
+position_already_exists(symbol=AEROUSDT)       | 183   | 0.9% 
+position_already_exists(symbol=KITEUSDT)       | 183   | 0.9% 
+position_already_exists(symbol=LITUSDT)        | 173   | 0.9% 
+position_already_exists(symbol=NAORISUSDT)     | 155   | 0.8% 
+position_already_exists(symbol=SAHARAUSDT)     | 153   | 0.8% 
+position_already_exists(symbol=LABUSDT)        | 152   | 0.8% 
+position_already_exists(symbol=SNDKUSDT)       | 141   | 0.7% 
+position_already_exists(symbol=VIRTUALUSDT)    | 137   | 0.7% 
+position_already_exists(symbol=STXUSDT)        | 99    | 0.5% 
+position_already_exists(symbol=BSBUSDT)        | 90    | 0.5% 
+position_already_exists(symbol=BIOUSDT)        | 89    | 0.5% 
+exposure                                       | 75    | 0.4% 
+position_already_exists(symbol=UBUSDT)         | 70    | 0.4% 
+position_already_exists(symbol=STABLEUSDT)     | 67    | 0.3% 
+position_already_exists(symbol=ZECUSDT)        | 63    | 0.3% 
+position_already_exists(symbol=RIVERUSDT)      | 47    | 0.2% 
+position_already_exists(symbol=BUSDT)          | 41    | 0.2% 
+position_already_exists(symbol=DOTUSDT)        | 17    | 0.1% 
+low_conf(conf=0.309<thr=0.51@trend)            | 14    | 0.1% 
+position_already_exists(symbol=BASEDUSDT)      | 14    | 0.1% 
+low_conf(conf=0.236<thr=0.51@chop)             | 12    | 0.1% 
+low_conf(conf=0.134<thr=0.51@trend)            | 11    | 0.1% 
+low_conf(conf=0.154<thr=0.51@trend)            | 11    | 0.1% 
+low_conf(conf=0.172<thr=0.51@chop)             | 10    | 0.1% 
+low_conf(conf=0.130<thr=0.51@trend)            | 9     | 0.0% 
+low_conf(conf=0.286<thr=0.51@chop)             | 9     | 0.0% 
+low_conf(conf=0.303<thr=0.51@trend)            | 9     | 0.0% 
+low_conf(conf=0.272<thr=0.51@trend)            | 9     | 0.0% 
+low_conf(conf=0.316<thr=0.51@chop)             | 9     | 0.0% 
+low_conf(conf=0.173<thr=0.51@chop)             | 9     | 0.0% 
+low_conf(conf=0.235<thr=0.51@chop)             | 9     | 0.0% 
+low_conf(conf=0.044<thr=0.51@trend)            | 9     | 0.0% 
+low_conf(conf=0.012<thr=0.51@trend)            | 8     | 0.0% 
+low_conf(conf=0.388<thr=0.51@chop)             | 8     | 0.0% 
+low_conf(conf=0.352<thr=0.51@chop)             | 8     | 0.0% 
+low_conf(conf=0.120<thr=0.51@trend)            | 8     | 0.0% 
+low_conf(conf=0.291<thr=0.51@trend)            | 8     | 0.0% 
+low_conf(conf=0.308<thr=0.51@trend)            | 8     | 0.0% 
+low_conf(conf=0.260<thr=0.51@trend)            | 8     | 0.0% 
+low_conf(conf=0.191<thr=0.51@trend)            | 8     | 0.0% 
+low_conf(conf=0.046<thr=0.51@chop)             | 8     | 0.0% 
+low_conf(conf=0.285<thr=0.51@trend)            | 8     | 0.0% 
+low_conf(conf=0.183<thr=0.51@chop)             | 8     | 0.0% 
+low_conf(conf=0.432<thr=0.51@chop)             | 8     | 0.0% 
+low_conf(conf=0.036<thr=0.51@chop)             | 8     | 0.0% 
+low_conf(conf=0.198<thr=0.51@trend)            | 8     | 0.0% 
+low_conf(conf=0.092<thr=0.51@chop)             | 8     | 0.0% 
+low_conf(conf=0.094<thr=0.51@trend)            | 8     | 0.0% 
+low_conf(conf=0.359<thr=0.51@trend)            | 8     | 0.0% 
+low_conf(conf=0.349<thr=0.51@chop)             | 7     | 0.0% 
+low_conf(conf=0.354<thr=0.51@chop)             | 7     | 0.0% 
+low_conf(conf=0.228<thr=0.51@trend)            | 7     | 0.0% 
+low_conf(conf=0.062<thr=0.51@trend)            | 7     | 0.0% 
+low_conf(conf=0.367<thr=0.51@chop)             | 7     | 0.0% 
+low_conf(conf=0.060<thr=0.51@chop)             | 7     | 0.0% 
+low_conf(conf=0.292<thr=0.51@trend)            | 7     | 0.0% 
+low_conf(conf=0.061<thr=0.51@trend)            | 7     | 0.0% 
+low_conf(conf=0.199<thr=0.51@chop)             | 7     | 0.0% 
+low_conf(conf=0.068<thr=0.51@chop)             | 7     | 0.0% 
+low_conf(conf=0.184<thr=0.51@chop)             | 7     | 0.0% 
+low_conf(conf=0.253<thr=0.51@chop)             | 7     | 0.0% 
+low_conf(conf=0.170<thr=0.51@chop)             | 7     | 0.0% 
+low_conf(conf=0.072<thr=0.51@trend)            | 7     | 0.0% 
+low_conf(conf=0.084<thr=0.51@chop)             | 7     | 0.0% 
+low_conf(conf=0.195<thr=0.51@chop)             | 7     | 0.0% 
+low_conf(conf=0.239<thr=0.51@trend)            | 7     | 0.0% 
+low_conf(conf=0.089<thr=0.51@trend)            | 7     | 0.0% 
+low_conf(conf=0.300<thr=0.51@trend)            | 7     | 0.0% 
+low_conf(conf=0.491<thr=0.51@chop)             | 7     | 0.0% 
+low_conf(conf=0.140<thr=0.51@trend)            | 7     | 0.0% 
+low_conf(conf=0.429<thr=0.51@chop)             | 7     | 0.0% 
+low_conf(conf=0.096<thr=0.51@chop)             | 7     | 0.0% 
+low_conf(conf=0.002<thr=0.51@chop)             | 7     | 0.0% 
+low_conf(conf=0.294<thr=0.51@trend)            | 7     | 0.0% 
+low_conf(conf=0.409<thr=0.51@chop)             | 7     | 0.0% 
+low_conf(conf=0.278<thr=0.51@chop)             | 6     | 0.0% 
+low_conf(conf=0.166<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.172<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.242<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.376<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.282<thr=0.51@chop)             | 6     | 0.0% 
+low_conf(conf=0.215<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.452<thr=0.51@chop)             | 6     | 0.0% 
+low_conf(conf=0.129<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.180<thr=0.51@chop)             | 6     | 0.0% 
+low_conf(conf=0.298<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.312<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.079<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.222<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.100<thr=0.51@chop)             | 6     | 0.0% 
+low_conf(conf=0.052<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.246<thr=0.51@chop)             | 6     | 0.0% 
+low_conf(conf=0.404<thr=0.51@chop)             | 6     | 0.0% 
+low_conf(conf=0.189<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.248<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.366<thr=0.51@chop)             | 6     | 0.0% 
+low_conf(conf=0.279<thr=0.51@chop)             | 6     | 0.0% 
+low_conf(conf=0.221<thr=0.51@chop)             | 6     | 0.0% 
+low_conf(conf=0.250<thr=0.51@chop)             | 6     | 0.0% 
+low_conf(conf=0.225<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.241<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.230<thr=0.51@chop)             | 6     | 0.0% 
+low_conf(conf=0.214<thr=0.51@chop)             | 6     | 0.0% 
+low_conf(conf=0.194<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.363<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.248<thr=0.51@chop)             | 6     | 0.0% 
+low_conf(conf=0.126<thr=0.51@chop)             | 6     | 0.0% 
+low_conf(conf=0.023<thr=0.51@chop)             | 6     | 0.0% 
+low_conf(conf=0.313<thr=0.51@chop)             | 6     | 0.0% 
+low_conf(conf=0.283<thr=0.51@chop)             | 6     | 0.0% 
+low_conf(conf=0.392<thr=0.51@chop)             | 6     | 0.0% 
+low_conf(conf=0.322<thr=0.51@chop)             | 6     | 0.0% 
+low_conf(conf=0.220<thr=0.51@chop)             | 6     | 0.0% 
+low_conf(conf=0.021<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.263<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.266<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.289<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.167<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.262<thr=0.51@chop)             | 6     | 0.0% 
+low_conf(conf=0.017<thr=0.51@trend)            | 6     | 0.0% 
+low_conf(conf=0.504<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.124<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.056<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.170<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.135<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.188<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.487<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.240<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.406<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.341<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.277<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.251<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.035<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.024<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.307<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.270<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.347<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.075<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.354<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.380<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.317<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.295<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.022<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.141<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.368<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.327<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.157<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.191<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.383<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.144<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.113<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.094<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.213<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.200<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.227<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.440<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.206<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.249<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.275<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.136<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.073<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.196<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.120<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.107<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.192<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.316<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.162<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.231<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.198<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.389<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.353<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.122<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.257<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.209<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.027<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.297<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.260<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.001<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.265<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.175<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.011<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.020<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.013<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.278<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.257<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.318<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.435<thr=0.51@chop)             | 5     | 0.0% 
+low_conf(conf=0.432<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.438<thr=0.51@trend)            | 5     | 0.0% 
+low_conf(conf=0.492<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.337<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.244<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.272<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.280<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.058<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.057<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.069<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.208<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.224<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.086<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.396<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.259<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.417<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.074<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.107<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.348<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.185<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.359<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.092<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.111<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.335<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.320<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.126<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.036<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.391<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.256<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.115<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.067<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.178<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.225<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.273<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.022<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.009<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.306<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.259<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.093<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.169<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.016<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.208<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.019<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.197<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.190<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.247<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.078<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.190<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.202<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.203<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.291<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.398<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.185<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.262<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.280<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.112<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.127<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.233<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.505<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.177<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.026<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.320<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.134<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.370<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.436<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.196<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.179<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.111<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.472<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.054<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.204<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.219<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.066<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.174<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.301<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.408<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.143<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.151<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.243<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.163<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.048<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.179<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.195<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.344<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.205<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.184<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.466<thr=0.51@chop)             | 4     | 0.0% 
+low_conf(conf=0.211<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.236<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.096<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.084<thr=0.51@trend)            | 4     | 0.0% 
+low_conf(conf=0.230<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.488<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.266<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.507<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.318<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.321<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.397<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.270<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.234<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.482<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.132<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.305<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.464<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.209<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.399<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.443<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.261<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.462<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.293<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.340<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.360<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.200<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.182<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.229<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.038<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.459<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.100<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.385<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.002<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.147<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.037<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.088<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.345<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.046<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.325<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.194<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.137<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.166<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.477<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.247<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.118<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.171<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.050<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.276<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.047<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.143<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.149<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.281<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.379<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.339<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.116<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.437<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.274<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.302<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.427<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.161<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.454<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.049<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.089<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.197<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.033<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.128<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.220<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.226<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.289<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.233<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.079<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.169<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.186<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.252<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.104<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.508<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.331<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.106<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.256<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.403<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.264<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.375<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.168<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.454<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.221<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.213<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.081<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.136<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.159<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.098<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.070<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.131<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.353<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.334<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.413<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.255<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.462<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.497<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.014<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.177<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.130<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.261<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.154<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.284<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.463<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.164<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.083<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.018<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.355<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.243<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.034<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.204<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.040<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.131<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.283<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.175<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.199<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.339<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.024<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.217<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.287<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.128<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.226<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.343<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.387<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.223<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.358<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.245<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.442<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.408<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.186<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.142<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.183<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.446<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.323<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.073<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.083<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.207<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.250<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.235<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.144<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.040<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.344<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.501<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.279<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.045<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.047<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.428<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.018<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.242<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.001<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.051<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.008<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.302<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.271<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.501<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.341<thr=0.51@chop)             | 3     | 0.0% 
+low_conf(conf=0.367<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.404<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.401<thr=0.51@trend)            | 3     | 0.0% 
+low_conf(conf=0.348<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.414<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.401<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.489<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.095<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.330<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.377<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.074<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.042<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.102<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.402<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.350<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.469<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.467<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.149<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.219<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.457<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.011<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.430<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.304<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.210<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.180<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.357<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.146<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.099<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.429<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.364<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.066<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.362<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.398<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.396<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.371<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.034<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.411<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.485<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.338<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.299<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.342<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.171<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.157<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.346<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.503<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.181<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.365<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.091<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.251<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.495<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.123<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.043<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.237<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.106<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.077<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.297<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.139<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.288<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.301<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.215<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.158<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.139<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.400<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.332<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.078<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.361<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.193<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.290<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.110<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.326<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.065<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.090<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.029<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.364<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.374<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.019<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.121<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.114<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.132<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.188<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.294<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.203<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.405<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.160<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.212<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.095<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.461<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.222<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.418<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.456<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.138<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.449<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.252<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.269<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.085<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.403<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.400<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.414<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.168<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.057<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.271<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.388<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.093<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.419<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.405<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.097<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.117<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.077<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.502<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.229<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.285<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.101<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.465<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.148<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.311<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.356<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.464<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.496<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.075<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.365<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.474<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.045<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.358<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.393<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.384<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.237<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.439<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.300<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.255<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.218<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.124<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.268<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.245<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.241<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.207<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.413<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.346<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.102<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.010<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.253<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.038<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.510<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.007<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.431<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.305<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.505<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.375<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.145<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.147<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.472<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.101<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.150<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.042<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.082<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.360<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.324<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.201<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.440<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.276<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.063<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.201<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.478<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.489<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.214<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.004<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.254<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.232<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.178<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.113<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.223<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.090<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.295<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.006<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.329<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.369<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.244<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.500<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.274<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.286<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.059<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.330<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.032<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.007<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.098<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.137<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.119<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.420<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.005<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.125<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.307<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.273<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.315<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.012<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.406<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.254<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.426<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.362<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.029<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.350<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.333<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.468<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.054<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.109<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.080<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.296<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.470<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.451<thr=0.51@chop)             | 2     | 0.0% 
+low_conf(conf=0.411<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.009<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.116<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.460<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.390<thr=0.51@trend)            | 2     | 0.0% 
+low_conf(conf=0.451<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.133<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.277<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.422<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.434<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-119.31)            | 1     | 0.0% 
+low_conf(conf=0.355<thr=0.51@trend)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-63.53)             | 1     | 0.0% 
+low_conf(conf=0.258<thr=0.51@trend)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-74.95)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-71.88)             | 1     | 0.0% 
+low_conf(conf=0.349<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.352<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.030<thr=0.51@trend)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-163.73)            | 1     | 0.0% 
+low_conf(conf=0.048<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.063<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.308<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.480<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.351<thr=0.51@trend)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-185.64)            | 1     | 0.0% 
+low_conf(conf=0.205<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.373<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.378<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.319<thr=0.51@trend)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-82.02)             | 1     | 0.0% 
+low_conf(conf=0.338<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.070<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.351<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-98.74)             | 1     | 0.0% 
+low_conf(conf=0.044<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-77.45)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-415.54)            | 1     | 0.0% 
+low_conf(conf=0.424<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.055<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.310<thr=0.51@trend)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-42.56)             | 1     | 0.0% 
+low_conf(conf=0.232<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.192<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-81.23)             | 1     | 0.0% 
+low_conf(conf=0.310<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-129.01)            | 1     | 0.0% 
+low_conf(conf=0.468<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-375.76)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-274.64)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-67.90)             | 1     | 0.0% 
+low_conf(conf=0.416<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.490<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.174<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-157.50)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-71.53)             | 1     | 0.0% 
+low_conf(conf=0.500<thr=0.51@trend)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-266.00)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-42.07)             | 1     | 0.0% 
+low_conf(conf=0.445<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.015<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-54.75)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-76.44)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-79.12)             | 1     | 0.0% 
+low_conf(conf=0.148<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.060<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.290<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.228<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.249<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.412<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.216<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.231<thr=0.51@trend)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-211.10)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-113.45)            | 1     | 0.0% 
+low_conf(conf=0.455<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.176<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-174.90)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-44.85)             | 1     | 0.0% 
+low_conf(conf=0.282<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.427<thr=0.51@trend)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-118.00)            | 1     | 0.0% 
+low_conf(conf=0.234<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.105<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-155.26)            | 1     | 0.0% 
+low_conf(conf=0.415<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.373<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.327<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.086<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.488<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.317<thr=0.51@trend)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-44.34)             | 1     | 0.0% 
+low_conf(conf=0.121<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.366<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.329<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.173<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.182<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.380<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.443<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.503<thr=0.51@trend)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-118.88)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-128.00)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-52.91)             | 1     | 0.0% 
+low_conf(conf=0.481<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.426<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.303<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.466<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.309<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-846.21)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-251.66)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-92.91)             | 1     | 0.0% 
+low_conf(conf=0.312<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.382<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-102.85)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-774.49)            | 1     | 0.0% 
+low_conf(conf=0.381<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.484<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.441<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.119<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-169.27)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-271.10)            | 1     | 0.0% 
+low_conf(conf=0.155<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.028<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-43.54)             | 1     | 0.0% 
+low_conf(conf=0.167<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.004<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.021<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.465<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.442<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.298<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.324<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.343<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.059<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.216<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.284<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.163<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-67.62)             | 1     | 0.0% 
+low_conf(conf=0.052<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.142<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.269<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-126.58)            | 1     | 0.0% 
+low_conf(conf=0.374<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.296<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.074<thr=0.51@breakout)         | 1     | 0.0% 
+negative_unreal_pnl(unreal=-96.65)             | 1     | 0.0% 
+low_conf(conf=0.178<thr=0.51@breakout)         | 1     | 0.0% 
+low_conf(conf=0.189<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.157<thr=0.51@breakout)         | 1     | 0.0% 
+low_conf(conf=0.212<thr=0.51@breakout)         | 1     | 0.0% 
+low_conf(conf=0.246<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.087<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.069<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.510<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.314<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.499<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.076<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.017<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.062<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.410<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.264<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.415<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.347<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.490<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-89.89)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-103.95)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-109.67)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-122.80)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-64.38)             | 1     | 0.0% 
+low_conf(conf=0.314<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.114<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.483<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-123.33)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-70.55)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-125.23)            | 1     | 0.0% 
+low_conf(conf=0.162<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.152<thr=0.51@trend)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-65.16)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-204.51)            | 1     | 0.0% 
+low_conf(conf=0.447<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-77.95)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-124.66)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-79.62)             | 1     | 0.0% 
+low_conf(conf=0.193<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.382<thr=0.51@trend)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-118.32)            | 1     | 0.0% 
+low_conf(conf=0.058<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.071<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.479<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.104<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.039<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.483<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.390<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-93.44)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-84.97)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-117.02)            | 1     | 0.0% 
+low_conf(conf=0.433<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.494<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.315<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-131.54)            | 1     | 0.0% 
+low_conf(conf=0.258<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.117<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.453<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.498<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.097<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.407<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.138<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.267<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-267.77)            | 1     | 0.0% 
+low_conf(conf=0.064<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.306<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.407<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.287<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.155<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.357<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.187<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.081<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.356<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.328<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.152<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.402<thr=0.51@trend)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-94.26)             | 1     | 0.0% 
+low_conf(conf=0.322<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.441<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.389<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.331<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.335<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.336<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.387<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.053<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.088<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.161<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.453<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.455<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.399<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.385<thr=0.51@trend)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-134.73)            | 1     | 0.0% 
+low_conf(conf=0.292<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.445<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.436<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.504<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.275<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.150<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-314.03)            | 1     | 0.0% 
+low_conf(conf=0.123<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.325<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-168.53)            | 1     | 0.0% 
+low_conf(conf=0.240<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.361<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.369<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.026<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.450<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.363<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.156<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.067<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.332<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.498<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.202<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.013<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.238<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.112<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.212<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.110<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.304<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.080<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.020<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.103<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-72.46)             | 1     | 0.0% 
+low_conf(conf=0.041<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.129<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-105.49)            | 1     | 0.0% 
+low_conf(conf=0.458<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.187<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.133<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.140<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.372<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.145<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.394<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.016<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.421<thr=0.51@chop)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-50.68)             | 1     | 0.0% 
+low_conf(conf=0.035<thr=0.51@trend)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-199.62)            | 1     | 0.0% 
+low_conf(conf=0.311<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.031<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.418<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.392<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.061<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.474<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.319<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.435<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.333<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.494<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.383<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.478<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.423<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.480<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.492<thr=0.51@trend)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-118.19)            | 1     | 0.0% 
+low_conf(conf=0.477<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.393<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.027<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.378<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.469<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.424<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.039<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.450<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.409<thr=0.51@trend)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-54.85)             | 1     | 0.0% 
+low_conf(conf=0.434<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.085<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.151<thr=0.51@trend)            | 1     | 0.0% 
+negative_unreal_pnl(unreal=-62.64)             | 1     | 0.0% 
+negative_unreal_pnl(unreal=-232.69)            | 1     | 0.0% 
+low_conf(conf=0.023<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.014<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.010<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.487<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.008<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.386<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.076<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.159<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.281<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.342<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.176<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.439<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.397<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.452<thr=0.51@trend)            | 1     | 0.0% 
+low_conf(conf=0.160<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.265<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.381<thr=0.51@chop)             | 1     | 0.0% 
+low_conf(conf=0.206<thr=0.51@chop)             | 1     | 0.0% 
+phase_block(pump+short)                        | 1     | 0.0% 
+low_conf(conf=0.033<thr=0.51@trend)            | 1     | 0.0% 
+position_already_exists(symbol=BERAUSDT)       | 1     | 0.0% 
+
+=== SHADOW TRADES (rejected signals, virtual outcome) ===
+Total shadow trades: 11422 (11422 closed)
+Outcomes:
+  sl: 5872 (51.4%)
+  tp: 5550 (48.6%)
+
+=== SHADOW: BY REJECT REASON ===
+reason                                   | n   | W/L     | WR     | Avg exit_r | Avg mfe_r | Avg mae_r
+-----------------------------------------+-----+---------+--------+------------+-----------+----------
+position_already_exists(symbol=FARTCOINU | 445 | 252/193 | 56.6%  | 0.15R      | 0.73R     | -0.64R   
+position_already_exists(symbol=PIEVERSEU | 441 | 348/93  | 78.9%  | 0.66R      | 0.93R     | -0.44R   
+position_already_exists(symbol=SOLAYERUS | 438 | 291/147 | 66.4%  | 0.37R      | 0.85R     | -0.58R   
+position_already_exists(symbol=1000LUNCU | 414 | 135/279 | 32.6%  | -0.33R     | 0.60R     | -0.83R   
+position_already_exists(symbol=VVVUSDT)  | 390 | 53/337  | 13.6%  | -0.83R     | 0.46R     | -1.00R   
+position_already_exists(symbol=JELLYJELL | 369 | 48/321  | 13.0%  | -0.84R     | 0.39R     | -0.99R   
+position_already_exists(symbol=CHIPUSDT) | 350 | 58/292  | 16.6%  | -0.72R     | 0.46R     | -0.93R   
+position_already_exists(symbol=BILLUSDT) | 341 | 144/197 | 42.2%  | -0.20R     | 0.72R     | -0.77R   
+position_already_exists(symbol=USELESSUS | 331 | 108/223 | 32.6%  | -0.55R     | 0.58R     | -0.96R   
+position_already_exists(symbol=OPGUSDT)  | 327 | 258/69  | 78.9%  | 0.73R      | 1.01R     | -0.43R   
+position_already_exists(symbol=DYMUSDT)  | 315 | 211/104 | 67.0%  | 0.35R      | 0.80R     | -0.58R   
+position_already_exists(symbol=ONDOUSDT) | 293 | 172/121 | 58.7%  | 0.17R      | 0.68R     | -0.66R   
+horizon_disagree(agreement=1<2)          | 288 | 117/171 | 40.6%  | -0.22R     | 0.62R     | -0.82R   
+position_already_exists(symbol=ATOMUSDT) | 285 | 165/120 | 57.9%  | 0.20R      | 0.73R     | -0.60R   
+position_already_exists(symbol=SOLVUSDT) | 235 | 153/82  | 65.1%  | 0.32R      | 0.72R     | -0.60R   
+position_already_exists(symbol=AIGENSYNU | 230 | 146/84  | 63.5%  | 0.31R      | 0.84R     | -0.64R   
+position_already_exists(symbol=HUSDT)    | 213 | 90/123  | 42.3%  | -0.16R     | 0.64R     | -0.78R   
+position_already_exists(symbol=SAGAUSDT) | 210 | 54/156  | 25.7%  | -0.65R     | 0.46R     | -0.98R   
+position_already_exists(symbol=TRUMPUSDT | 204 | 47/157  | 23.0%  | -0.60R     | 0.59R     | -0.90R   
+position_already_exists(symbol=INJUSDT)  | 203 | 111/92  | 54.7%  | 0.09R      | 0.67R     | -0.63R   
+position_already_exists(symbol=SEIUSDT)  | 201 | 78/123  | 38.8%  | -0.21R     | 0.61R     | -0.73R   
+position_already_exists(symbol=PUMPFUNUS | 196 | 95/101  | 48.5%  | -0.04R     | 0.61R     | -0.71R   
+position_already_exists(symbol=TIAUSDT)  | 190 | 57/133  | 30.0%  | -0.37R     | 0.54R     | -0.88R   
+position_already_exists(symbol=TONUSDT)  | 186 | 30/156  | 16.1%  | -0.77R     | 0.44R     | -0.95R   
+position_already_exists(symbol=ORDIUSDT) | 184 | 31/153  | 16.8%  | -0.77R     | 0.41R     | -0.97R   
+position_already_exists(symbol=SPXUSDT)  | 182 | 142/40  | 78.0%  | 0.79R      | 1.04R     | -0.46R   
+position_already_exists(symbol=MONUSDT)  | 182 | 134/48  | 73.6%  | 0.44R      | 0.80R     | -0.55R   
+position_already_exists(symbol=MEGAUSDT) | 176 | 89/87   | 50.6%  | -0.00R     | 0.66R     | -0.68R   
+position_already_exists(symbol=CCUSDT)   | 174 | 0/174   | 0.0%   | -1.16R     | 0.38R     | -1.16R   
+position_already_exists(symbol=JTOUSDT)  | 173 | 150/23  | 86.7%  | 0.89R      | 1.05R     | -0.42R   
+position_already_exists(symbol=FFUSDT)   | 161 | 115/46  | 71.4%  | 0.52R      | 0.85R     | -0.51R   
+position_already_exists(symbol=AEROUSDT) | 139 | 46/93   | 33.1%  | -0.40R     | 0.47R     | -0.81R   
+position_already_exists(symbol=PENGUUSDT | 132 | 63/69   | 47.7%  | -0.02R     | 0.69R     | -0.68R   
+position_already_exists(symbol=XPLUSDT)  | 128 | 124/4   | 96.9%  | 0.99R      | 1.01R     | -0.35R   
+position_already_exists(symbol=KITEUSDT) | 124 | 118/6   | 95.2%  | 1.18R      | 1.23R     | -0.34R   
+position_already_exists(symbol=ETHFIUSDT | 121 | 40/81   | 33.1%  | -0.37R     | 0.51R     | -0.87R   
+position_already_exists(symbol=SNDKUSDT) | 120 | 76/44   | 63.3%  | 0.27R      | 0.72R     | -0.48R   
+position_already_exists(symbol=LITUSDT)  | 119 | 118/1   | 99.2%  | 1.19R      | 1.21R     | -0.18R   
+position_already_exists(symbol=NEARUSDT) | 99  | 55/44   | 55.6%  | 0.12R      | 0.75R     | -0.78R   
+position_already_exists(symbol=PLUMEUSDT | 96  | 40/56   | 41.7%  | -0.23R     | 0.55R     | -0.78R   
+position_already_exists(symbol=UBUSDT)   | 70  | 70/0    | 100.0% | 1.28R      | 1.28R     | -0.15R   
+exposure                                 | 43  | 20/23   | 46.5%  | -0.07R     | 0.61R     | -0.70R   
+position_already_exists(symbol=AKTUSDT)  | 33  | 22/11   | 66.7%  | 0.40R      | 0.82R     | -0.45R   
+position_already_exists(symbol=NAORISUSD | 33  | 0/33    | 0.0%   | -1.57R     | 0.58R     | -1.57R   
+position_already_exists(symbol=LABUSDT)  | 28  | 12/16   | 42.9%  | -0.14R     | 0.53R     | -0.64R   
+position_already_exists(symbol=ZECUSDT)  | 27  | 2/25    | 7.4%   | -0.89R     | 0.22R     | -0.96R   
+position_already_exists(symbol=RIVERUSDT | 25  | 21/4    | 84.0%  | 0.93R      | 1.18R     | -0.34R   
+position_already_exists(symbol=STABLEUSD | 21  | 21/0    | 100.0% | 1.03R      | 1.03R     | -0.13R   
+position_already_exists(symbol=SAHARAUSD | 12  | 0/12    | 0.0%   | -1.04R     | 0.16R     | -1.04R   
+low_conf(conf=0.309<thr=0.51@trend)      | 10  | 9/1     | 90.0%  | 0.89R      | 1.01R     | -0.80R   
+low_conf(conf=0.272<thr=0.51@trend)      | 9   | 1/8     | 11.1%  | -0.87R     | 0.17R     | -0.98R   
+low_conf(conf=0.036<thr=0.51@chop)       | 8   | 1/7     | 12.5%  | -0.79R     | 0.39R     | -0.97R   
+low_conf(conf=0.236<thr=0.51@chop)       | 8   | 7/1     | 87.5%  | 1.00R      | 1.10R     | -0.66R   
+position_already_exists(symbol=BSBUSDT)  | 8   | 2/6     | 25.0%  | -0.54R     | 0.24R     | -0.78R   
+low_conf(conf=0.130<thr=0.51@trend)      | 7   | 1/6     | 14.3%  | -0.84R     | 0.63R     | -1.10R   
+low_conf(conf=0.134<thr=0.51@trend)      | 7   | 1/6     | 14.3%  | -0.73R     | 0.51R     | -0.93R   
+low_conf(conf=0.198<thr=0.51@trend)      | 7   | 4/3     | 57.1%  | 0.23R      | 0.67R     | -0.49R   
+low_conf(conf=0.072<thr=0.51@trend)      | 7   | 5/2     | 71.4%  | 0.88R      | 1.22R     | -0.49R   
+low_conf(conf=0.068<thr=0.51@chop)       | 7   | 1/6     | 14.3%  | -0.74R     | 0.18R     | -0.91R   
+low_conf(conf=0.235<thr=0.51@chop)       | 7   | 3/4     | 42.9%  | -0.25R     | 0.79R     | -1.03R   
+low_conf(conf=0.316<thr=0.51@chop)       | 7   | 3/4     | 42.9%  | -0.09R     | 0.79R     | -0.80R   
+low_conf(conf=0.084<thr=0.51@chop)       | 7   | 7/0     | 100.0% | 1.13R      | 1.13R     | -0.08R   
+low_conf(conf=0.089<thr=0.51@trend)      | 7   | 7/0     | 100.0% | 1.50R      | 1.50R     | -0.04R   
+low_conf(conf=0.096<thr=0.51@chop)       | 7   | 5/2     | 71.4%  | 0.46R      | 0.95R     | -0.32R   
+low_conf(conf=0.303<thr=0.51@trend)      | 7   | 5/2     | 71.4%  | 0.47R      | 1.00R     | -0.48R   
+low_conf(conf=0.154<thr=0.51@trend)      | 7   | 5/2     | 71.4%  | 0.41R      | 0.88R     | -0.54R   
+low_conf(conf=0.278<thr=0.51@chop)       | 6   | 3/3     | 50.0%  | 0.05R      | 0.52R     | -0.51R   
+low_conf(conf=0.166<thr=0.51@trend)      | 6   | 0/6     | 0.0%   | -1.08R     | 0.38R     | -1.08R   
+low_conf(conf=0.388<thr=0.51@chop)       | 6   | 5/1     | 83.3%  | 0.98R      | 1.23R     | -0.40R   
+low_conf(conf=0.352<thr=0.51@chop)       | 6   | 1/5     | 16.7%  | -0.70R     | 0.48R     | -1.04R   
+low_conf(conf=0.349<thr=0.51@chop)       | 6   | 1/5     | 16.7%  | -0.74R     | 0.45R     | -0.90R   
+low_conf(conf=0.354<thr=0.51@chop)       | 6   | 1/5     | 16.7%  | -0.69R     | 0.14R     | -0.87R   
+low_conf(conf=0.079<thr=0.51@trend)      | 6   | 2/4     | 33.3%  | -0.25R     | 0.71R     | -0.82R   
+low_conf(conf=0.061<thr=0.51@trend)      | 6   | 3/3     | 50.0%  | 0.13R      | 0.65R     | -0.80R   
+position_already_exists(symbol=VIRTUALUS | 6   | 0/6     | 0.0%   | -1.04R     | 0.00R     | -1.04R   
+low_conf(conf=0.285<thr=0.51@trend)      | 6   | 0/6     | 0.0%   | -1.19R     | 0.08R     | -1.19R   
+low_conf(conf=0.404<thr=0.51@chop)       | 6   | 4/2     | 66.7%  | 0.35R      | 0.81R     | -0.45R   
+low_conf(conf=0.170<thr=0.51@chop)       | 6   | 0/6     | 0.0%   | -1.38R     | 0.31R     | -1.38R   
+low_conf(conf=0.279<thr=0.51@chop)       | 6   | 2/4     | 33.3%  | -0.36R     | 0.27R     | -0.84R   
+low_conf(conf=0.432<thr=0.51@chop)       | 6   | 3/3     | 50.0%  | 0.05R      | 0.89R     | -0.67R   
+low_conf(conf=0.366<thr=0.51@chop)       | 6   | 4/2     | 66.7%  | 0.64R      | 1.13R     | -0.79R   
+low_conf(conf=0.250<thr=0.51@chop)       | 6   | 4/2     | 66.7%  | 0.79R      | 1.18R     | -0.53R   
+low_conf(conf=0.172<thr=0.51@chop)       | 6   | 4/2     | 66.7%  | 0.48R      | 1.00R     | -0.53R   
+low_conf(conf=0.429<thr=0.51@chop)       | 6   | 1/5     | 16.7%  | -0.69R     | 0.34R     | -0.91R   
+low_conf(conf=0.046<thr=0.51@chop)       | 6   | 6/0     | 100.0% | 1.20R      | 1.20R     | -0.37R   
+low_conf(conf=0.491<thr=0.51@chop)       | 6   | 1/5     | 16.7%  | -0.69R     | 0.18R     | -0.88R   
+low_conf(conf=0.263<thr=0.51@trend)      | 6   | 3/3     | 50.0%  | 0.09R      | 0.75R     | -0.76R   
+low_conf(conf=0.289<thr=0.51@trend)      | 6   | 2/4     | 33.3%  | -0.35R     | 0.27R     | -0.82R   
+low_conf(conf=0.409<thr=0.51@chop)       | 6   | 1/5     | 16.7%  | -0.67R     | 0.28R     | -0.96R   
+low_conf(conf=0.002<thr=0.51@chop)       | 6   | 4/2     | 66.7%  | 0.31R      | 0.70R     | -0.63R   
+position_already_exists(symbol=BUSDT)    | 6   | 0/6     | 0.0%   | -1.04R     | -0.05R    | -1.04R   
+position_already_exists(symbol=STXUSDT)  | 6   | 0/6     | 0.0%   | -1.06R     | -0.03R    | -1.06R   
+low_conf(conf=0.120<thr=0.51@trend)      | 5   | 3/2     | 60.0%  | 0.28R      | 0.92R     | -0.87R   
+low_conf(conf=0.012<thr=0.51@trend)      | 5   | 3/2     | 60.0%  | 0.23R      | 1.02R     | -0.43R   
+low_conf(conf=0.308<thr=0.51@trend)      | 5   | 3/2     | 60.0%  | 0.29R      | 0.79R     | -0.76R   
+low_conf(conf=0.129<thr=0.51@trend)      | 5   | 1/4     | 20.0%  | -0.73R     | 0.62R     | -1.07R   
+low_conf(conf=0.075<thr=0.51@trend)      | 5   | 2/3     | 40.0%  | -0.40R     | 0.76R     | -0.99R   
+low_conf(conf=0.317<thr=0.51@chop)       | 5   | 3/2     | 60.0%  | 0.25R      | 0.81R     | -0.42R   
+low_conf(conf=0.354<thr=0.51@trend)      | 5   | 0/5     | 0.0%   | -1.04R     | -0.10R    | -1.04R   
+low_conf(conf=0.312<thr=0.51@trend)      | 5   | 2/3     | 40.0%  | -0.21R     | 0.44R     | -0.92R   
+low_conf(conf=0.184<thr=0.51@chop)       | 5   | 1/4     | 20.0%  | -0.63R     | 0.56R     | -0.98R   
+low_conf(conf=0.368<thr=0.51@chop)       | 5   | 4/1     | 80.0%  | 0.63R      | 0.87R     | -0.22R   
+low_conf(conf=0.367<thr=0.51@chop)       | 5   | 5/0     | 100.0% | 1.15R      | 1.15R     | -0.72R   
+low_conf(conf=0.246<thr=0.51@chop)       | 5   | 2/3     | 40.0%  | -0.22R     | 0.42R     | -0.85R   
+low_conf(conf=0.195<thr=0.51@chop)       | 5   | 2/3     | 40.0%  | -0.21R     | 0.47R     | -0.65R   
+low_conf(conf=0.199<thr=0.51@chop)       | 5   | 5/0     | 100.0% | 1.10R      | 1.10R     | -0.88R   
+low_conf(conf=0.440<thr=0.51@chop)       | 5   | 3/2     | 60.0%  | 0.16R      | 0.92R     | -0.56R   
+low_conf(conf=0.239<thr=0.51@trend)      | 5   | 0/5     | 0.0%   | -1.05R     | 0.37R     | -1.05R   
+low_conf(conf=0.249<thr=0.51@trend)      | 5   | 5/0     | 100.0% | 1.04R      | 1.04R     | -0.38R   
+low_conf(conf=0.225<thr=0.51@trend)      | 5   | 0/5     | 0.0%   | -1.19R     | 0.35R     | -1.19R   
+low_conf(conf=0.221<thr=0.51@chop)       | 5   | 4/1     | 80.0%  | 0.74R      | 1.12R     | -0.09R   
+low_conf(conf=0.196<thr=0.51@trend)      | 5   | 1/4     | 20.0%  | -0.73R     | 0.45R     | -0.93R   
+low_conf(conf=0.126<thr=0.51@chop)       | 5   | 4/1     | 80.0%  | 0.60R      | 0.81R     | -0.39R   
+low_conf(conf=0.001<thr=0.51@chop)       | 5   | 1/4     | 20.0%  | -0.67R     | 0.34R     | -0.86R   
+low_conf(conf=0.175<thr=0.51@trend)      | 5   | 3/2     | 60.0%  | 0.23R      | 0.83R     | -0.53R   
+low_conf(conf=0.257<thr=0.51@trend)      | 5   | 2/3     | 40.0%  | -0.24R     | 0.69R     | -0.77R   
+low_conf(conf=0.140<thr=0.51@trend)      | 5   | 2/3     | 40.0%  | 0.17R      | 1.06R     | -0.76R   
+low_conf(conf=0.011<thr=0.51@trend)      | 5   | 1/4     | 20.0%  | -0.33R     | 0.58R     | -0.97R   
+low_conf(conf=0.318<thr=0.51@trend)      | 5   | 0/5     | 0.0%   | -1.06R     | 0.14R     | -1.06R   
+low_conf(conf=0.023<thr=0.51@chop)       | 5   | 0/5     | 0.0%   | -1.10R     | 0.01R     | -1.10R   
+low_conf(conf=0.435<thr=0.51@chop)       | 5   | 0/5     | 0.0%   | -1.06R     | 0.08R     | -1.06R   
+low_conf(conf=0.272<thr=0.51@chop)       | 4   | 3/1     | 75.0%  | 0.58R      | 0.80R     | -0.29R   
+low_conf(conf=0.172<thr=0.51@trend)      | 4   | 2/2     | 50.0%  | 0.22R      | 0.87R     | -0.68R   
+low_conf(conf=0.058<thr=0.51@trend)      | 4   | 4/0     | 100.0% | 1.36R      | 1.36R     | -0.30R   
+low_conf(conf=0.069<thr=0.51@trend)      | 4   | 4/0     | 100.0% | 1.15R      | 1.15R     | -0.33R   
+low_conf(conf=0.242<thr=0.51@trend)      | 4   | 3/1     | 75.0%  | 0.69R      | 1.02R     | -0.46R   
+low_conf(conf=0.135<thr=0.51@trend)      | 4   | 3/1     | 75.0%  | 1.37R      | 1.74R     | 0.47R    
+low_conf(conf=0.376<thr=0.51@trend)      | 4   | 2/2     | 50.0%  | -0.02R     | 0.58R     | -0.54R   
+low_conf(conf=0.208<thr=0.51@trend)      | 4   | 1/3     | 25.0%  | -0.53R     | 0.27R     | -0.82R   
+low_conf(conf=0.024<thr=0.51@trend)      | 4   | 2/2     | 50.0%  | -0.03R     | 0.34R     | -0.73R   
+low_conf(conf=0.062<thr=0.51@trend)      | 4   | 2/2     | 50.0%  | -0.12R     | 0.54R     | -0.89R   
+low_conf(conf=0.107<thr=0.51@trend)      | 4   | 3/1     | 75.0%  | 0.58R      | 0.86R     | -0.68R   
+low_conf(conf=0.452<thr=0.51@chop)       | 4   | 2/2     | 50.0%  | 0.04R      | 0.56R     | -0.54R   
+low_conf(conf=0.307<thr=0.51@chop)       | 4   | 3/1     | 75.0%  | 0.61R      | 0.72R     | -0.49R   
+low_conf(conf=0.270<thr=0.51@trend)      | 4   | 3/1     | 75.0%  | 0.66R      | 0.98R     | -0.37R   
+low_conf(conf=0.295<thr=0.51@chop)       | 4   | 2/2     | 50.0%  | -0.00R     | 0.68R     | -0.60R   
+low_conf(conf=0.157<thr=0.51@trend)      | 4   | 1/3     | 25.0%  | -0.78R     | 0.83R     | -1.12R   
+low_conf(conf=0.380<thr=0.51@chop)       | 4   | 2/2     | 50.0%  | -0.02R     | 0.54R     | -0.82R   
+low_conf(conf=0.215<thr=0.51@trend)      | 4   | 2/2     | 50.0%  | 0.02R      | 0.56R     | -0.96R   
+low_conf(conf=0.044<thr=0.51@trend)      | 4   | 1/3     | 25.0%  | -0.57R     | 0.21R     | -0.99R   
+low_conf(conf=0.141<thr=0.51@chop)       | 4   | 1/3     | 25.0%  | -0.50R     | 0.42R     | -0.84R   
+low_conf(conf=0.298<thr=0.51@trend)      | 4   | 0/4     | 0.0%   | -1.12R     | 0.27R     | -1.12R   
+low_conf(conf=0.359<thr=0.51@chop)       | 4   | 4/0     | 100.0% | 1.07R      | 1.07R     | -0.36R   
+low_conf(conf=0.347<thr=0.51@chop)       | 4   | 3/1     | 75.0%  | 0.53R      | 0.91R     | -0.33R   
+low_conf(conf=0.391<thr=0.51@chop)       | 4   | 1/3     | 25.0%  | -0.52R     | 0.59R     | -0.78R   
+low_conf(conf=0.253<thr=0.51@chop)       | 4   | 4/0     | 100.0% | 1.25R      | 1.25R     | 0.03R    
+low_conf(conf=0.417<thr=0.51@chop)       | 4   | 4/0     | 100.0% | 1.08R      | 1.08R     | -0.47R   
+low_conf(conf=0.100<thr=0.51@chop)       | 4   | 2/2     | 50.0%  | -0.00R     | 0.78R     | -0.68R   
+low_conf(conf=0.191<thr=0.51@chop)       | 4   | 2/2     | 50.0%  | 0.02R      | 0.85R     | -0.55R   
+low_conf(conf=0.178<thr=0.51@chop)       | 4   | 0/4     | 0.0%   | -1.07R     | 0.34R     | -1.07R   
+low_conf(conf=0.206<thr=0.51@trend)      | 4   | 2/2     | 50.0%  | -0.03R     | 0.47R     | -0.94R   
+low_conf(conf=0.197<thr=0.51@chop)       | 4   | 0/4     | 0.0%   | -1.02R     | 0.20R     | -1.02R   
+low_conf(conf=0.035<thr=0.51@chop)       | 4   | 3/1     | 75.0%  | 0.53R      | 1.00R     | -0.90R   
+low_conf(conf=0.260<thr=0.51@trend)      | 4   | 2/2     | 50.0%  | 0.23R      | 0.91R     | -0.65R   
+low_conf(conf=0.222<thr=0.51@trend)      | 4   | 3/1     | 75.0%  | 0.97R      | 1.20R     | -0.33R   
+low_conf(conf=0.213<thr=0.51@trend)      | 4   | 3/1     | 75.0%  | 0.57R      | 1.04R     | -0.91R   
+low_conf(conf=0.300<thr=0.51@trend)      | 4   | 2/2     | 50.0%  | -0.07R     | 0.76R     | -0.86R   
+low_conf(conf=0.275<thr=0.51@trend)      | 4   | 0/4     | 0.0%   | -1.24R     | 0.51R     | -1.24R   
+low_conf(conf=0.383<thr=0.51@chop)       | 4   | 4/0     | 100.0% | 1.22R      | 1.22R     | -0.26R   
+low_conf(conf=0.019<thr=0.51@chop)       | 4   | 3/1     | 75.0%  | 0.45R      | 0.91R     | -0.59R   
+low_conf(conf=0.078<thr=0.51@trend)      | 4   | 4/0     | 100.0% | 1.15R      | 1.15R     | -0.48R   
+low_conf(conf=0.094<thr=0.51@chop)       | 4   | 3/1     | 75.0%  | 0.55R      | 1.03R     | -0.38R   
+low_conf(conf=0.113<thr=0.51@chop)       | 4   | 1/3     | 25.0%  | -0.60R     | 0.24R     | -0.94R   
+low_conf(conf=0.009<thr=0.51@chop)       | 4   | 4/0     | 100.0% | 1.48R      | 1.48R     | -0.97R   
+low_conf(conf=0.054<thr=0.51@chop)       | 4   | 3/1     | 75.0%  | 0.65R      | 1.01R     | -0.23R   
+low_conf(conf=0.204<thr=0.51@trend)      | 4   | 2/2     | 50.0%  | -0.01R     | 0.53R     | -0.66R   
+low_conf(conf=0.122<thr=0.51@chop)       | 4   | 2/2     | 50.0%  | -0.16R     | 0.59R     | -0.65R   
+position_already_exists(symbol=BASEDUSDT | 4   | 0/4     | 0.0%   | -1.03R     | -0.05R    | -1.03R   
+low_conf(conf=0.504<thr=0.51@chop)       | 4   | 2/2     | 50.0%  | 0.25R      | 0.80R     | -0.55R   
+low_conf(conf=0.209<thr=0.51@chop)       | 4   | 1/3     | 25.0%  | -0.50R     | 0.60R     | -1.00R   
+low_conf(conf=0.266<thr=0.51@trend)      | 4   | 0/4     | 0.0%   | -1.04R     | 0.10R     | -1.04R   
+low_conf(conf=0.163<thr=0.51@trend)      | 4   | 2/2     | 50.0%  | 0.08R      | 0.83R     | -0.79R   
+low_conf(conf=0.179<thr=0.51@trend)      | 4   | 0/4     | 0.0%   | -1.23R     | 0.09R     | -1.23R   
+low_conf(conf=0.195<thr=0.51@trend)      | 4   | 0/4     | 0.0%   | -1.17R     | 0.11R     | -1.17R   
+low_conf(conf=0.191<thr=0.51@trend)      | 4   | 1/3     | 25.0%  | -0.58R     | 0.43R     | -0.88R   
+low_conf(conf=0.251<thr=0.51@trend)      | 4   | 2/2     | 50.0%  | -0.05R     | 0.64R     | -0.73R   
+low_conf(conf=0.027<thr=0.51@trend)      | 4   | 4/0     | 100.0% | 1.48R      | 1.48R     | 0.09R    
+low_conf(conf=0.278<thr=0.51@trend)      | 4   | 4/0     | 100.0% | 1.07R      | 1.07R     | -0.34R   
+low_conf(conf=0.192<thr=0.51@trend)      | 4   | 1/3     | 25.0%  | -0.72R     | 0.44R     | -1.03R   
+low_conf(conf=0.205<thr=0.51@trend)      | 4   | 1/3     | 25.0%  | -0.68R     | 0.61R     | -1.02R   
+low_conf(conf=0.211<thr=0.51@trend)      | 4   | 1/3     | 25.0%  | -0.34R     | 0.71R     | -0.78R   
+low_conf(conf=0.057<thr=0.51@trend)      | 3   | 2/1     | 66.7%  | 0.43R      | 0.93R     | -0.30R   
+low_conf(conf=0.132<thr=0.51@trend)      | 3   | 2/1     | 66.7%  | 0.47R      | 0.92R     | -0.61R   
+low_conf(conf=0.188<thr=0.51@trend)      | 3   | 3/0     | 100.0% | 1.20R      | 1.20R     | 0.03R    
+low_conf(conf=0.305<thr=0.51@trend)      | 3   | 0/3     | 0.0%   | -1.20R     | -0.18R    | -1.20R   
+low_conf(conf=0.321<thr=0.51@chop)       | 3   | 2/1     | 66.7%  | 0.58R      | 0.99R     | -0.89R   
+low_conf(conf=0.124<thr=0.51@chop)       | 3   | 1/2     | 33.3%  | -0.29R     | 0.22R     | -0.72R   
+low_conf(conf=0.170<thr=0.51@trend)      | 3   | 1/2     | 33.3%  | -0.35R     | 0.64R     | -0.94R   
+low_conf(conf=0.209<thr=0.51@trend)      | 3   | 0/3     | 0.0%   | -1.16R     | -0.01R    | -1.16R   
+low_conf(conf=0.406<thr=0.51@trend)      | 3   | 1/2     | 33.3%  | -0.30R     | 0.27R     | -0.95R   
+low_conf(conf=0.261<thr=0.51@trend)      | 3   | 3/0     | 100.0% | 1.24R      | 1.24R     | -0.18R   
+low_conf(conf=0.399<thr=0.51@trend)      | 3   | 0/3     | 0.0%   | -1.09R     | -0.08R    | -1.09R   
+low_conf(conf=0.038<thr=0.51@trend)      | 3   | 3/0     | 100.0% | 1.07R      | 1.07R     | 0.08R    
+low_conf(conf=0.182<thr=0.51@trend)      | 3   | 1/2     | 33.3%  | -0.34R     | 0.39R     | -0.95R   
+low_conf(conf=0.022<thr=0.51@trend)      | 3   | 2/1     | 66.7%  | 0.64R      | 1.32R     | -0.53R   
+low_conf(conf=0.088<thr=0.51@trend)      | 3   | 3/0     | 100.0% | 1.74R      | 1.74R     | -0.47R   
+low_conf(conf=0.037<thr=0.51@trend)      | 3   | 2/1     | 66.7%  | 0.71R      | 1.13R     | -0.74R   
+low_conf(conf=0.092<thr=0.51@trend)      | 3   | 3/0     | 100.0% | 1.60R      | 1.60R     | -0.52R   
+low_conf(conf=0.046<thr=0.51@trend)      | 3   | 2/1     | 66.7%  | 0.69R      | 1.13R     | -0.43R   
+low_conf(conf=0.385<thr=0.51@chop)       | 3   | 0/3     | 0.0%   | -1.19R     | 0.19R     | -1.19R   
+low_conf(conf=0.248<thr=0.51@trend)      | 3   | 1/2     | 33.3%  | -0.25R     | 0.49R     | -0.69R   
+low_conf(conf=0.036<thr=0.51@trend)      | 3   | 0/3     | 0.0%   | -2.48R     | 0.86R     | -2.48R   
+low_conf(conf=0.052<thr=0.51@trend)      | 3   | 0/3     | 0.0%   | -1.56R     | 0.48R     | -1.56R   
+low_conf(conf=0.050<thr=0.51@trend)      | 3   | 3/0     | 100.0% | 1.69R      | 1.69R     | -0.42R   
+low_conf(conf=0.189<thr=0.51@trend)      | 3   | 0/3     | 0.0%   | -1.66R     | 0.54R     | -1.66R   
+low_conf(conf=0.286<thr=0.51@chop)       | 3   | 2/1     | 66.7%  | 0.44R      | 0.91R     | -0.47R   
+low_conf(conf=0.259<thr=0.51@trend)      | 3   | 1/2     | 33.3%  | -0.34R     | 0.42R     | -0.73R   
+low_conf(conf=0.348<thr=0.51@trend)      | 3   | 0/3     | 0.0%   | -1.04R     | 0.51R     | -1.04R   
+low_conf(conf=0.327<thr=0.51@chop)       | 3   | 1/2     | 33.3%  | -0.35R     | 0.58R     | -0.88R   
+low_conf(conf=0.281<thr=0.51@chop)       | 3   | 1/2     | 33.3%  | -0.26R     | 0.77R     | -0.92R   
+low_conf(conf=0.273<thr=0.51@chop)       | 3   | 2/1     | 66.7%  | 0.56R      | 0.93R     | -0.27R   
+low_conf(conf=0.274<thr=0.51@chop)       | 3   | 2/1     | 66.7%  | 0.54R      | 0.91R     | -0.51R   
+low_conf(conf=0.320<thr=0.51@chop)       | 3   | 1/2     | 33.3%  | -0.39R     | 0.55R     | -1.02R   
+low_conf(conf=0.276<thr=0.51@chop)       | 3   | 3/0     | 100.0% | 1.16R      | 1.16R     | -0.11R   
+low_conf(conf=0.339<thr=0.51@chop)       | 3   | 3/0     | 100.0% | 1.40R      | 1.40R     | -0.01R   
+low_conf(conf=0.116<thr=0.51@chop)       | 3   | 1/2     | 33.3%  | -0.33R     | 0.39R     | -0.75R   
+low_conf(conf=0.118<thr=0.51@chop)       | 3   | 2/1     | 66.7%  | 0.60R      | 0.91R     | -0.65R   
+low_conf(conf=0.089<thr=0.51@chop)       | 3   | 1/2     | 33.3%  | -0.30R     | 0.87R     | -0.53R   
+low_conf(conf=0.161<thr=0.51@chop)       | 3   | 3/0     | 100.0% | 1.04R      | 1.04R     | -0.28R   
+low_conf(conf=0.022<thr=0.51@chop)       | 3   | 2/1     | 66.7%  | 0.34R      | 0.68R     | -0.43R   
+low_conf(conf=0.208<thr=0.51@chop)       | 3   | 0/3     | 0.0%   | -1.02R     | 0.01R     | -1.02R   
+low_conf(conf=0.256<thr=0.51@chop)       | 3   | 2/1     | 66.7%  | 0.71R      | 1.38R     | -0.30R   
+low_conf(conf=0.016<thr=0.51@chop)       | 3   | 0/3     | 0.0%   | -1.71R     | 0.09R     | -1.71R   
+low_conf(conf=0.128<thr=0.51@trend)      | 3   | 1/2     | 33.3%  | -0.37R     | 0.45R     | -0.96R   
+low_conf(conf=0.203<thr=0.51@trend)      | 3   | 2/1     | 66.7%  | 0.38R      | 0.87R     | -0.42R   
+low_conf(conf=0.247<thr=0.51@trend)      | 3   | 2/1     | 66.7%  | 0.37R      | 0.75R     | -0.94R   
+low_conf(conf=0.220<thr=0.51@trend)      | 3   | 1/2     | 33.3%  | -0.35R     | 0.56R     | -0.65R   
+low_conf(conf=0.325<thr=0.51@trend)      | 3   | 2/1     | 66.7%  | 0.35R      | 0.70R     | -0.92R   
+low_conf(conf=0.233<thr=0.51@trend)      | 3   | 2/1     | 66.7%  | 0.41R      | 0.89R     | -0.90R   
+low_conf(conf=0.104<thr=0.51@trend)      | 3   | 3/0     | 100.0% | 1.04R      | 1.04R     | -0.82R   
+low_conf(conf=0.106<thr=0.51@trend)      | 3   | 1/2     | 33.3%  | -0.32R     | 0.47R     | -0.99R   
+low_conf(conf=0.033<thr=0.51@chop)       | 3   | 2/1     | 66.7%  | 0.29R      | 0.93R     | -0.52R   
+low_conf(conf=0.247<thr=0.51@chop)       | 3   | 1/2     | 33.3%  | -0.28R     | 0.81R     | -1.10R   
+low_conf(conf=0.225<thr=0.51@chop)       | 3   | 0/3     | 0.0%   | -1.01R     | 0.36R     | -1.01R   
+low_conf(conf=0.190<thr=0.51@trend)      | 3   | 1/2     | 33.3%  | -0.39R     | 0.44R     | -0.72R   
+low_conf(conf=0.185<thr=0.51@chop)       | 3   | 2/1     | 66.7%  | 0.32R      | 0.91R     | -0.38R   
+low_conf(conf=0.073<thr=0.51@chop)       | 3   | 2/1     | 66.7%  | 0.42R      | 0.56R     | -0.30R   
+low_conf(conf=0.183<thr=0.51@chop)       | 3   | 3/0     | 100.0% | 1.33R      | 1.33R     | -0.61R   
+low_conf(conf=0.147<thr=0.51@chop)       | 3   | 3/0     | 100.0% | 1.24R      | 1.24R     | -0.70R   
+low_conf(conf=0.115<thr=0.51@chop)       | 3   | 3/0     | 100.0% | 1.08R      | 1.08R     | -0.32R   
+low_conf(conf=0.379<thr=0.51@chop)       | 3   | 1/2     | 33.3%  | -0.43R     | 0.69R     | -0.71R   
+low_conf(conf=0.437<thr=0.51@chop)       | 3   | 2/1     | 66.7%  | 0.60R      | 1.22R     | -0.86R   
+low_conf(conf=0.259<thr=0.51@chop)       | 3   | 3/0     | 100.0% | 1.22R      | 1.22R     | -0.62R   
+low_conf(conf=0.241<thr=0.51@trend)      | 3   | 2/1     | 66.7%  | 0.40R      | 0.73R     | -0.38R   
+low_conf(conf=0.162<thr=0.51@chop)       | 3   | 0/3     | 0.0%   | -1.09R     | 0.09R     | -1.09R   
+low_conf(conf=0.177<thr=0.51@chop)       | 3   | 1/2     | 33.3%  | -0.33R     | 0.30R     | -0.62R   
+low_conf(conf=0.179<thr=0.51@chop)       | 3   | 1/2     | 33.3%  | -0.50R     | 0.70R     | -1.19R   
+low_conf(conf=0.436<thr=0.51@chop)       | 3   | 1/2     | 33.3%  | -0.36R     | 0.31R     | -0.68R   
+low_conf(conf=0.196<thr=0.51@chop)       | 3   | 2/1     | 66.7%  | 0.49R      | 0.65R     | -0.80R   
+low_conf(conf=0.462<thr=0.51@chop)       | 3   | 3/0     | 100.0% | 1.14R      | 1.14R     | -0.26R   
+low_conf(conf=0.353<thr=0.51@trend)      | 3   | 2/1     | 66.7%  | 0.55R      | 1.09R     | -0.89R   
+low_conf(conf=0.018<thr=0.51@chop)       | 3   | 1/2     | 33.3%  | -0.34R     | 0.18R     | -0.74R   
+low_conf(conf=0.284<thr=0.51@trend)      | 3   | 2/1     | 66.7%  | 0.37R      | 0.54R     | -0.42R   
+low_conf(conf=0.243<thr=0.51@chop)       | 3   | 1/2     | 33.3%  | -0.33R     | 0.24R     | -0.70R   
+low_conf(conf=0.283<thr=0.51@chop)       | 3   | 1/2     | 33.3%  | -0.34R     | 0.46R     | -0.66R   
+low_conf(conf=0.497<thr=0.51@chop)       | 3   | 2/1     | 66.7%  | 0.54R      | 0.96R     | -0.53R   
+low_conf(conf=0.130<thr=0.51@chop)       | 3   | 3/0     | 100.0% | 1.06R      | 1.06R     | -0.39R   
+low_conf(conf=0.472<thr=0.51@trend)      | 3   | 2/1     | 66.7%  | 0.37R      | 0.88R     | -0.98R   
+low_conf(conf=0.287<thr=0.51@chop)       | 3   | 3/0     | 100.0% | 1.13R      | 1.13R     | -0.05R   
+low_conf(conf=0.199<thr=0.51@trend)      | 3   | 1/2     | 33.3%  | -0.37R     | 0.30R     | -0.85R   
+low_conf(conf=0.260<thr=0.51@chop)       | 3   | 2/1     | 66.7%  | 0.54R      | 0.86R     | -0.68R   
+low_conf(conf=0.217<thr=0.51@chop)       | 3   | 2/1     | 66.7%  | 0.40R      | 0.77R     | -0.45R   
+low_conf(conf=0.370<thr=0.51@chop)       | 3   | 3/0     | 100.0% | 1.05R      | 1.05R     | -0.07R   
+low_conf(conf=0.151<thr=0.51@chop)       | 3   | 1/2     | 33.3%  | -0.25R     | 0.89R     | -0.67R   
+low_conf(conf=0.343<thr=0.51@trend)      | 3   | 1/2     | 33.3%  | -0.46R     | 0.28R     | -0.77R   
+low_conf(conf=0.320<thr=0.51@trend)      | 3   | 1/2     | 33.3%  | -0.37R     | 0.51R     | -0.77R   
+low_conf(conf=0.339<thr=0.51@trend)      | 3   | 3/0     | 100.0% | 1.02R      | 1.02R     | -0.37R   
+low_conf(conf=0.316<thr=0.51@trend)      | 3   | 3/0     | 100.0% | 1.10R      | 1.10R     | -0.28R   
+low_conf(conf=0.408<thr=0.51@chop)       | 3   | 3/0     | 100.0% | 1.04R      | 1.04R     | -0.24R   
+low_conf(conf=0.048<thr=0.51@trend)      | 3   | 2/1     | 66.7%  | 0.31R      | 0.81R     | -0.39R   
+low_conf(conf=0.112<thr=0.51@trend)      | 3   | 1/2     | 33.3%  | -0.41R     | 0.50R     | -1.00R   
+low_conf(conf=0.142<thr=0.51@trend)      | 3   | 0/3     | 0.0%   | -1.10R     | 0.58R     | -1.10R   
+low_conf(conf=0.446<thr=0.51@chop)       | 3   | 3/0     | 100.0% | 1.12R      | 1.12R     | -0.31R   
+low_conf(conf=0.323<thr=0.51@chop)       | 3   | 2/1     | 66.7%  | 0.29R      | 0.95R     | -0.32R   
+low_conf(conf=0.262<thr=0.51@chop)       | 3   | 3/0     | 100.0% | 1.05R      | 1.05R     | 0.01R    
+low_conf(conf=0.094<thr=0.51@trend)      | 3   | 2/1     | 66.7%  | 0.41R      | 0.75R     | -0.36R   
+low_conf(conf=0.083<thr=0.51@trend)      | 3   | 0/3     | 0.0%   | -1.08R     | 0.34R     | -1.08R   
+low_conf(conf=0.144<thr=0.51@trend)      | 3   | 3/0     | 100.0% | 1.05R      | 1.05R     | -0.16R   
+low_conf(conf=0.013<thr=0.51@trend)      | 3   | 1/2     | 33.3%  | -0.54R     | 0.68R     | -0.86R   
+low_conf(conf=0.363<thr=0.51@trend)      | 3   | 0/3     | 0.0%   | -1.08R     | 0.17R     | -1.08R   
+low_conf(conf=0.341<thr=0.51@trend)      | 3   | 0/3     | 0.0%   | -1.05R     | 0.19R     | -1.05R   
+low_conf(conf=0.020<thr=0.51@trend)      | 3   | 0/3     | 0.0%   | -1.20R     | 0.63R     | -1.20R   
+low_conf(conf=0.017<thr=0.51@trend)      | 3   | 1/2     | 33.3%  | -0.06R     | 1.16R     | -0.84R   
+low_conf(conf=0.040<thr=0.51@trend)      | 3   | 1/2     | 33.3%  | -0.33R     | 0.56R     | -0.87R   
+low_conf(conf=0.060<thr=0.51@chop)       | 3   | 1/2     | 33.3%  | -0.31R     | 0.59R     | -0.60R   
+low_conf(conf=0.279<thr=0.51@trend)      | 3   | 1/2     | 33.3%  | -0.43R     | 0.51R     | -0.43R   
+low_conf(conf=0.207<thr=0.51@trend)      | 3   | 1/2     | 33.3%  | -0.31R     | 0.90R     | -0.84R   
+low_conf(conf=0.236<thr=0.51@trend)      | 3   | 1/2     | 33.3%  | -0.35R     | 0.42R     | -0.91R   
+low_conf(conf=0.008<thr=0.51@chop)       | 3   | 2/1     | 66.7%  | 0.30R      | 0.75R     | -0.91R   
+low_conf(conf=0.257<thr=0.51@chop)       | 3   | 1/2     | 33.3%  | -0.51R     | 0.77R     | -0.78R   
+low_conf(conf=0.066<thr=0.51@chop)       | 3   | 0/3     | 0.0%   | -1.12R     | 0.74R     | -1.12R   
+low_conf(conf=0.045<thr=0.51@trend)      | 3   | 2/1     | 66.7%  | 0.32R      | 0.78R     | -0.75R   
+low_conf(conf=0.438<thr=0.51@trend)      | 3   | 0/3     | 0.0%   | -1.08R     | -0.15R    | -1.08R   
+low_conf(conf=0.488<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.18R     | 0.26R     | -1.18R   
+low_conf(conf=0.337<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.11R      | 1.11R     | -0.06R   
+low_conf(conf=0.318<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.04R      | 1.04R     | -0.19R   
+low_conf(conf=0.280<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.16R      | 1.16R     | 0.05R    
+low_conf(conf=0.402<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.01R     | 0.69R     | -0.49R   
+low_conf(conf=0.095<thr=0.51@trend)      | 2   | 2/0     | 100.0% | 1.43R      | 1.43R     | -0.01R   
+low_conf(conf=0.102<thr=0.51@trend)      | 2   | 2/0     | 100.0% | 1.28R      | 1.28R     | -0.26R   
+low_conf(conf=0.234<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | -0.01R     | 0.88R     | -0.55R   
+low_conf(conf=0.149<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | 0.33R      | 0.99R     | -0.56R   
+low_conf(conf=0.219<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | -0.23R     | 0.77R     | -0.48R   
+low_conf(conf=0.401<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.05R     | 0.76R     | -0.57R   
+low_conf(conf=0.291<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.09R     | -0.05R    | -1.09R   
+low_conf(conf=0.240<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | 0.11R      | 0.85R     | -0.59R   
+low_conf(conf=0.099<thr=0.51@trend)      | 2   | 2/0     | 100.0% | 1.19R      | 1.19R     | -0.59R   
+low_conf(conf=0.100<thr=0.51@trend)      | 2   | 2/0     | 100.0% | 1.60R      | 1.60R     | 0.05R    
+low_conf(conf=0.066<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | -0.03R     | 0.58R     | -0.65R   
+low_conf(conf=0.185<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | -0.03R     | 0.58R     | -0.49R   
+low_conf(conf=0.126<thr=0.51@trend)      | 2   | 2/0     | 100.0% | 1.94R      | 1.94R     | -0.25R   
+low_conf(conf=0.002<thr=0.51@trend)      | 2   | 2/0     | 100.0% | 1.46R      | 1.46R     | -0.05R   
+low_conf(conf=0.034<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | 0.24R      | 0.88R     | -0.77R   
+low_conf(conf=0.429<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | -0.05R     | 0.56R     | -0.96R   
+low_conf(conf=0.487<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.11R     | 0.21R     | -1.11R   
+low_conf(conf=0.396<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.07R     | 0.53R     | -0.80R   
+low_conf(conf=0.067<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.65R     | 0.64R     | -1.65R   
+low_conf(conf=0.171<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.69R     | 0.60R     | -1.69R   
+low_conf(conf=0.143<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | 0.71R      | 1.38R     | -0.86R   
+low_conf(conf=0.139<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.65R     | 0.62R     | -1.65R   
+low_conf(conf=0.411<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.03R     | 0.03R     | -1.03R   
+low_conf(conf=0.229<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.19R     | 0.34R     | -1.19R   
+low_conf(conf=0.194<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.02R     | 0.46R     | -0.77R   
+low_conf(conf=0.299<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | 0.51R      | 1.15R     | -0.62R   
+low_conf(conf=0.503<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.04R      | 1.04R     | -0.05R   
+low_conf(conf=0.181<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.02R      | 0.55R     | -0.66R   
+low_conf(conf=0.166<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.06R     | 0.36R     | -1.06R   
+low_conf(conf=0.400<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.01R      | 0.68R     | -0.58R   
+low_conf(conf=0.078<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.04R      | 0.70R     | -0.50R   
+low_conf(conf=0.495<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.04R     | 0.24R     | -1.04R   
+low_conf(conf=0.158<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.02R     | 0.46R     | -1.02R   
+low_conf(conf=0.362<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.02R     | 0.62R     | -0.81R   
+low_conf(conf=0.302<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.32R     | -0.76R    | -1.32R   
+low_conf(conf=0.290<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.03R     | 0.09R     | -1.03R   
+low_conf(conf=0.357<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.10R     | 0.89R     | -1.01R   
+low_conf(conf=0.459<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.01R     | 0.84R     | -0.91R   
+low_conf(conf=0.477<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.05R      | 1.05R     | 0.05R    
+low_conf(conf=0.297<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.08R      | 0.89R     | -0.57R   
+low_conf(conf=0.288<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.02R     | 0.80R     | -0.66R   
+low_conf(conf=0.301<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.11R      | 1.11R     | -0.01R   
+low_conf(conf=0.361<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.01R     | -0.37R    | -1.01R   
+low_conf(conf=0.215<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.02R     | 0.28R     | -1.02R   
+low_conf(conf=0.482<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.05R     | 0.40R     | -1.05R   
+low_conf(conf=0.149<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.03R     | 0.78R     | -0.62R   
+low_conf(conf=0.227<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.03R      | 0.48R     | -0.89R   
+low_conf(conf=0.294<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.08R     | -0.05R    | -1.08R   
+low_conf(conf=0.226<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.10R     | 0.00R     | -1.10R   
+low_conf(conf=0.200<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.10R     | -0.27R    | -1.10R   
+low_conf(conf=0.251<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.25R      | 1.25R     | -0.65R   
+low_conf(conf=0.173<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.33R      | 1.33R     | -0.41R   
+low_conf(conf=0.047<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.41R      | 1.00R     | -0.69R   
+low_conf(conf=0.049<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.12R      | 1.11R     | -0.93R   
+low_conf(conf=0.144<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.13R      | 0.60R     | -0.93R   
+low_conf(conf=0.029<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.24R      | 1.24R     | -0.28R   
+low_conf(conf=0.093<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.36R     | 0.80R     | -0.95R   
+low_conf(conf=0.190<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.44R     | 0.35R     | -1.44R   
+low_conf(conf=0.114<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.01R     | 0.34R     | -1.01R   
+low_conf(conf=0.338<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.05R     | 0.83R     | -1.02R   
+low_conf(conf=0.454<thr=0.51@trend)      | 2   | 2/0     | 100.0% | 1.18R      | 1.18R     | -0.72R   
+low_conf(conf=0.019<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | 0.01R      | 0.83R     | -0.99R   
+low_conf(conf=0.200<thr=0.51@trend)      | 2   | 2/0     | 100.0% | 1.06R      | 1.06R     | -0.91R   
+low_conf(conf=0.405<thr=0.51@trend)      | 2   | 2/0     | 100.0% | 1.34R      | 1.34R     | -0.63R   
+low_conf(conf=0.212<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | 0.06R      | 0.83R     | -0.93R   
+low_conf(conf=0.461<thr=0.51@trend)      | 2   | 2/0     | 100.0% | 1.17R      | 1.17R     | -0.11R   
+low_conf(conf=0.079<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.28R     | -0.15R    | -1.28R   
+low_conf(conf=0.090<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.01R     | 0.60R     | -0.80R   
+low_conf(conf=0.222<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.10R      | 0.62R     | -0.87R   
+low_conf(conf=0.085<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.05R     | -0.46R    | -1.05R   
+low_conf(conf=0.065<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.04R     | 0.84R     | -0.91R   
+low_conf(conf=0.139<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.55R      | 1.55R     | -0.41R   
+low_conf(conf=0.427<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.30R      | 1.30R     | -0.54R   
+low_conf(conf=0.306<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.25R      | 1.25R     | -0.51R   
+low_conf(conf=0.264<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.17R     | 0.65R     | -0.83R   
+low_conf(conf=0.403<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.07R      | 0.53R     | -0.56R   
+low_conf(conf=0.132<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.01R      | 0.40R     | -0.66R   
+low_conf(conf=0.188<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.01R      | 0.38R     | -0.63R   
+low_conf(conf=0.203<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.07R      | 1.07R     | -0.20R   
+low_conf(conf=0.252<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.18R      | 1.18R     | -0.67R   
+low_conf(conf=0.123<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.03R      | 1.03R     | -0.53R   
+low_conf(conf=0.231<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.01R      | 0.74R     | -0.59R   
+low_conf(conf=0.413<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.01R     | 0.14R     | -1.01R   
+low_conf(conf=0.270<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.09R      | 0.52R     | -0.51R   
+low_conf(conf=0.496<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.11R     | -0.05R    | -1.11R   
+low_conf(conf=0.198<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.09R      | 1.09R     | -0.45R   
+low_conf(conf=0.255<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.23R      | 1.23R     | -0.25R   
+low_conf(conf=0.331<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.10R      | 1.10R     | 0.07R    
+low_conf(conf=0.075<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.05R      | 0.52R     | -0.39R   
+low_conf(conf=0.101<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.10R     | 0.71R     | -1.08R   
+low_conf(conf=0.131<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.01R      | 0.61R     | -0.44R   
+low_conf(conf=0.045<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.20R      | 1.20R     | -0.18R   
+low_conf(conf=0.358<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.03R     | 0.28R     | -0.37R   
+low_conf(conf=0.266<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.02R     | 0.46R     | -0.53R   
+low_conf(conf=0.107<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.04R     | 0.46R     | -0.41R   
+low_conf(conf=0.345<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.01R      | 0.43R     | -0.48R   
+low_conf(conf=0.154<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.07R      | 0.99R     | -0.93R   
+low_conf(conf=0.375<thr=0.51@trend)      | 2   | 2/0     | 100.0% | 1.07R      | 1.07R     | -0.04R   
+low_conf(conf=0.465<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.23R      | 1.23R     | 0.38R    
+low_conf(conf=0.492<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.30R      | 1.30R     | -0.31R   
+low_conf(conf=0.396<thr=0.51@trend)      | 2   | 2/0     | 100.0% | 1.07R      | 1.07R     | -0.54R   
+low_conf(conf=0.474<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.14R      | 0.84R     | -0.66R   
+low_conf(conf=0.280<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | -0.06R     | 0.60R     | -1.10R   
+low_conf(conf=0.245<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.22R      | 1.22R     | 0.08R    
+low_conf(conf=0.224<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.08R     | 0.24R     | -1.08R   
+low_conf(conf=0.322<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.06R      | 0.95R     | -0.46R   
+low_conf(conf=0.143<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.04R     | 0.58R     | -0.58R   
+low_conf(conf=0.218<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.19R      | 1.19R     | -0.78R   
+low_conf(conf=0.024<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.15R      | 1.15R     | -0.23R   
+low_conf(conf=0.220<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.02R     | 0.58R     | -0.64R   
+low_conf(conf=0.334<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.01R      | 0.55R     | -0.19R   
+low_conf(conf=0.102<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.01R      | 0.37R     | -0.75R   
+low_conf(conf=0.134<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.04R     | 0.16R     | -1.04R   
+low_conf(conf=0.092<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.05R     | 0.07R     | -1.05R   
+low_conf(conf=0.010<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.08R     | 0.07R     | -1.08R   
+low_conf(conf=0.510<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.06R      | 0.77R     | -0.33R   
+low_conf(conf=0.305<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.02R     | 0.67R     | -0.47R   
+low_conf(conf=0.214<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.13R     | -0.21R    | -1.13R   
+low_conf(conf=0.197<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | -0.06R     | 0.53R     | -0.76R   
+low_conf(conf=0.243<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.13R     | 0.08R     | -1.13R   
+low_conf(conf=0.358<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.03R     | 0.15R     | -1.03R   
+low_conf(conf=0.442<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | -0.01R     | 0.68R     | -0.86R   
+low_conf(conf=0.268<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | 0.14R      | 0.84R     | -0.77R   
+low_conf(conf=0.472<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.10R     | 0.22R     | -1.10R   
+low_conf(conf=0.262<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.12R     | 0.27R     | -1.12R   
+low_conf(conf=0.291<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.14R     | 0.85R     | -1.00R   
+low_conf(conf=0.353<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.13R     | 0.34R     | -1.13R   
+low_conf(conf=0.145<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.08R     | -0.02R    | -1.08R   
+low_conf(conf=0.169<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | -0.04R     | 0.64R     | -0.92R   
+low_conf(conf=0.147<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | -0.10R     | 0.58R     | -0.72R   
+low_conf(conf=0.204<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.14R     | 0.69R     | -0.70R   
+low_conf(conf=0.464<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.01R      | 1.00R     | -0.77R   
+low_conf(conf=0.186<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | 0.05R      | 0.74R     | -0.62R   
+low_conf(conf=0.201<thr=0.51@chop)       | 2   | 2/0     | 100.0% | 1.04R      | 1.04R     | -0.01R   
+low_conf(conf=0.150<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | 0.02R      | 0.69R     | -0.78R   
+low_conf(conf=0.101<thr=0.51@trend)      | 2   | 2/0     | 100.0% | 1.04R      | 1.04R     | 0.17R    
+low_conf(conf=0.440<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | -0.01R     | 0.44R     | -0.22R   
+low_conf(conf=0.167<thr=0.51@trend)      | 2   | 2/0     | 100.0% | 1.11R      | 1.11R     | -0.33R   
+low_conf(conf=0.324<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | -0.00R     | 0.57R     | -0.95R   
+low_conf(conf=0.478<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | 0.02R      | 0.79R     | -0.76R   
+low_conf(conf=0.250<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | 0.04R      | 0.69R     | -0.48R   
+low_conf(conf=0.168<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | -0.07R     | 0.60R     | -0.55R   
+low_conf(conf=0.214<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.01R     | 0.20R     | -1.01R   
+low_conf(conf=0.073<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | 0.00R      | 0.48R     | -0.84R   
+low_conf(conf=0.360<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.03R     | 0.04R     | -1.03R   
+low_conf(conf=0.178<thr=0.51@trend)      | 2   | 2/0     | 100.0% | 1.09R      | 1.09R     | -0.24R   
+low_conf(conf=0.063<thr=0.51@trend)      | 2   | 2/0     | 100.0% | 1.15R      | 1.15R     | -0.21R   
+low_conf(conf=0.006<thr=0.51@trend)      | 2   | 2/0     | 100.0% | 1.25R      | 1.25R     | -0.24R   
+low_conf(conf=0.256<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.05R     | -0.15R    | -1.05R   
+low_conf(conf=0.021<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | -0.11R     | 0.47R     | -0.98R   
+low_conf(conf=0.286<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.05R     | 0.50R     | -1.05R   
+low_conf(conf=0.295<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.11R     | 0.28R     | -1.11R   
+low_conf(conf=0.201<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.16R     | 0.33R     | -1.16R   
+low_conf(conf=0.177<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.24R     | 0.25R     | -1.24R   
+low_conf(conf=0.007<thr=0.51@trend)      | 2   | 2/0     | 100.0% | 1.49R      | 1.49R     | -0.17R   
+low_conf(conf=0.014<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.20R     | 0.63R     | -1.03R   
+low_conf(conf=0.125<thr=0.51@chop)       | 2   | 1/1     | 50.0%  | -0.18R     | 0.80R     | -0.92R   
+low_conf(conf=0.235<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.03R     | 0.27R     | -1.03R   
+low_conf(conf=0.059<thr=0.51@trend)      | 2   | 2/0     | 100.0% | 1.90R      | 1.90R     | -0.42R   
+low_conf(conf=0.005<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.01R     | 0.08R     | -1.01R   
+low_conf(conf=0.137<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | -0.06R     | 0.89R     | -0.68R   
+low_conf(conf=0.098<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.11R     | 0.41R     | -1.11R   
+low_conf(conf=0.096<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | -0.00R     | 0.77R     | -0.64R   
+low_conf(conf=0.184<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | -0.01R     | 0.64R     | -0.97R   
+low_conf(conf=0.047<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | 0.01R      | 0.22R     | -0.63R   
+low_conf(conf=0.018<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | -0.31R     | 0.41R     | -0.95R   
+low_conf(conf=0.420<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.04R     | 0.54R     | -1.04R   
+low_conf(conf=0.307<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.10R     | 0.18R     | -1.10R   
+low_conf(conf=0.277<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.08R     | 0.01R     | -1.08R   
+low_conf(conf=0.501<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.03R     | 0.11R     | -1.03R   
+low_conf(conf=0.186<thr=0.51@trend)      | 2   | 1/1     | 50.0%  | 0.49R      | 1.19R     | -0.71R   
+low_conf(conf=0.194<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.07R     | 0.15R     | -1.07R   
+low_conf(conf=0.302<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.05R     | 0.31R     | -1.05R   
+low_conf(conf=0.315<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.05R     | 0.23R     | -1.05R   
+low_conf(conf=0.271<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.31R     | -0.76R    | -1.31R   
+low_conf(conf=0.426<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.15R     | -0.20R    | -1.15R   
+low_conf(conf=0.501<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.05R     | 0.29R     | -1.05R   
+low_conf(conf=0.406<thr=0.51@chop)       | 2   | 0/2     | 0.0%   | -1.02R     | 0.16R     | -1.02R   
+low_conf(conf=0.470<thr=0.51@trend)      | 2   | 0/2     | 0.0%   | -1.02R     | -0.08R    | -1.02R   
+position_already_exists(symbol=DOTUSDT)  | 2   | 2/0     | 100.0% | 2.03R      | 2.03R     | -0.70R   
+low_conf(conf=0.330<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.04R      | 1.04R     | 0.04R    
+low_conf(conf=0.244<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.02R      | 1.02R     | 0.04R    
+low_conf(conf=0.230<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.40R     | 0.43R     | -1.40R   
+low_conf(conf=0.133<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.31R     | 0.51R     | -1.31R   
+low_conf(conf=0.074<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.40R      | 1.40R     | -0.41R   
+low_conf(conf=0.042<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.31R      | 1.31R     | -0.50R   
+low_conf(conf=0.056<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.32R      | 1.32R     | -0.49R   
+low_conf(conf=0.350<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.07R      | 1.07R     | 0.07R    
+negative_unreal_pnl(unreal=-119.31)      | 1   | 0/1     | 0.0%   | -1.07R     | 0.42R     | -1.07R   
+low_conf(conf=0.457<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.00R     | 0.03R     | -1.00R   
+low_conf(conf=0.462<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.09R     | -0.14R    | -1.09R   
+low_conf(conf=0.063<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.11R     | -0.23R    | -1.11R   
+low_conf(conf=0.111<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.07R      | 1.07R     | -0.12R   
+low_conf(conf=0.070<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.44R      | 1.44R     | -0.58R   
+low_conf(conf=0.146<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.21R     | 0.02R     | -1.21R   
+low_conf(conf=0.480<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.04R     | 0.19R     | -1.04R   
+low_conf(conf=0.205<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.01R     | -0.03R    | -1.01R   
+low_conf(conf=0.342<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.03R      | 1.03R     | 0.29R    
+low_conf(conf=0.373<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.02R     | -0.18R    | -1.02R   
+low_conf(conf=0.398<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.16R     | 0.04R     | -1.16R   
+low_conf(conf=0.378<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.03R     | -0.03R    | -1.03R   
+negative_unreal_pnl(unreal=-77.45)       | 1   | 0/1     | 0.0%   | -1.13R     | 0.41R     | -1.13R   
+low_conf(conf=0.443<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.39R     | 0.37R     | -1.39R   
+low_conf(conf=0.364<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.38R     | 0.38R     | -1.38R   
+low_conf(conf=0.351<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.28R     | 0.47R     | -1.28R   
+negative_unreal_pnl(unreal=-415.54)      | 1   | 0/1     | 0.0%   | -1.18R     | 0.77R     | -1.18R   
+low_conf(conf=0.371<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.05R     | -0.24R    | -1.05R   
+negative_unreal_pnl(unreal=-81.23)       | 1   | 0/1     | 0.0%   | -1.12R     | -0.25R    | -1.12R   
+negative_unreal_pnl(unreal=-375.76)      | 1   | 0/1     | 0.0%   | -1.30R     | -0.06R    | -1.30R   
+low_conf(conf=0.351<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.01R      | 1.01R     | -0.40R   
+low_conf(conf=0.346<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.11R      | 1.11R     | 0.18R    
+negative_unreal_pnl(unreal=-185.64)      | 1   | 1/0     | 100.0% | 1.00R      | 1.00R     | -0.36R   
+low_conf(conf=0.055<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -2.62R     | 0.47R     | -2.62R   
+low_conf(conf=0.077<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 2.67R      | 2.67R     | -0.50R   
+negative_unreal_pnl(unreal=-274.64)      | 1   | 1/0     | 100.0% | 1.02R      | 1.02R     | 0.12R    
+negative_unreal_pnl(unreal=-42.56)       | 1   | 0/1     | 0.0%   | -1.05R     | -0.09R    | -1.05R   
+negative_unreal_pnl(unreal=-67.90)       | 1   | 0/1     | 0.0%   | -1.12R     | 0.24R     | -1.12R   
+low_conf(conf=0.292<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.04R     | 0.10R     | -1.04R   
+low_conf(conf=0.319<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.03R     | 0.06R     | -1.03R   
+low_conf(conf=0.338<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.05R     | 0.04R     | -1.05R   
+low_conf(conf=0.332<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.02R     | 0.14R     | -1.02R   
+negative_unreal_pnl(unreal=-98.74)       | 1   | 1/0     | 100.0% | 1.13R      | 1.13R     | -0.20R   
+negative_unreal_pnl(unreal=-71.53)       | 1   | 0/1     | 0.0%   | -1.13R     | 0.46R     | -1.13R   
+low_conf(conf=0.157<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.00R     | 0.05R     | -1.00R   
+low_conf(conf=0.044<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.03R     | 0.03R     | -1.03R   
+low_conf(conf=0.043<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.03R     | 0.19R     | -1.03R   
+low_conf(conf=0.490<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.20R      | 1.20R     | -0.84R   
+low_conf(conf=0.365<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.07R      | 1.07R     | 0.05R    
+low_conf(conf=0.335<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.06R      | 1.06R     | -0.59R   
+low_conf(conf=0.326<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.04R     | -0.03R    | -1.04R   
+negative_unreal_pnl(unreal=-129.01)      | 1   | 1/0     | 100.0% | 1.06R      | 1.06R     | 0.15R    
+low_conf(conf=0.468<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.09R      | 1.09R     | 0.46R    
+negative_unreal_pnl(unreal=-163.73)      | 1   | 1/0     | 100.0% | 1.07R      | 1.07R     | -0.73R   
+low_conf(conf=0.308<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.09R      | 1.09R     | -0.72R   
+low_conf(conf=0.424<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.05R      | 1.05R     | -0.04R   
+low_conf(conf=0.232<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.09R      | 1.09R     | 0.02R    
+low_conf(conf=0.310<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.09R      | 1.09R     | -0.19R   
+low_conf(conf=0.074<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.16R      | 1.16R     | -0.20R   
+low_conf(conf=0.110<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.24R      | 1.24R     | -0.13R   
+negative_unreal_pnl(unreal=-76.44)       | 1   | 0/1     | 0.0%   | -1.02R     | 0.13R     | -1.02R   
+low_conf(conf=0.193<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.02R      | 1.02R     | 0.04R    
+low_conf(conf=0.148<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.06R      | 1.06R     | 0.13R    
+low_conf(conf=0.192<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.03R     | 0.58R     | -1.03R   
+low_conf(conf=0.174<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.10R      | 1.10R     | 0.06R    
+negative_unreal_pnl(unreal=-157.50)      | 1   | 0/1     | 0.0%   | -1.04R     | 0.21R     | -1.04R   
+negative_unreal_pnl(unreal=-211.10)      | 1   | 0/1     | 0.0%   | -1.17R     | 0.17R     | -1.17R   
+negative_unreal_pnl(unreal=-54.75)       | 1   | 0/1     | 0.0%   | -1.01R     | 0.16R     | -1.01R   
+low_conf(conf=0.137<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.03R      | 1.03R     | -0.06R   
+low_conf(conf=0.228<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.14R     | -0.01R    | -1.14R   
+low_conf(conf=0.249<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.11R     | -0.10R    | -1.11R   
+low_conf(conf=0.015<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.47R      | 1.47R     | -0.65R   
+low_conf(conf=0.121<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -2.04R     | 0.25R     | -2.04R   
+low_conf(conf=0.169<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -2.09R     | 0.16R     | -2.09R   
+low_conf(conf=0.060<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.04R     | 0.51R     | -1.04R   
+low_conf(conf=0.500<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.09R      | 1.09R     | -0.72R   
+negative_unreal_pnl(unreal=-174.90)      | 1   | 1/0     | 100.0% | 1.05R      | 1.05R     | -0.03R   
+low_conf(conf=0.310<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.02R      | 1.02R     | -0.95R   
+low_conf(conf=0.237<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.05R      | 1.05R     | -0.98R   
+negative_unreal_pnl(unreal=-82.02)       | 1   | 1/0     | 100.0% | 2.12R      | 2.12R     | 2.12R    
+low_conf(conf=0.412<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.26R      | 1.26R     | -0.71R   
+low_conf(conf=0.216<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.08R      | 1.08R     | -0.88R   
+low_conf(conf=0.455<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.29R      | 1.29R     | -0.68R   
+low_conf(conf=0.282<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.77R     | 0.23R     | -1.77R   
+negative_unreal_pnl(unreal=-79.12)       | 1   | 1/0     | 100.0% | 1.02R      | 1.02R     | -0.62R   
+low_conf(conf=0.095<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.07R     | 0.22R     | -1.07R   
+low_conf(conf=0.290<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.05R     | -0.08R    | -1.05R   
+negative_unreal_pnl(unreal=-42.07)       | 1   | 1/0     | 100.0% | 1.04R      | 1.04R     | -0.69R   
+low_conf(conf=0.106<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.52R      | 1.52R     | -0.95R   
+low_conf(conf=0.364<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.67R      | 1.67R     | -0.70R   
+low_conf(conf=0.086<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.31R      | 1.31R     | 0.05R    
+low_conf(conf=0.488<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.16R      | 1.16R     | -0.10R   
+negative_unreal_pnl(unreal=-155.26)      | 1   | 1/0     | 100.0% | 1.04R      | 1.04R     | -0.82R   
+low_conf(conf=0.414<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.06R      | 1.06R     | 0.04R    
+negative_unreal_pnl(unreal=-113.45)      | 1   | 0/1     | 0.0%   | -1.01R     | 0.92R     | -1.01R   
+negative_unreal_pnl(unreal=-118.00)      | 1   | 0/1     | 0.0%   | -1.04R     | 0.63R     | -1.04R   
+low_conf(conf=0.416<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.04R     | 0.84R     | -1.04R   
+low_conf(conf=0.445<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.54R      | 1.54R     | -0.65R   
+low_conf(conf=0.485<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.02R      | 1.02R     | -0.72R   
+negative_unreal_pnl(unreal=-846.21)      | 1   | 1/0     | 100.0% | 1.07R      | 1.07R     | -0.24R   
+low_conf(conf=0.229<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.09R      | 1.09R     | 0.23R    
+low_conf(conf=0.117<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.37R      | 1.37R     | 0.13R    
+low_conf(conf=0.312<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.20R      | 1.20R     | 0.13R    
+low_conf(conf=0.138<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.08R     | -0.03R    | -1.08R   
+low_conf(conf=0.148<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.04R     | -0.03R    | -1.04R   
+low_conf(conf=0.382<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.13R      | 1.13R     | -0.30R   
+low_conf(conf=0.028<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.35R     | 0.02R     | -1.35R   
+negative_unreal_pnl(unreal=-169.27)      | 1   | 1/0     | 100.0% | 1.15R      | 1.15R     | -0.75R   
+negative_unreal_pnl(unreal=-102.85)      | 1   | 0/1     | 0.0%   | -1.19R     | 0.31R     | -1.19R   
+low_conf(conf=0.441<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.44R      | 1.44R     | -0.48R   
+low_conf(conf=0.034<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.01R     | 0.12R     | -1.01R   
+negative_unreal_pnl(unreal=-92.91)       | 1   | 0/1     | 0.0%   | -1.09R     | 0.29R     | -1.09R   
+low_conf(conf=0.284<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.01R      | 1.01R     | 0.00R    
+negative_unreal_pnl(unreal=-251.66)      | 1   | 1/0     | 100.0% | 1.02R      | 1.02R     | -0.15R   
+low_conf(conf=0.343<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.25R      | 1.25R     | 0.15R    
+low_conf(conf=0.216<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.10R      | 1.10R     | 0.13R    
+low_conf(conf=0.356<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.25R      | 1.25R     | -0.36R   
+low_conf(conf=0.381<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.10R      | 1.10R     | -0.50R   
+low_conf(conf=0.365<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.05R      | 1.05R     | -0.55R   
+low_conf(conf=0.484<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.17R      | 1.17R     | -0.43R   
+low_conf(conf=0.463<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.55R      | 1.55R     | -0.05R   
+low_conf(conf=0.164<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.04R      | 1.04R     | -0.38R   
+low_conf(conf=0.124<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.21R     | -0.02R    | -1.21R   
+low_conf(conf=0.241<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.02R      | 1.02R     | 0.45R    
+low_conf(conf=0.233<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.04R      | 1.04R     | 0.14R    
+low_conf(conf=0.293<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.03R      | 1.03R     | 0.04R    
+low_conf(conf=0.296<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.10R      | 1.10R     | 0.16R    
+low_conf(conf=0.304<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.01R      | 1.01R     | -0.47R   
+low_conf(conf=0.189<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.09R      | 1.09R     | -0.10R   
+low_conf(conf=0.374<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.12R      | 1.12R     | -0.18R   
+low_conf(conf=0.313<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.00R      | 1.00R     | 0.03R    
+low_conf(conf=0.069<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.08R      | 1.08R     | 0.22R    
+low_conf(conf=0.159<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.38R      | 1.38R     | 0.26R    
+negative_unreal_pnl(unreal=-96.65)       | 1   | 1/0     | 100.0% | 1.11R      | 1.11R     | -0.06R   
+low_conf(conf=0.413<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.09R     | -0.19R    | -1.09R   
+low_conf(conf=0.207<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.03R     | 0.27R     | -1.03R   
+low_conf(conf=0.253<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.24R     | -0.04R    | -1.24R   
+low_conf(conf=0.265<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.20R     | 0.00R     | -1.20R   
+low_conf(conf=0.255<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.20R     | -0.02R    | -1.20R   
+low_conf(conf=0.410<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.07R     | -0.13R    | -1.07R   
+low_conf(conf=0.175<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.09R     | 0.36R     | -1.09R   
+low_conf(conf=0.087<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.08R     | 0.53R     | -1.08R   
+low_conf(conf=0.415<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.04R     | -0.15R    | -1.04R   
+low_conf(conf=0.062<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.05R     | -0.15R    | -1.05R   
+low_conf(conf=0.038<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.01R      | 1.01R     | -0.08R   
+low_conf(conf=0.499<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.69R      | 1.69R     | -0.42R   
+low_conf(conf=0.223<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.02R      | 1.02R     | -0.12R   
+low_conf(conf=0.346<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.22R     | -0.23R    | -1.22R   
+low_conf(conf=0.314<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.02R     | -0.34R    | -1.02R   
+low_conf(conf=0.120<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.10R     | -0.64R    | -1.10R   
+negative_unreal_pnl(unreal=-89.89)       | 1   | 1/0     | 100.0% | 1.12R      | 1.12R     | 0.16R    
+low_conf(conf=0.074<thr=0.51@breakout)   | 1   | 0/1     | 0.0%   | -1.00R     | 0.28R     | -1.00R   
+low_conf(conf=0.178<thr=0.51@breakout)   | 1   | 0/1     | 0.0%   | -1.32R     | 0.31R     | -1.32R   
+low_conf(conf=0.157<thr=0.51@breakout)   | 1   | 0/1     | 0.0%   | -1.21R     | 0.42R     | -1.21R   
+low_conf(conf=0.212<thr=0.51@breakout)   | 1   | 0/1     | 0.0%   | -1.28R     | 0.35R     | -1.28R   
+low_conf(conf=0.017<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.10R     | 0.81R     | -1.10R   
+low_conf(conf=0.007<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.17R      | 1.17R     | -0.72R   
+low_conf(conf=0.490<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.11R     | 0.31R     | -1.11R   
+negative_unreal_pnl(unreal=-70.55)       | 1   | 1/0     | 100.0% | 1.35R      | 1.35R     | -0.05R   
+low_conf(conf=0.505<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.00R     | 0.05R     | -1.00R   
+low_conf(conf=0.245<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.00R     | -0.51R    | -1.00R   
+low_conf(conf=0.264<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.10R     | 0.08R     | -1.10R   
+negative_unreal_pnl(unreal=-123.33)      | 1   | 1/0     | 100.0% | 1.02R      | 1.02R     | 0.70R    
+negative_unreal_pnl(unreal=-125.23)      | 1   | 1/0     | 100.0% | 1.05R      | 1.05R     | -0.02R   
+low_conf(conf=0.431<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.13R     | 0.38R     | -1.13R   
+low_conf(conf=0.489<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.03R     | 0.48R     | -1.03R   
+low_conf(conf=0.347<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.06R     | 0.31R     | -1.06R   
+negative_unreal_pnl(unreal=-103.95)      | 1   | 0/1     | 0.0%   | -1.30R     | 0.38R     | -1.30R   
+low_conf(conf=0.408<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.02R     | 0.03R     | -1.02R   
+low_conf(conf=0.294<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.01R     | -0.09R    | -1.01R   
+negative_unreal_pnl(unreal=-77.95)       | 1   | 0/1     | 0.0%   | -1.17R     | -0.32R    | -1.17R   
+negative_unreal_pnl(unreal=-122.80)      | 1   | 0/1     | 0.0%   | -1.04R     | 0.34R     | -1.04R   
+low_conf(conf=0.355<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.14R     | 0.38R     | -1.14R   
+low_conf(conf=0.375<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.12R     | 0.40R     | -1.12R   
+low_conf(conf=0.397<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.07R      | 1.07R     | -0.40R   
+negative_unreal_pnl(unreal=-109.67)      | 1   | 0/1     | 0.0%   | -1.07R     | 0.86R     | -1.07R   
+negative_unreal_pnl(unreal=-65.16)       | 1   | 1/0     | 100.0% | 1.04R      | 1.04R     | -0.56R   
+negative_unreal_pnl(unreal=-79.62)       | 1   | 1/0     | 100.0% | 1.01R      | 1.01R     | -0.46R   
+low_conf(conf=0.193<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.04R     | -0.21R    | -1.04R   
+low_conf(conf=0.162<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.18R     | 0.17R     | -1.18R   
+low_conf(conf=0.152<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.26R     | 0.09R     | -1.26R   
+low_conf(conf=0.180<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.30R     | 0.05R     | -1.30R   
+low_conf(conf=0.183<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.28R     | 0.07R     | -1.28R   
+low_conf(conf=0.071<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.01R     | -0.23R    | -1.01R   
+low_conf(conf=0.213<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.01R      | 1.01R     | -0.12R   
+negative_unreal_pnl(unreal=-124.66)      | 1   | 1/0     | 100.0% | 1.18R      | 1.18R     | -0.43R   
+low_conf(conf=0.180<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.01R     | -0.27R    | -1.01R   
+negative_unreal_pnl(unreal=-118.32)      | 1   | 0/1     | 0.0%   | -1.10R     | -0.06R    | -1.10R   
+negative_unreal_pnl(unreal=-64.38)       | 1   | 1/0     | 100.0% | 1.12R      | 1.12R     | -0.96R   
+low_conf(conf=0.039<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.13R     | 0.04R     | -1.13R   
+low_conf(conf=0.042<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.03R     | 0.14R     | -1.03R   
+low_conf(conf=0.104<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.26R      | 1.26R     | -0.02R   
+low_conf(conf=0.479<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.17R      | 1.17R     | -0.17R   
+low_conf(conf=0.390<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.24R      | 1.24R     | 0.00R    
+negative_unreal_pnl(unreal=-93.44)       | 1   | 0/1     | 0.0%   | -1.17R     | 0.13R     | -1.17R   
+negative_unreal_pnl(unreal=-117.02)      | 1   | 1/0     | 100.0% | 1.01R      | 1.01R     | 0.24R    
+negative_unreal_pnl(unreal=-131.54)      | 1   | 1/0     | 100.0% | 1.13R      | 1.13R     | 0.31R    
+low_conf(conf=0.418<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.71R      | 1.71R     | -0.05R   
+low_conf(conf=0.454<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.77R      | 1.77R     | 0.18R    
+low_conf(conf=0.315<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.59R      | 1.59R     | 0.18R    
+low_conf(conf=0.202<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.13R      | 1.13R     | 0.21R    
+negative_unreal_pnl(unreal=-204.51)      | 1   | 1/0     | 100.0% | 1.19R      | 1.19R     | -0.59R   
+low_conf(conf=0.447<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.02R      | 1.02R     | -0.75R   
+low_conf(conf=0.258<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.24R      | 1.24R     | 0.83R    
+low_conf(conf=0.453<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.05R      | 1.05R     | 0.04R    
+low_conf(conf=0.433<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.02R      | 1.02R     | -0.12R   
+low_conf(conf=0.382<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.04R      | 1.04R     | -0.73R   
+low_conf(conf=0.276<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.24R     | -0.09R    | -1.24R   
+low_conf(conf=0.498<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.01R     | 0.27R     | -1.01R   
+low_conf(conf=0.407<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.05R     | -0.04R    | -1.05R   
+low_conf(conf=0.439<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.02R     | -0.15R    | -1.02R   
+low_conf(conf=0.489<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.19R     | 0.33R     | -1.19R   
+low_conf(conf=0.174<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.04R      | 1.04R     | -0.82R   
+low_conf(conf=0.082<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.06R     | -0.11R    | -1.06R   
+low_conf(conf=0.117<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.15R     | 0.21R     | -1.15R   
+low_conf(conf=0.155<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.17R      | 1.17R     | 0.05R    
+low_conf(conf=0.357<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.00R      | 1.00R     | 0.28R    
+low_conf(conf=0.058<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.19R      | 1.19R     | 0.10R    
+negative_unreal_pnl(unreal=-84.97)       | 1   | 0/1     | 0.0%   | -1.05R     | -0.02R    | -1.05R   
+negative_unreal_pnl(unreal=-267.77)      | 1   | 0/1     | 0.0%   | -1.15R     | -0.01R    | -1.15R   
+low_conf(conf=0.223<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.07R      | 1.07R     | 0.15R    
+low_conf(conf=0.254<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.00R      | 1.00R     | -0.31R   
+low_conf(conf=0.344<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.06R      | 1.06R     | 0.40R    
+low_conf(conf=0.269<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.30R     | 0.40R     | -1.30R   
+low_conf(conf=0.494<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.27R     | 0.41R     | -1.27R   
+low_conf(conf=0.232<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.22R     | -0.13R    | -1.22R   
+low_conf(conf=0.369<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.08R      | 1.08R     | -0.05R   
+low_conf(conf=0.081<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.20R     | -0.83R    | -1.20R   
+low_conf(conf=0.306<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.06R     | -0.01R    | -1.06R   
+low_conf(conf=0.274<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.11R     | 0.31R     | -1.11R   
+low_conf(conf=0.402<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.30R      | 1.30R     | -0.12R   
+low_conf(conf=0.335<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.06R     | 0.10R     | -1.06R   
+negative_unreal_pnl(unreal=-94.26)       | 1   | 1/0     | 100.0% | 1.09R      | 1.09R     | -0.39R   
+low_conf(conf=0.287<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.06R     | 0.06R     | -1.06R   
+low_conf(conf=0.131<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.03R      | 1.03R     | 0.13R    
+low_conf(conf=0.419<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.24R     | -0.52R    | -1.24R   
+low_conf(conf=0.322<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.07R     | -0.12R    | -1.07R   
+low_conf(conf=0.330<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.03R     | -0.06R    | -1.03R   
+low_conf(conf=0.387<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.12R     | 0.25R     | -1.12R   
+low_conf(conf=0.359<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.02R     | 0.34R     | -1.02R   
+low_conf(conf=0.389<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.17R     | 0.07R     | -1.17R   
+low_conf(conf=0.331<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.02R     | 0.22R     | -1.02R   
+low_conf(conf=0.097<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.37R      | 1.37R     | -0.46R   
+low_conf(conf=0.138<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.51R      | 1.51R     | -0.32R   
+low_conf(conf=0.267<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.48R      | 1.48R     | -0.56R   
+low_conf(conf=0.064<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.19R      | 1.19R     | -0.84R   
+low_conf(conf=0.407<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.60R      | 1.60R     | -0.43R   
+low_conf(conf=0.040<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.27R     | 0.76R     | -1.27R   
+low_conf(conf=0.336<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.08R     | 0.34R     | -1.08R   
+low_conf(conf=0.053<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.15R      | 1.15R     | 0.03R    
+negative_unreal_pnl(unreal=-168.53)      | 1   | 0/1     | 0.0%   | -2.37R     | -2.37R    | -2.37R   
+low_conf(conf=0.483<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.02R      | 1.02R     | -0.33R   
+low_conf(conf=0.004<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.26R     | 0.39R     | -1.26R   
+low_conf(conf=0.113<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.17R      | 1.17R     | -0.45R   
+negative_unreal_pnl(unreal=-134.73)      | 1   | 1/0     | 100.0% | 1.04R      | 1.04R     | 0.12R    
+low_conf(conf=0.356<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.03R     | 0.21R     | -1.03R   
+low_conf(conf=0.428<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.02R     | 0.26R     | -1.02R   
+low_conf(conf=0.445<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.03R     | 0.25R     | -1.03R   
+low_conf(conf=0.070<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.02R     | 0.16R     | -1.02R   
+low_conf(conf=0.363<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.02R      | 1.02R     | 0.42R    
+low_conf(conf=0.498<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.07R      | 1.07R     | 0.29R    
+low_conf(conf=0.150<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.15R      | 1.15R     | -0.20R   
+low_conf(conf=0.240<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.05R      | 1.05R     | -0.15R   
+low_conf(conf=0.083<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.27R      | 1.27R     | -0.22R   
+low_conf(conf=0.292<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.17R     | 0.71R     | -1.17R   
+low_conf(conf=0.329<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.03R     | 0.28R     | -1.03R   
+low_conf(conf=0.026<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.03R     | 0.32R     | -1.03R   
+low_conf(conf=0.361<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.04R      | 1.04R     | 0.49R    
+low_conf(conf=0.093<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.02R     | 0.34R     | -1.02R   
+low_conf(conf=0.226<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.02R      | 1.02R     | -0.51R   
+low_conf(conf=0.202<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.24R      | 1.24R     | 0.41R    
+low_conf(conf=0.067<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.01R      | 1.01R     | -0.29R   
+low_conf(conf=0.228<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.12R     | 0.19R     | -1.12R   
+low_conf(conf=0.013<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.15R      | 1.15R     | 0.00R    
+low_conf(conf=0.393<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.15R      | 1.15R     | 0.10R    
+low_conf(conf=0.385<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.06R     | 0.52R     | -1.06R   
+low_conf(conf=0.449<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.18R     | 0.40R     | -1.18R   
+low_conf(conf=0.123<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.29R     | 0.38R     | -1.29R   
+low_conf(conf=0.077<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.01R     | 0.35R     | -1.01R   
+low_conf(conf=0.436<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.18R     | 0.59R     | -1.18R   
+low_conf(conf=0.504<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.10R     | 0.67R     | -1.10R   
+low_conf(conf=0.505<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.20R     | -0.02R    | -1.20R   
+low_conf(conf=0.387<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.18R     | -0.11R    | -1.18R   
+low_conf(conf=0.453<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.07R     | -0.16R    | -1.07R   
+low_conf(conf=0.455<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.02R     | 0.05R     | -1.02R   
+low_conf(conf=0.325<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.03R     | 0.24R     | -1.03R   
+low_conf(conf=0.273<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.02R     | 0.41R     | -1.02R   
+low_conf(conf=0.332<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.01R     | 0.47R     | -1.01R   
+low_conf(conf=0.304<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.10R     | 0.18R     | -1.10R   
+low_conf(conf=0.020<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.03R      | 1.03R     | -0.24R   
+low_conf(conf=0.450<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.27R     | 0.70R     | -1.27R   
+low_conf(conf=0.469<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.06R     | 0.91R     | -1.06R   
+low_conf(conf=0.377<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.05R     | 0.35R     | -1.05R   
+low_conf(conf=0.399<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.21R     | 0.19R     | -1.21R   
+low_conf(conf=0.328<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.03R      | 1.03R     | -0.14R   
+low_conf(conf=0.088<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.09R     | 0.55R     | -1.09R   
+low_conf(conf=0.466<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.34R      | 1.34R     | -0.45R   
+low_conf(conf=0.110<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.04R      | 1.04R     | -0.23R   
+low_conf(conf=0.112<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.00R     | 0.09R     | -1.00R   
+low_conf(conf=0.128<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.05R     | 0.05R     | -1.05R   
+low_conf(conf=0.080<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.00R     | 0.16R     | -1.00R   
+negative_unreal_pnl(unreal=-314.03)      | 1   | 1/0     | 100.0% | 1.05R      | 1.05R     | -0.86R   
+low_conf(conf=0.238<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.02R      | 1.02R     | -0.53R   
+low_conf(conf=0.032<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.02R      | 1.02R     | -0.61R   
+low_conf(conf=0.136<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.03R      | 1.03R     | -0.68R   
+low_conf(conf=0.051<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.03R      | 1.03R     | -0.65R   
+low_conf(conf=0.127<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.02R      | 1.02R     | -0.76R   
+low_conf(conf=0.001<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.01R      | 1.01R     | -0.85R   
+low_conf(conf=0.156<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.05R      | 1.05R     | -0.79R   
+low_conf(conf=0.254<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.05R     | -1.05R    | -1.05R   
+low_conf(conf=0.464<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.05R     | -0.69R    | -1.05R   
+low_conf(conf=0.187<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.03R     | -0.12R    | -1.03R   
+low_conf(conf=0.090<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.06R     | -0.12R    | -1.06R   
+low_conf(conf=0.244<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.03R      | 1.03R     | -0.99R   
+low_conf(conf=0.086<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -2.01R     | -2.01R    | -2.01R   
+low_conf(conf=0.221<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.44R     | 0.44R     | -1.44R   
+low_conf(conf=0.161<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.31R     | 0.56R     | -1.31R   
+low_conf(conf=0.119<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.43R     | 0.45R     | -1.43R   
+low_conf(conf=0.242<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.32R     | 0.67R     | -1.32R   
+low_conf(conf=0.369<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.24R     | 0.73R     | -1.24R   
+low_conf(conf=0.111<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.55R     | 0.40R     | -1.55R   
+low_conf(conf=0.212<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.04R     | 0.81R     | -1.04R   
+low_conf(conf=0.012<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.41R     | 0.59R     | -1.41R   
+low_conf(conf=0.219<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.73R      | 1.73R     | -0.25R   
+low_conf(conf=0.103<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.13R     | 0.88R     | -1.13R   
+low_conf(conf=0.394<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.07R      | 1.07R     | -0.79R   
+low_conf(conf=0.372<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.65R      | 1.65R     | -0.86R   
+low_conf(conf=0.458<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.02R     | 0.18R     | -1.02R   
+low_conf(conf=0.341<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.14R      | 1.14R     | 0.73R    
+negative_unreal_pnl(unreal=-105.49)      | 1   | 0/1     | 0.0%   | -1.19R     | 0.34R     | -1.19R   
+low_conf(conf=0.507<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.03R      | 1.03R     | -0.05R   
+low_conf(conf=0.483<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.00R      | 1.00R     | -0.67R   
+negative_unreal_pnl(unreal=-72.46)       | 1   | 1/0     | 100.0% | 1.06R      | 1.06R     | 0.00R    
+low_conf(conf=0.508<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.04R      | 1.04R     | -0.75R   
+low_conf(conf=0.041<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.14R      | 1.14R     | -0.24R   
+low_conf(conf=0.129<thr=0.51@chop)       | 1   | 1/0     | 100.0% | 1.07R      | 1.07R     | -0.31R   
+low_conf(conf=0.168<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.00R     | 0.25R     | -1.00R   
+low_conf(conf=0.026<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.39R      | 1.39R     | 0.58R    
+low_conf(conf=0.061<thr=0.51@chop)       | 1   | 0/1     | 0.0%   | -1.39R     | -0.26R    | -1.39R   
+low_conf(conf=0.398<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.09R     | 0.00R     | -1.09R   
+low_conf(conf=0.393<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.09R     | -0.92R    | -1.09R   
+low_conf(conf=0.477<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 1.15R      | 1.15R     | 0.21R    
+low_conf(conf=0.450<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.03R     | -0.35R    | -1.03R   
+negative_unreal_pnl(unreal=-62.64)       | 1   | 0/1     | 0.0%   | -1.22R     | -0.31R    | -1.22R   
+low_conf(conf=0.009<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.46R     | -0.44R    | -1.46R   
+low_conf(conf=0.023<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.01R     | 0.96R     | -1.01R   
+low_conf(conf=0.014<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.03R     | 0.11R     | -1.03R   
+low_conf(conf=0.010<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.01R     | 0.13R     | -1.01R   
+low_conf(conf=0.116<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.14R     | -0.13R    | -1.14R   
+low_conf(conf=0.460<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.01R     | -0.09R    | -1.01R   
+low_conf(conf=0.301<thr=0.51@trend)      | 1   | 1/0     | 100.0% | 2.26R      | 2.26R     | 0.11R    
+low_conf(conf=0.404<thr=0.51@trend)      | 1   | 0/1     | 0.0%   | -1.02R     | -0.25R    | -1.02R   

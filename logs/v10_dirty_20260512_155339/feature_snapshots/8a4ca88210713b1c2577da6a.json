@@ -1,0 +1,1 @@
+{"hash":"8a4ca88210713b1c2577da6a","ts":1778601154.1850648,"symbol":"GIGAUSDT","side":"short","confidence":0.0,"score":0.0,"model_version":"catboost","feature_names":null,"features":{"symbol":"GIGAUSDT","direction":"short","entry":0.0058136,"atr":0.0005902928571428574},"extra":{"trade_id":"b56ff81497a5439c","strategy_id":"v10_research_2026-05-12"}}

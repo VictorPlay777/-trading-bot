@@ -1,0 +1,1 @@
+{"hash":"bf34029806e2fb8c79447c94","ts":1778604200.5313857,"symbol":"SAGAUSDT","side":"long","confidence":0.0,"score":0.0,"model_version":"catboost","feature_names":null,"features":{"symbol":"SAGAUSDT","direction":"long","entry":0.05026,"atr":0.003884285714285713},"extra":{"trade_id":"90986d63c6b645a0","strategy_id":"v10_research_2026-05-12b_conf051"}}

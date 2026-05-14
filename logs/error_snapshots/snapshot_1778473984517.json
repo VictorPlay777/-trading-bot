@@ -1,0 +1,21 @@
+{
+  "ts": 1778473984517,
+  "reason": "entry_exception",
+  "error": "API Error 110007: ab not enough for new order",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/svy1990/-trading-bot/ml_bot/selective_ml_bot.py\", line 1810, in run\n    entry_res = self.router.enter(sym, \"long\" if sig[\"direction\"] == \"long\" else \"short\", qty)\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/svy1990/-trading-bot/ml_bot/execution/smart_router.py\", line 24, in enter\n    return self.ex.market_buy_symbol(symbol, qty_norm)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/svy1990/-trading-bot/ml_bot/trader/exchange_demo.py\", line 454, in market_buy_symbol\n    return self._request(\"POST\", \"/v5/order/create\", params, auth=True)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/svy1990/-trading-bot/ml_bot/trader/exchange_demo.py\", line 106, in _request\n    raise Exception(f\"API Error {data.get('retCode')}: {data.get('retMsg')}\")\nException: API Error 110007: ab not enough for new order\n",
+  "positions": [
+    "DYMUSDT",
+    "1000XECUSDT",
+    "QTUMUSDT",
+    "B3USDT",
+    "SUSDT",
+    "SANDUSDT",
+    "CLUSDT",
+    "NAORISUSDT",
+    "BSVUSDT",
+    "TONUSDT",
+    "JELLYJELLYUSDT",
+    "USELESSUSDT",
+    "ZENUSDT"
+  ]
+}

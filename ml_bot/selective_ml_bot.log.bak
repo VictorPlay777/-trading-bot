@@ -1,0 +1,49 @@
+2026-04-30 03:56:04.437 | INFO     | __main__:run:209 - [SELECT] symbols=20
+2026-04-30 03:56:13.777 | INFO     | __main__:run:223 - [SIGNAL] BSBUSDT dir=short conf=0.079 score=0.376 ev=0.00794 regime=chop allow=False reason=depth size_mult=1.00
+2026-04-30 03:56:22.603 | INFO     | __main__:run:223 - [SIGNAL] NAORISUSDT dir=long conf=0.503 score=0.462 ev=-0.16354 regime=chop allow=False reason=spread size_mult=1.00
+2026-04-30 03:56:31.173 | INFO     | __main__:run:223 - [SIGNAL] ZEREBROUSDT dir=short conf=0.609 score=0.414 ev=-0.01286 regime=chop allow=False reason=spread size_mult=1.00
+2026-04-30 03:56:39.841 | INFO     | __main__:run:223 - [SIGNAL] SWARMSUSDT dir=long conf=0.890 score=0.482 ev=-0.08570 regime=chop allow=False reason=depth size_mult=1.00
+2026-04-30 03:56:48.101 | INFO     | __main__:run:223 - [SIGNAL] BLENDUSDT dir=long conf=0.667 score=0.518 ev=0.00097 regime=chop allow=False reason=depth size_mult=1.00
+2026-04-30 03:56:56.800 | INFO     | __main__:run:223 - [SIGNAL] TACUSDT dir=short conf=0.255 score=0.619 ev=-0.04775 regime=trend allow=False reason=depth size_mult=1.00
+2026-04-30 03:57:05.409 | INFO     | __main__:run:223 - [SIGNAL] SOLVUSDT dir=long conf=0.399 score=0.442 ev=-0.00627 regime=chop allow=False reason=depth size_mult=1.00
+2026-04-30 03:57:14.177 | INFO     | __main__:run:223 - [SIGNAL] MEGAUSDT dir=short conf=0.654 score=0.474 ev=-0.01224 regime=chop allow=False reason=spread size_mult=1.00
+2026-04-30 03:57:22.257 | INFO     | __main__:run:223 - [SIGNAL] GENIUSUSDT dir=short conf=0.290 score=0.416 ev=-0.00129 regime=chop allow=False reason=depth size_mult=1.00
+2026-04-30 03:57:31.040 | INFO     | __main__:run:223 - [SIGNAL] JCTUSDT dir=long conf=0.052 score=0.324 ev=-0.02918 regime=chop allow=False reason=spread size_mult=1.00
+2026-04-30 03:57:39.439 | INFO     | __main__:run:223 - [SIGNAL] BIOUSDT dir=long conf=0.719 score=0.555 ev=0.00490 regime=chop allow=False reason=quality size_mult=1.00
+2026-04-30 03:57:48.185 | INFO     | __main__:run:223 - [SIGNAL] ARCUSDT dir=short conf=0.043 score=0.422 ev=-0.00907 regime=trend allow=False reason=spread size_mult=1.00
+2026-04-30 03:57:55.892 | INFO     | __main__:run:223 - [SIGNAL] BASEDUSDT dir=short conf=0.849 score=0.702 ev=0.00254 regime=trend allow=True reason=override_high_ev size_mult=0.51
+[EXCHANGE DEBUG] _request POST: params before json.dumps={'category': 'linear', 'symbol': 'BASEDUSDT', 'side': 'Sell', 'orderType': 'Limit', 'qty': '62222.01930574046', 'price': '0.1163', 'timeInForce': 'GTC'}
+[EXCHANGE DEBUG] _request POST: body_str after json.dumps={"category":"linear","symbol":"BASEDUSDT","side":"Sell","orderType":"Limit","qty":"62222.01930574046","price":"0.1163","timeInForce":"GTC"}
+[EXCHANGE DEBUG] _request POST: params before json.dumps={'category': 'linear', 'symbol': 'BASEDUSDT', 'side': 'Sell', 'orderType': 'Limit', 'qty': '62222.01930574046', 'price': '0.11627674', 'timeInForce': 'GTC'}
+[EXCHANGE DEBUG] _request POST: body_str after json.dumps={"category":"linear","symbol":"BASEDUSDT","side":"Sell","orderType":"Limit","qty":"62222.01930574046","price":"0.11627674","timeInForce":"GTC"}
+[EXCHANGE DEBUG] _request POST: params before json.dumps={'category': 'linear', 'symbol': 'BASEDUSDT', 'side': 'Sell', 'orderType': 'Limit', 'qty': '62222.01930574046', 'price': '0.116253484652', 'timeInForce': 'GTC'}
+[EXCHANGE DEBUG] _request POST: body_str after json.dumps={"category":"linear","symbol":"BASEDUSDT","side":"Sell","orderType":"Limit","qty":"62222.01930574046","price":"0.116253484652","timeInForce":"GTC"}
+[EXCHANGE DEBUG] market_sell_symbol: symbol=BASEDUSDT qty_input=62222.01930574046 qty_str=62222.01930574046
+[EXCHANGE DEBUG] market_sell_symbol: params={'category': 'linear', 'symbol': 'BASEDUSDT', 'side': 'Sell', 'orderType': 'Market', 'qty': '62222.01930574046'}
+[EXCHANGE DEBUG] _request POST: params before json.dumps={'category': 'linear', 'symbol': 'BASEDUSDT', 'side': 'Sell', 'orderType': 'Market', 'qty': '62222.01930574046'}
+[EXCHANGE DEBUG] _request POST: body_str after json.dumps={"category":"linear","symbol":"BASEDUSDT","side":"Sell","orderType":"Market","qty":"62222.01930574046"}
+Traceback (most recent call last):
+  File "/home/svy1990/-trading-bot/ml_bot/selective_ml_bot.py", line 260, in <module>
+    main()
+  File "/home/svy1990/-trading-bot/ml_bot/selective_ml_bot.py", line 256, in main
+    asyncio.run(bot.run())
+  File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/home/svy1990/-trading-bot/ml_bot/selective_ml_bot.py", line 235, in run
+    self.router.enter(sym, "short", qty)
+  File "/home/svy1990/-trading-bot/ml_bot/execution/smart_router.py", line 31, in enter
+    return self.ex.market_sell_symbol(symbol, qty)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/svy1990/-trading-bot/ml_bot/trader/exchange_demo.py", line 382, in market_sell_symbol
+    return self._request("POST", "/v5/order/create", params, auth=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/svy1990/-trading-bot/ml_bot/trader/exchange_demo.py", line 105, in _request
+    raise Exception(f"API Error {data.get('retCode')}: {data.get('retMsg')}")
+Exception: API Error 10001: Qty invalid

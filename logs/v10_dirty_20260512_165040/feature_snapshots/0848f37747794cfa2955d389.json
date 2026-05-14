@@ -1,0 +1,1 @@
+{"hash":"0848f37747794cfa2955d389","ts":1778604202.7057984,"symbol":"SEIUSDT","side":"long","confidence":0.0,"score":0.0,"model_version":"catboost","feature_names":null,"features":{"symbol":"SEIUSDT","direction":"long","entry":0.06936,"atr":0.0009792857142857153},"extra":{"trade_id":"8f3513f91add4d36","strategy_id":"v10_research_2026-05-12b_conf051"}}

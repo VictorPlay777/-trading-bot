@@ -1,0 +1,1 @@
+{"hash":"559c18caec8625e3254027af","ts":1778601301.8446858,"symbol":"SOLVUSDT","side":"short","confidence":0.0,"score":0.0,"model_version":"catboost","feature_names":null,"features":{"symbol":"SOLVUSDT","direction":"short","entry":0.0056835,"atr":0.00035871428571428556},"extra":{"trade_id":"f318857e5ea048dd","strategy_id":"v10_research_2026-05-12"}}

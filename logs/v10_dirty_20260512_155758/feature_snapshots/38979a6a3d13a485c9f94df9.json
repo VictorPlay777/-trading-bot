@@ -1,0 +1,1 @@
+{"hash":"38979a6a3d13a485c9f94df9","ts":1778601301.506881,"symbol":"SOLAYERUSDT","side":"long","confidence":0.0,"score":0.0,"model_version":"catboost","feature_names":null,"features":{"symbol":"SOLAYERUSDT","direction":"long","entry":0.10805999,"atr":0.0027992857142857125},"extra":{"trade_id":"ccf612210adf4eb2","strategy_id":"v10_research_2026-05-12"}}

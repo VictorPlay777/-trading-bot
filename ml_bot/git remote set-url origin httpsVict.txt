@@ -1,0 +1,1 @@
+git remote set-url origin https://VictorPlay777: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@github.com/VictorPlay777/-trading-bot.git
