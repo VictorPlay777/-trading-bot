@@ -7,7 +7,7 @@ class ProductionConfig:
     # Strategy versioning: identifier persisted into each trade record and
     # used to snapshot the active config to strategies/<strategy_id>.json.
     # Bump this whenever you change parameters that should be tracked separately.
-    strategy_id: str = "v7_stats_collection_buckets_2026-05-05"
+    strategy_id: str = "v7_v2_professional_stats_2026-09-07"
     strategy_notes: str = (
         "v7: DATA COLLECTION MODE. Multi-bucket entries (conf >= 0.55), fixed notional 10k, "
         "leverage 1x, TP=SL=0.5 ATR (inherited from v6 for cleanliness), no cooldowns. "

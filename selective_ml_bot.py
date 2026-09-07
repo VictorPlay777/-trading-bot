@@ -45,6 +45,16 @@ from trader.exchange_demo import Exchange
 from execution_tracker import ExecutionTracker
 from pnl_engine import build_net_expectancy
 from stats_collector import StatsCollector
+# Professional statistics system v2
+from stats import (
+    SystemIDGenerator,
+    SignalLogger,
+    TradeLogger,
+    EquityTracker,
+    MAEMFETracker,
+    DataQualityChecker,
+    AdvancedMetricsCalculator
+)
 
 try:
     import psutil  # type: ignore
@@ -169,6 +179,14 @@ class SelectiveMLBot:
         self.exec_tracker = ExecutionTracker(self.ex, log_dir="logs")
         # v7: stats collector for signal/trade logging and per-bucket aggregates.
         self.stats = StatsCollector(stats_print_every=20)
+        
+        # v2: Professional statistics system with complete tracking
+        self.signal_logger = SignalLogger(logs_dir="logs")
+        self.trade_logger = TradeLogger(logs_dir="logs")
+        self.equity_tracker = EquityTracker(logs_dir="logs")
+        self.mae_mfe_tracker = MAEMFETracker()
+        self.data_quality = DataQualityChecker(logs_dir="logs")
+        self.advanced_metrics = AdvancedMetricsCalculator(logs_dir="logs")
         self.cooldown = CooldownManager()
         self.exposure = ExposureLimits(self.prod.max_concurrent_positions, self.prod.max_positions_per_symbol)
         self.heat = PortfolioHeat(self.prod.max_portfolio_heat)
@@ -399,6 +417,10 @@ class SelectiveMLBot:
         avg_win = (self.prod.tp2_r * risk) / entry
         avg_loss = risk / entry
         ev = self.ev_engine.estimate(p_primary, avg_win, avg_loss, slip)
+        
+        # Build complete feature snapshot for v2 statistics
+        full_features = self.feature_store.build(df, ob, funding, oi_delta)
+        
         return {
             "symbol": symbol,
             "df": df,
@@ -413,6 +435,13 @@ class SelectiveMLBot:
             "ev": ev,
             "entry": entry,
             "atr": atr_v,
+            # v2: Complete feature snapshot and metadata
+            "full_features": full_features,
+            "timestamp": time.time(),
+            "timeframe": "1m",
+            "strategy_version": getattr(self.prod, "strategy_id", "unknown"),
+            "model_version": "catboost_v1",  # TODO: Track actual model version
+            "feature_version": self.feature_store.get_version(),
         }
 
     def _is_high_ev_override_candidate(self, sig) -> bool:
@@ -509,7 +538,24 @@ class SelectiveMLBot:
             "adx": float(sig.get("adx", 0.0) or 0.0),
             "funding_rate": float(sig.get("funding_rate", 0.0) or 0.0),
             "size_mult": float(sig.get("_size_mult", 1.0) or 1.0),
+            # v2: Add signal_id for linkage
+            "signal_id": sig.get("_signal_id", ""),
+            # v2: Add version information
+            "strategy_version": sig.get("strategy_version", "unknown"),
+            "model_version": sig.get("model_version", "unknown"),
+            "feature_version": sig.get("feature_version", "v1"),
         }
+        
+        # v2: Register position for MAE/MFE tracking
+        try:
+            self.mae_mfe_tracker.register_position(
+                symbol=sig["symbol"],
+                entry_price=float(sig["entry"]),
+                side=sig["direction"],
+                entry_time=st.opened_ts
+            )
+        except Exception as _e_mae_mfe:
+            logger.debug(f"[V2_STATS] MAE/MFE registration failed: {_e_mae_mfe}")
         if ex_row is not None:
             if ex_row.get("cumRealisedPnl") is not None:
                 st.cum_realised_pnl = self._f(ex_row.get("cumRealisedPnl", 0.0))
@@ -615,6 +661,15 @@ class SelectiveMLBot:
                         st.cum_realised_pnl = cum_now
                 self._hydrate_from_exchange_row(st, p)
                 st.updated_ts = time.time()
+                
+                # v2: Update MAE/MFE for open positions
+                try:
+                    # Get current price for the symbol
+                    current_price = float(p.get("markPrice", entry) or entry)
+                    if current_price > 0:
+                        self.mae_mfe_tracker.update_position(sym, current_price)
+                except Exception as _e_mae_mfe:
+                    logger.debug(f"[V2_STATS] MAE/MFE update failed for {sym}: {_e_mae_mfe}")
 
         for sym, st in list(self.position_states.items()):
             if sym not in live:
@@ -668,6 +723,10 @@ class SelectiveMLBot:
                 continue
         # We don't have per-exit price here reliably (market closes with slippage) – leave 0 if unknown.
         duration = max(0.0, now - float(st.opened_ts or now))
+        
+        # v2: Get MAE/MFE metrics before closing position tracker
+        mae_mfe_metrics = self.mae_mfe_tracker.close_position(st.symbol, float(avg_exit))
+        
         record = {
             "schema": "selective_trade_v1",
             "strategy_id": getattr(self.prod, "strategy_id", "unknown"),
@@ -722,6 +781,67 @@ class SelectiveMLBot:
             )
         except Exception as _e_stats:
             logger.debug(f"[STATS] log_trade_close wrap failed: {_e_stats}")
+        
+        # v2: Professional trade logging with complete metrics
+        try:
+            # Prepare trade data for v2 logger
+            trade_data_v2 = {
+                "trade_id": record["trade_id"],
+                "signal_id": st.signal_meta.get("signal_id", ""),
+                
+                "strategy_version": record["strategy_id"],
+                "model_version": st.signal_meta.get("model_version", "unknown"),
+                "feature_version": st.signal_meta.get("feature_version", "v1"),
+                
+                "symbol": record["symbol"],
+                "timeframe": "1m",
+                "side": record["direction"],
+                
+                "signal_timestamp": record["opened_ts"],
+                "entry_timestamp": record["opened_ts"],
+                "exit_timestamp": record["closed_ts"],
+                
+                "entry_price": record["entry_price"],
+                "exit_price": record["exit_price"],
+                "quantity": float(record["qty_total"]),
+                
+                "stop_loss": record["stop_loss_price"],
+                "take_profit": record["take_profit_levels"].get("tp1", 0.0),
+                
+                "exit_reason": exit_reason_label,
+                "holding_time": duration,
+                
+                "gross_pnl": record["realized_pnl_net"] + record["entry_fees_est"] + record["exit_fees_est"],
+                "commission": record["entry_fees_est"] + record["exit_fees_est"],
+                "funding": record["funding_estimate"],
+                "slippage": 0.0,  # TODO: Calculate from execution data
+                "spread_cost": 0.0,  # TODO: Calculate from orderbook data
+                "net_pnl": record["realized_pnl_net"],
+                
+                "return_pct": 0.0,  # Will be calculated by TradeLogger
+                "risk_amount": abs(record["entry_price"] - record["stop_loss_price"]) * float(record["qty_total"]),
+                "r_multiple": 0.0,  # Will be calculated by TradeLogger
+                
+                # MAE/MFE metrics
+                "mae": mae_mfe_metrics.get("mae", 0.0),
+                "mae_pct": mae_mfe_metrics.get("mae_pct", 0.0),
+                "mae_r": mae_mfe_metrics.get("mae_r", 0.0),
+                "mfe": mae_mfe_metrics.get("mfe", 0.0),
+                "mfe_pct": mae_mfe_metrics.get("mfe_pct", 0.0),
+                "mfe_r": mae_mfe_metrics.get("mfe_r", 0.0),
+                
+                "equity_at_entry": 0.0,  # TODO: Get from equity tracker
+                "equity_at_exit": 0.0,  # TODO: Get from equity tracker
+            }
+            
+            self.trade_logger.log_trade(trade_data_v2)
+            
+            # Link signal to trade if signal_id exists
+            if st.signal_meta.get("signal_id"):
+                self.signal_logger.link_trade(st.signal_meta["signal_id"], record["trade_id"])
+            
+        except Exception as _e_v2_stats:
+            logger.debug(f"[V2_STATS] trade_logger failed: {_e_v2_stats}")
 
     def _get_closed_pnl_for_trade(self, symbol: str, opened_ts: float, closed_ts: float = None):
         try:
@@ -1437,6 +1557,32 @@ class SelectiveMLBot:
                     bal = self.ex.get_wallet_balance()
                     if int(bal.get("retCode", -1)) == 0:
                         equity = float(bal.get("result", {}).get("list", [{}])[0].get("totalEquity", 0) or 0)
+                        balance = float(bal.get("result", {}).get("list", [{}])[0].get("totalWalletBalance", 0) or equity)
+                        
+                        # v2: Log equity snapshot
+                        try:
+                            # Calculate portfolio state
+                            open_positions_count = len([p for p in positions if float(p.get("size", 0) or 0) > 0])
+                            gross_exposure = sum(abs(float(p.get("positionValue", 0) or 0)) for p in positions)
+                            net_exposure = sum(float(p.get("positionValue", 0) or 0) for p in positions)
+                            
+                            # Calculate realized/unrealized PnL
+                            realized_pnl = sum(float(p.get("cumRealisedPnl", 0) or 0) for p in positions)
+                            unrealized_pnl = sum(float(p.get("unrealisedPnl", 0) or 0) for p in positions)
+                            
+                            equity_data = {
+                                "balance": balance,
+                                "equity": equity,
+                                "realized_pnl": realized_pnl,
+                                "unrealized_pnl": unrealized_pnl,
+                                "open_positions": open_positions_count,
+                                "gross_exposure": gross_exposure,
+                                "net_exposure": net_exposure
+                            }
+                            
+                            self.equity_tracker.log_snapshot(equity_data)
+                        except Exception as _e_equity:
+                            logger.debug(f"[V2_STATS] equity tracking failed: {_e_equity}")
                 except Exception:
                     equity = 0.0
                 used = sum(float(p.get("positionValue", 0) or 0) for p in positions if float(p.get("size", 0) or 0) > 0)
@@ -1506,6 +1652,15 @@ class SelectiveMLBot:
                             self.stats.log_signal(sig, ok, reason)
                         except Exception as _e_stats:
                             logger.debug(f"[STATS] log_signal wrap failed: {_e_stats}")
+                        
+                        # v2: Professional signal logging with complete feature snapshot
+                        try:
+                            decision = "ACCEPTED" if ok else "REJECTED"
+                            signal_id = self.signal_logger.log_signal(sig, decision, reason)
+                            # Store signal_id for later trade linkage
+                            sig["_signal_id"] = signal_id
+                        except Exception as _e_v2_stats:
+                            logger.debug(f"[V2_STATS] signal_logger failed: {_e_v2_stats}")
                         if not ok:
                             # Reset stickiness on hard reject.
                             if sym in self._stickiness:

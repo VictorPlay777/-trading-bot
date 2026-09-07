@@ -6,6 +6,8 @@ def _ema(s, p):
 
 
 class FeatureStore:
+    FEATURE_VERSION = "v2"  # Version tracking for reproducibility
+    
     def build(self, df, orderbook: dict, funding: float = 0.0, oi_delta: float = 0.0):
         x = {}
         c = df["close"]
@@ -28,5 +30,14 @@ class FeatureStore:
         x["depth_usdt"] = float(orderbook.get("depth_usdt", 0.0))
         x["funding_rate"] = float(funding)
         x["oi_delta"] = float(oi_delta)
+        
+        # Add version metadata
+        x["_feature_version"] = self.FEATURE_VERSION
+        x["_feature_timestamp"] = np.datetime64('now').astype(np.int64) / 1e9
+        
         return x
+    
+    def get_version(self) -> str:
+        """Return current feature version"""
+        return self.FEATURE_VERSION
 

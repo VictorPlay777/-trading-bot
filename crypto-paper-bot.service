@@ -1,0 +1,22 @@
+[Unit]
+Description=Crypto paper bot (V7)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=user1
+Group=user1
+WorkingDirectory=/home/user1/crypto-paper-bot
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/home/user1/crypto-paper-bot/venv/bin/python /home/user1/crypto-paper-bot/selective_ml_bot.py --config /home/user1/crypto-paper-bot/config.yaml
+Restart=always
+RestartSec=10
+StartLimitIntervalSec=0
+TimeoutStopSec=30
+KillSignal=SIGINT
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
