@@ -45,6 +45,7 @@ from trader.exchange_demo import Exchange
 from execution_tracker import ExecutionTracker
 from pnl_engine import build_net_expectancy
 from stats_collector import StatsCollector
+from dashboard.bot_bridge import BotBridge
 
 try:
     import psutil  # type: ignore
@@ -123,6 +124,16 @@ class SelectiveMLBot:
         self.cfg = yaml.safe_load(open(cfg_path, "r", encoding="utf-8"))
         self.ex = Exchange(self.cfg)
         self.prod = ProductionConfig()
+        self.bridge = None
+        try:
+            self.bridge = BotBridge(
+                strategy_id=getattr(self.prod, "strategy_id", "unknown"),
+                config_path=cfg_path,
+            )
+            self.bridge.apply_strategy_overrides(self.prod)
+            self.bridge.install_log_sink()
+        except Exception as e:
+            logger.warning(f"[DASHBOARD] bridge initialization failed: {e}")
         try:
             logger.info(
                 f"[BOOT] selective_ml_bot start sizing_mode={getattr(self.prod, 'sizing_mode', None)} "
@@ -722,6 +733,13 @@ class SelectiveMLBot:
             )
         except Exception as _e_stats:
             logger.debug(f"[STATS] log_trade_close wrap failed: {_e_stats}")
+        try:
+            if self.bridge is not None:
+                exit_reasons_list = list(st.exit_reasons or [])
+                exit_reason_label = exit_reasons_list[-1].get("reason", "") if exit_reasons_list else ""
+                self.bridge.record_trade(record, realized_net, str(exit_reason_label), float(avg_exit))
+        except Exception as _e_bridge:
+            logger.debug(f"[DASHBOARD] record_trade wrap failed: {_e_bridge}")
 
     def _get_closed_pnl_for_trade(self, symbol: str, opened_ts: float, closed_ts: float = None):
         try:
@@ -825,6 +843,13 @@ class SelectiveMLBot:
                 with open(trade_log_path, "w", encoding="utf-8") as f:
                     f.writelines(lines)
                 logger.info(f"[TRADE PATCHED] {symbol} realized_pnl_net={corrected_pnl:.2f}")
+                try:
+                    if self.bridge is not None:
+                        self.bridge.patch_trade_pnl(
+                            f"{symbol}_{int(opened_ts)}", corrected_pnl, exit_price
+                        )
+                except Exception as _e_bridge:
+                    logger.debug(f"[DASHBOARD] patch_trade_pnl wrap failed: {_e_bridge}")
         except Exception as e:
             logger.warning(f"[TRADE PATCH] {symbol} failed: {e}")
 
@@ -966,6 +991,11 @@ class SelectiveMLBot:
                 try:
                     fills = self.exec_tracker.poll_symbol(sym, limit=100)
                     for f in fills:
+                        try:
+                            if self.bridge is not None:
+                                self.bridge.record_fill(f)
+                        except Exception as _e_bridge:
+                            logger.debug(f"[DASHBOARD] record_fill wrap failed: {_e_bridge}")
                         logger.info(
                             f"[FILL] {f.symbol} side={f.side} qty={f.qty} price={f.price} fee={f.fee} "
                             f"fee_ccy={f.fee_currency} maker={f.is_maker} ts_ms={f.ts_ms} exec_id={f.exec_id}"
@@ -1041,6 +1071,26 @@ class SelectiveMLBot:
                 except Exception as e:
                     logger.debug(f"[EXPECTANCY] failed {sym}: {e}")
 
+                try:
+                    ov = self.bridge.position_overrides(sym) if self.bridge is not None else None
+                    if ov:
+                        tp1_changed = ov.get("tp1") is not None and float(ov["tp1"]) != float(
+                            st.take_profit_levels.get("tp1", 0.0)
+                        )
+                        if ov.get("stop_loss") is not None:
+                            st.stop_loss_price = float(ov["stop_loss"])
+                        for tp_key in ("tp1", "tp2", "tp3"):
+                            if ov.get(tp_key) is not None:
+                                st.take_profit_levels[tp_key] = float(ov[tp_key])
+                        if tp1_changed:
+                            st.tp1_done = False
+                        logger.info(
+                            f"[MANUAL_OVERRIDE] {sym} sl={st.stop_loss_price} "
+                            f"tp1={st.take_profit_levels.get('tp1')}"
+                        )
+                except Exception as _e_bridge:
+                    logger.debug(f"[DASHBOARD] position override wrap failed: {_e_bridge}")
+
                 sl_hit = price <= st.stop_loss_price if st.side == "long" else price >= st.stop_loss_price
                 if sl_hit:
                     if self._close_market_reduce_only(st, rem, "stop_loss"):
@@ -1106,6 +1156,13 @@ class SelectiveMLBot:
                 continue
 
     def allowed(self, sig, open_positions, equity, used_notional):
+        try:
+            if self.bridge is not None:
+                ok, why = self.bridge.risk_check(sig, open_positions, equity)
+                if not ok:
+                    return False, why, 1.0
+        except Exception as _e_bridge:
+            logger.debug(f"[DASHBOARD] risk_check wrap failed: {_e_bridge}")
         override = self._is_high_ev_override_candidate(sig)
         if not self.cooldown.allow(sig["symbol"]):
             return False, "cooldown", 1.0
@@ -1386,16 +1443,50 @@ class SelectiveMLBot:
                     if int(positions_resp.get("retCode", -1)) != 0:
                         raise RuntimeError(f"get_positions ret={positions_resp}")
                     positions = positions_resp.get("result", {}).get("list", [])
+                    try:
+                        if self.bridge is not None:
+                            self.bridge.bybit_ok()
+                    except Exception as _e_bridge:
+                        logger.debug(f"[DASHBOARD] bybit_ok wrap failed: {_e_bridge}")
                 except Exception as e:
                     logger.warning(f"[LOOP] get_positions failed: {e}")
                     self._reconnect_count += 1
                     positions = []
+                    try:
+                        if self.bridge is not None:
+                            self.bridge.bybit_error(str(e))
+                    except Exception as _e_bridge:
+                        logger.debug(f"[DASHBOARD] bybit_error wrap failed: {_e_bridge}")
 
                 self._sync_state_from_exchange(positions)
                 self._cleanup_entry_orders()
                 self._monitor_positions()
+                try:
+                    if self.bridge is not None:
+                        prices = {
+                            p.get("symbol"): float(p.get("markPrice", 0) or 0)
+                            for p in positions
+                            if p.get("symbol") and float(p.get("markPrice", 0) or 0) > 0
+                        }
+                        self.bridge.snapshot_positions(
+                            self.position_states,
+                            {p["symbol"]: p for p in positions if p.get("symbol")},
+                            prices,
+                        )
+                        self.bridge.heartbeat(
+                            cycle_ms=int((time.time() - cycle_started) * 1000),
+                            active_positions=len(self.position_states),
+                        )
+                except Exception as _e_bridge:
+                    logger.debug(f"[DASHBOARD] position heartbeat wrap failed: {_e_bridge}")
 
                 now = time.time()
+                try:
+                    if self.bridge is not None and self.bridge.is_paused():
+                        await asyncio.sleep(self.prod.position_loop_interval_sec)
+                        continue
+                except Exception as _e_bridge:
+                    logger.debug(f"[DASHBOARD] pause check wrap failed: {_e_bridge}")
                 if now - self.last_scan < 60:
                     self._last_heartbeat = time.time()
                     await asyncio.sleep(self.prod.position_loop_interval_sec)
@@ -1433,12 +1524,22 @@ class SelectiveMLBot:
                                 ob_map[op_sym] = {"spread_bps": 999.0, "depth_usdt": 0.0, "imbalance": 0.0}
                 signals_after_tier1 = len(symbols)
 
+                bal = {}
                 try:
                     bal = self.ex.get_wallet_balance()
                     if int(bal.get("retCode", -1)) == 0:
                         equity = float(bal.get("result", {}).get("list", [{}])[0].get("totalEquity", 0) or 0)
                 except Exception:
                     equity = 0.0
+                try:
+                    if self.bridge is not None:
+                        open_position_count = len(
+                            [p for p in positions if float(p.get("size", 0) or 0) > 0]
+                        )
+                        self.bridge.snapshot_equity(bal, open_positions=open_position_count)
+                        kill = self.bridge.check_kill_switch(equity)
+                except Exception as _e_bridge:
+                    logger.debug(f"[DASHBOARD] equity/kill-switch wrap failed: {_e_bridge}")
                 used = sum(float(p.get("positionValue", 0) or 0) for p in positions if float(p.get("size", 0) or 0) > 0)
 
                 sem = asyncio.Semaphore(self.prod.max_concurrency)
@@ -1506,6 +1607,11 @@ class SelectiveMLBot:
                             self.stats.log_signal(sig, ok, reason)
                         except Exception as _e_stats:
                             logger.debug(f"[STATS] log_signal wrap failed: {_e_stats}")
+                        try:
+                            if self.bridge is not None:
+                                self.bridge.record_signal(sig, ok, reason)
+                        except Exception as _e_bridge:
+                            logger.debug(f"[DASHBOARD] record_signal wrap failed: {_e_bridge}")
                         if not ok:
                             # Reset stickiness on hard reject.
                             if sym in self._stickiness:
@@ -1575,6 +1681,14 @@ class SelectiveMLBot:
                             continue
                         
                         qty = self._entry_qty(sig, size_mult, equity)
+                        try:
+                            if self.bridge is not None:
+                                qty = self.bridge.cap_qty(sym, qty, float(sig["entry"]))
+                        except Exception as _e_bridge:
+                            logger.debug(f"[DASHBOARD] cap_qty wrap failed: {_e_bridge}")
+                        if qty <= 0:
+                            logger.info(f"[ENTRY SKIP] {sym} dashboard_notional_cap")
+                            continue
                         entry_res = self.router.enter(sym, "long" if sig["direction"] == "long" else "short", qty)
                         if int(entry_res.get("retCode", -1)) != 0:
                             logger.warning(f"[ENTRY FAIL] {sym} ret={entry_res}")
@@ -1636,6 +1750,14 @@ class SelectiveMLBot:
                             if not self.heat.can_open(used, equity, notional):
                                 continue
                         qty = self._entry_qty(sig, self.prod.fallback_micro_size_mult)
+                        try:
+                            if self.bridge is not None:
+                                qty = self.bridge.cap_qty(sig["symbol"], qty, float(sig["entry"]))
+                        except Exception as _e_bridge:
+                            logger.debug(f"[DASHBOARD] fallback cap_qty wrap failed: {_e_bridge}")
+                        if qty <= 0:
+                            logger.info(f"[ENTRY SKIP] {sig['symbol']} dashboard_notional_cap")
+                            continue
                         entry_res = self.router.enter(sig["symbol"], "long" if sig["direction"] == "long" else "short", qty)
                         if int(entry_res.get("retCode", -1)) != 0:
                             logger.warning(f"[ENTRY FAIL] {sig['symbol']} ret={entry_res}")
@@ -1695,4 +1817,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

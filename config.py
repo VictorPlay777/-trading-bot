@@ -3,8 +3,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-BYBIT_API_KEY = os.getenv("BYBIT_API_KEY", "XvnYt5kZGnA6SHDZXp")
-BYBIT_API_SECRET = os.getenv("BYBIT_API_SECRET", "jt0g1wswGaCe9EPEP0ene7rAJmiqcizlL6zk")
+BYBIT_API_KEY = os.getenv("BYBIT_API_KEY", "")
+BYBIT_API_SECRET = os.getenv("BYBIT_API_SECRET", "")
 MODE = os.getenv("MODE", "paper")  # "paper" или "real"
 
 # Для paper trading не требуются API ключи для публичных данных
