@@ -16,10 +16,12 @@ jobs:
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          path: trading-bot
+      - name: Download source archive
+        run: |
+          set -e
+          curl -fsSL -o source.tar.gz "https://github.com/VictorPlay777/-trading-bot/archive/main.tar.gz"
+          mkdir -p trading-bot
+          tar -xzf source.tar.gz -C trading-bot --strip-components=1
 
       - name: Create deployment archive
         run: |
