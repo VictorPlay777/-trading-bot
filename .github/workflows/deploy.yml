@@ -9,6 +9,12 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    env:
+      SERVER_HOST: ${{ secrets.SERVER_HOST }}
+      SERVER_USER: ${{ secrets.SERVER_USER }}
+      SERVER_PORT: ${{ secrets.SERVER_PORT }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -27,24 +33,28 @@ jobs:
             --exclude='*.bundle' \
             .
 
-      - name: Upload archive to server
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "deploy.tar.gz"
-          target: "/tmp"
-          overwrite: true
+      - name: Upload and deploy to server
+        run: |
+          set -e
+          mkdir -p ~/.ssh
+          install -m 600 /dev/null ~/.ssh/deploy_key
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
 
-      - name: Extract and restart bot on server
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 5m
-          script: |
+          PORT="${SERVER_PORT:-22}"
+
+          # Upload archive
+          scp -i ~/.ssh/deploy_key \
+              -P "$PORT" \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              deploy.tar.gz "$SERVER_USER@$SERVER_HOST:/tmp/deploy.tar.gz"
+
+          # Extract, install deps and restart bot
+          ssh -i ~/.ssh/deploy_key \
+              -p "$PORT" \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              "$SERVER_USER@$SERVER_HOST" <<'EOF'
             set -e
             DEPLOY_DIR="/home/svy1990/-trading-bot"
             cd "$DEPLOY_DIR"
@@ -76,3 +86,4 @@ jobs:
             echo "Deployment complete!"
             ps aux | grep -E "selective_ml_bot|run_selective_ml_forever" | grep -v grep || true
             tail -n 20 selective_ml_supervisor.log || true
+EOF
