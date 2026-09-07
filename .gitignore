@@ -225,5 +225,6 @@ __marimo__/
 # Local secrets and build artifacts
 .github_token.txt
 *.bundle
+deploy.tar.gz
 logs/
 .venv-v7/ 
