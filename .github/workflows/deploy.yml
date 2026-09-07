@@ -16,17 +16,34 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 5m
           script: |
             set -e
-            cd ~/-trading-bot
+            DEPLOY_DIR="/home/svy1990/-trading-bot"
+            TMP_DIR="/tmp/trading-bot-deploy"
+            ARCHIVE="/tmp/trading-bot-main.tar.gz"
 
-            # Ensure a public HTTPS remote so a stale token cannot break pulls.
-            git remote get-url origin >/dev/null 2>&1 || \
-              git remote add origin https://github.com/VictorPlay777/-trading-bot.git
-            git remote set-url origin https://github.com/VictorPlay777/-trading-bot.git
-            git fetch origin
-            git reset --hard origin/main
-            git clean -fd -e venv -e logs -e "bot_*.log" -e symbol_stats.json -e learning_history.json -e leverage_cache.json -e .env || true
+            rm -rf "$TMP_DIR" "$ARCHIVE"
+            mkdir -p "$TMP_DIR"
+
+            # Download latest main source archive (public repo, no git auth needed).
+            curl -fsSL -o "$ARCHIVE" "https://github.com/VictorPlay777/-trading-bot/archive/main.tar.gz"
+            tar -xzf "$ARCHIVE" -C "$TMP_DIR" --strip-components=1
+
+            # Sync sources over the live bot directory, preserving runtime data.
+            cd "$TMP_DIR"
+            tar -cf - \
+              --exclude='.git' \
+              --exclude='venv' \
+              --exclude='.venv*' \
+              --exclude='logs' \
+              --exclude='.env' \
+              --exclude='*.log' \
+              --exclude='*.pyc' \
+              --exclude='__pycache__' \
+              . | tar -xf - -C "$DEPLOY_DIR"
+
+            cd "$DEPLOY_DIR"
 
             . venv/bin/activate
             pip install -q -r requirements.txt
