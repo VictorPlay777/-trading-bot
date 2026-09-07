@@ -13,20 +13,31 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Upload code to server
+      - name: Create deployment archive
+        run: |
+          tar -czf deploy.tar.gz \
+            --exclude='.git' \
+            --exclude='venv' \
+            --exclude='.venv*' \
+            --exclude='logs' \
+            --exclude='.env' \
+            --exclude='*.log' \
+            --exclude='__pycache__' \
+            --exclude='*.pyc' \
+            --exclude='*.bundle' \
+            .
+
+      - name: Upload archive to server
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          timeout: 2m
-          command_timeout: 10m
-          source: ".,!.git,!venv,!logs,!.env,!*.log,!__pycache__,!*.pyc,!*.bundle"
-          target: "/home/svy1990/-trading-bot"
+          source: "deploy.tar.gz"
+          target: "/tmp"
           overwrite: true
-          rm: false
 
-      - name: Restart bot on server
+      - name: Extract and restart bot on server
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -35,7 +46,19 @@ jobs:
           command_timeout: 5m
           script: |
             set -e
-            cd /home/svy1990/-trading-bot
+            DEPLOY_DIR="/home/svy1990/-trading-bot"
+            cd "$DEPLOY_DIR"
+
+            # Extract new sources over the live directory, preserving runtime data.
+            tar -xzf /tmp/deploy.tar.gz \
+              --exclude='venv' \
+              --exclude='.venv*' \
+              --exclude='logs' \
+              --exclude='.env' \
+              --exclude='*.log' \
+              --exclude='__pycache__' \
+              --exclude='*.pyc' \
+              --exclude='*.bundle'
 
             . venv/bin/activate
             pip install -q -r requirements.txt
