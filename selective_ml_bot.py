@@ -61,6 +61,12 @@ try:
 except Exception:
     psutil = None
 
+# Dashboard bridge (optional; live on the server where the dashboard package exists)
+try:
+    from dashboard.bot_bridge import BotBridge
+except Exception:
+    BotBridge = None
+
 
 def setup_logging():
     Path("logs").mkdir(parents=True, exist_ok=True)
@@ -214,6 +220,19 @@ class SelectiveMLBot:
         self._health_path = Path("logs/health.json")
         self._snapshot_dir = Path("logs/error_snapshots")
         self._snapshot_dir.mkdir(parents=True, exist_ok=True)
+
+        # Dashboard bridge (optional)
+        self.bridge = None
+        if BotBridge is not None:
+            try:
+                self.bridge = BotBridge(
+                    strategy_id=getattr(self.prod, "strategy_id", "unknown"),
+                    config_path=str(cfg_path),
+                )
+                self.bridge.install_log_sink()
+                logger.info("[DASHBOARD] bridge initialized")
+            except Exception as e:
+                logger.warning(f"[DASHBOARD] bridge init failed: {e}")
 
     @staticmethod
     def _f(x, default=0.0) -> float:
@@ -843,6 +862,15 @@ class SelectiveMLBot:
         except Exception as _e_v2_stats:
             logger.debug(f"[V2_STATS] trade_logger failed: {_e_v2_stats}")
 
+        # Dashboard closed trade record
+        if self.bridge:
+            try:
+                exit_reasons_list = list(st.exit_reasons or [])
+                exit_reason_label = exit_reasons_list[-1].get("reason", "") if exit_reasons_list else ""
+                self.bridge.record_trade(record, float(realized_net), str(exit_reason_label), float(avg_exit))
+            except Exception as _e_dash:
+                logger.debug(f"[DASHBOARD] record_trade failed: {_e_dash}")
+
     def _get_closed_pnl_for_trade(self, symbol: str, opened_ts: float, closed_ts: float = None):
         try:
             start_ms = max(0, int((float(opened_ts or 0.0) - 120.0) * 1000))
@@ -1227,6 +1255,16 @@ class SelectiveMLBot:
 
     def allowed(self, sig, open_positions, equity, used_notional):
         override = self._is_high_ev_override_candidate(sig)
+        # Dashboard risk controls (optional)
+        if self.bridge:
+            try:
+                if self.bridge.is_paused():
+                    return False, "dashboard_paused", 1.0
+                ok, reason = self.bridge.risk_check(sig, open_positions, equity)
+                if not ok:
+                    return False, f"dashboard_{reason}", 1.0
+            except Exception as _e_dash:
+                logger.debug(f"[DASHBOARD] risk_check failed: {_e_dash}")
         if not self.cooldown.allow(sig["symbol"]):
             return False, "cooldown", 1.0
         if not self.exposure.allow(open_positions, sig["symbol"]):
@@ -1411,7 +1449,7 @@ class SelectiveMLBot:
                 f"[SIZING FIXED] {sig['symbol']} fixed_notional={fixed_notional:.2f} entry={entry_px} "
                 f"qty={qty} notional={float(qty) * entry_px:.2f}"
             )
-            return qty
+            return self._cap_qty(sig["symbol"], qty, entry_px)
 
         # Risk-based sizing implementation
         if mode == "risk_based":
@@ -1443,7 +1481,7 @@ class SelectiveMLBot:
                     f"risk_amount={risk_amount:.2f} stop_distance={stop_distance:.6f} "
                     f"qty={qty} notional={float(qty) * entry_price:.2f}"
                 )
-                return qty
+                return self._cap_qty(sig["symbol"], qty, float(entry_price or 0))
             else:
                 logger.warning(f"[SIZING RISK_BASED] Invalid ATR or entry price for {sig['symbol']}")
                 return Decimal("0")
@@ -1474,12 +1512,22 @@ class SelectiveMLBot:
                 f"size_mult={size_mult} q_before_cap={q_before_cap} "
                 f"entry_px={sig.get('entry')} cap_usd={cap_usd} q_final={q}"
             )
-            return q
+            return self._cap_qty(sig["symbol"], q, float(sig.get("entry", 0) or 0))
 
         if self.sizer is None:
             return Decimal("0")
         notional = self.sizer.size_notional(sig["confidence"], sig["atr"] / (sig["entry"] + 1e-12), 0.5, 1.0) * size_mult
-        return Decimal(str(notional / max(sig["entry"], 1e-12)))
+        qty = Decimal(str(notional / max(sig["entry"], 1e-12)))
+        return self._cap_qty(sig["symbol"], qty, float(sig.get("entry", 0) or 0))
+
+    def _cap_qty(self, symbol: str, qty: Decimal, entry: float) -> Decimal:
+        if not self.bridge or not qty:
+            return qty
+        try:
+            return self.bridge.cap_qty(symbol, qty, entry)
+        except Exception as _e_dash:
+            logger.debug(f"[DASHBOARD] cap_qty failed: {_e_dash}")
+        return qty
 
     async def run(self):
         try:
@@ -1501,19 +1549,48 @@ class SelectiveMLBot:
             executed_orders = 0
             equity = 0.0
             try:
+                positions_resp = None
                 try:
                     positions_resp = self.ex.get_positions()
                     if int(positions_resp.get("retCode", -1)) != 0:
                         raise RuntimeError(f"get_positions ret={positions_resp}")
                     positions = positions_resp.get("result", {}).get("list", [])
+                    self._bybit_last_ok = True
+                    self._bybit_last_ok_ts = time.time()
+                    self._bybit_last_error = None
+                    if self.bridge:
+                        try:
+                            self.bridge.bybit_ok()
+                        except Exception:
+                            pass
                 except Exception as e:
                     logger.warning(f"[LOOP] get_positions failed: {e}")
                     self._reconnect_count += 1
+                    self._bybit_last_ok = False
+                    self._bybit_last_error = str(e)
                     positions = []
+                    if self.bridge:
+                        try:
+                            self.bridge.bybit_error(str(e))
+                        except Exception:
+                            pass
 
                 self._sync_state_from_exchange(positions)
                 self._cleanup_entry_orders()
                 self._monitor_positions()
+
+                if self.bridge:
+                    try:
+                        exchange_rows_by_symbol = {
+                            p["symbol"]: p for p in positions if p.get("symbol")
+                        }
+                        prices = {
+                            p["symbol"]: float(p.get("markPrice") or p.get("lastPrice") or 0)
+                            for p in positions if p.get("symbol")
+                        }
+                        self.bridge.snapshot_positions(self.position_states, exchange_rows_by_symbol, prices)
+                    except Exception as _e_dash:
+                        logger.debug(f"[DASHBOARD] snapshot_positions failed: {_e_dash}")
 
                 now = time.time()
                 if now - self.last_scan < 60:
@@ -1583,6 +1660,13 @@ class SelectiveMLBot:
                             self.equity_tracker.log_snapshot(equity_data)
                         except Exception as _e_equity:
                             logger.debug(f"[V2_STATS] equity tracking failed: {_e_equity}")
+
+                        # Dashboard equity snapshot
+                        if self.bridge:
+                            try:
+                                self.bridge.snapshot_equity(bal, open_positions_count)
+                            except Exception as _e_dash:
+                                logger.debug(f"[DASHBOARD] snapshot_equity failed: {_e_dash}")
                 except Exception:
                     equity = 0.0
                 used = sum(float(p.get("positionValue", 0) or 0) for p in positions if float(p.get("size", 0) or 0) > 0)
@@ -1661,6 +1745,14 @@ class SelectiveMLBot:
                             sig["_signal_id"] = signal_id
                         except Exception as _e_v2_stats:
                             logger.debug(f"[V2_STATS] signal_logger failed: {_e_v2_stats}")
+
+                        # Dashboard signal log
+                        if self.bridge:
+                            try:
+                                self.bridge.record_signal(sig, ok, reason)
+                            except Exception as _e_dash:
+                                logger.debug(f"[DASHBOARD] record_signal failed: {_e_dash}")
+
                         if not ok:
                             # Reset stickiness on hard reject.
                             if sym in self._stickiness:
@@ -1828,6 +1920,28 @@ class SelectiveMLBot:
                 self._cycle_errors = 0
                 self._save_state()
                 self._write_health(cycle_ms, signals_generated, executed_orders, equity)
+
+                if self.bridge:
+                    try:
+                        self.bridge.heartbeat(
+                            cycle_ms=cycle_ms,
+                            signals_generated=signals_generated,
+                            signals_after_tier1=signals_after_tier1,
+                            signals_allowed=signals_allowed,
+                            override_count=override_count,
+                            executed_orders=executed_orders,
+                            open_positions=len(self.position_states),
+                            equity=equity,
+                            cycle_errors=self._cycle_errors,
+                            started_ts=self.bridge.started_ts,
+                            strategy_id=self.bridge.strategy_id,
+                            config_path=self.bridge.config_path,
+                            bybit_ok=getattr(self, "_bybit_last_ok", False),
+                            bybit_last_ok_ts=getattr(self, "_bybit_last_ok_ts", None),
+                            bybit_last_error=getattr(self, "_bybit_last_error", None),
+                        )
+                    except Exception as _e_dash:
+                        logger.debug(f"[DASHBOARD] heartbeat failed: {_e_dash}")
             except Exception as e:
                 self._cycle_errors += 1
                 logger.error(f"[LOOP EXCEPTION] err={e}\n{traceback.format_exc()}")
