@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-DEPLOY_DIR="/home/svy1990/-trading-bot"
+DEPLOY_DIR="/home/user1/trading-bot"
 cd "$DEPLOY_DIR"
 
 # Extract new sources over the live directory, preserving runtime data.
