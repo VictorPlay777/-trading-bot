@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 
-from dashboard.backend.state import compute_status
+from dashboard.backend.state import HEARTBEAT_STALE_SEC, compute_status
 from dashboard.store import Store
 
 
@@ -39,7 +39,8 @@ def test_status_state_machine(tmp_path):
     db.set_setting("control", control)
     assert compute_status(db, pm, exchange)["status"] == "PAUSED"
     db.set_setting("control", {})
-    db.write_heartbeat({"ts": time.time() - 60, "started_ts": time.time() - 60, "bybit_ok": 1})
+    stale_ts = time.time() - HEARTBEAT_STALE_SEC - 10
+    db.write_heartbeat({"ts": stale_ts, "started_ts": stale_ts, "bybit_ok": 1})
     assert compute_status(db, pm, exchange)["status"] == "ERROR"
     db.write_heartbeat({"ts": time.time(), "started_ts": time.time(), "bybit_ok": 0})
     assert compute_status(db, pm, exchange)["status"] == "CONNECTION_ERROR"
