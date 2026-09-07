@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from dashboard.backend.app import app
+from dashboard.backend.routes import data
 from dashboard.backend.settings import settings
 
 
@@ -64,3 +65,20 @@ def test_emergency_confirmation(client):
         "/api/bot/emergency-stop", headers=headers,
         json={"confirm_phrase": "wrong", "close_positions": False},
     ).status_code == 400
+
+
+def test_summary_wallet_is_null_when_exchange_is_unavailable(client, monkeypatch):
+    headers = auth(client)
+
+    async def unavailable(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(data, "exchange_call", unavailable)
+    response = client.get("/api/summary", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["wallet"] == {
+        "equity": None,
+        "wallet_balance": None,
+        "available_balance": None,
+        "unrealized_pnl": None,
+    }

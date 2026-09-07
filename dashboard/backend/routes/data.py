@@ -74,13 +74,18 @@ async def summary(request: Request, _user: User):
             cache["data"] = await exchange_call(request, "wallet")
             cache["ts"] = now
         response = cache["data"] or {}
-        values = ((response.get("result") or {}).get("list") or [{}])[0]
-        wallet = {
-            "equity": float(values.get("totalEquity", 0) or 0),
-            "wallet_balance": float(values.get("totalWalletBalance", 0) or 0),
-            "available_balance": float(values.get("totalAvailableBalance", 0) or 0),
-            "unrealized_pnl": float(values.get("totalPerpUPL", 0) or 0),
-        }
+        values = ((response.get("result") or {}).get("list") or [])
+        values = values[0] if values and isinstance(values[0], dict) else None
+        wallet = (
+            {
+                "equity": float(values.get("totalEquity", 0) or 0),
+                "wallet_balance": float(values.get("totalWalletBalance", 0) or 0),
+                "available_balance": float(values.get("totalAvailableBalance", 0) or 0),
+                "unrealized_pnl": float(values.get("totalPerpUPL", 0) or 0),
+            }
+            if values
+            else {}
+        )
     trades = all_trades(db)
     bounds = {period: period_bounds(period) for period in ("today", "7d", "30d")}
     pnl = {
