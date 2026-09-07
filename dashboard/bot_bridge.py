@@ -141,7 +141,7 @@ class BotBridge:
 
     def is_paused(self) -> bool:
         control = self.control()
-        return bool(control.get("paused") or control.get("emergency_stop") or not self.trading_enabled())
+        return bool(control.get("paused") or control.get("emergency_stop"))
 
     def trading_enabled(self) -> bool:
         control = self.control()
