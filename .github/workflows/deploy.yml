@@ -18,10 +18,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          path: trading-bot
 
       - name: Create deployment archive
         run: |
-          tar -czf deploy.tar.gz \
+          tar -czf deploy.tar.gz -C trading-bot \
             --exclude='.git' \
             --exclude='venv' \
             --exclude='.venv*' \
@@ -46,7 +48,7 @@ jobs:
               -P "$PORT" \
               -o StrictHostKeyChecking=no \
               -o UserKnownHostsFile=/dev/null \
-              deploy.tar.gz deploy_remote.sh "$SERVER_USER@$SERVER_HOST:/tmp/"
+              deploy.tar.gz trading-bot/deploy_remote.sh "$SERVER_USER@$SERVER_HOST:/tmp/"
 
           ssh -i ~/.ssh/deploy_key \
               -p "$PORT" \
