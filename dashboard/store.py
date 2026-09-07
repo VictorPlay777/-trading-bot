@@ -137,6 +137,13 @@ CREATE TABLE IF NOT EXISTS settings (
     updated_ts REAL
 );
 
+CREATE TABLE IF NOT EXISTS sessions (
+    token_hash TEXT PRIMARY KEY,
+    created_ts REAL,
+    expires_ts REAL,
+    user TEXT
+);
+
 CREATE TABLE IF NOT EXISTS bot_heartbeat (
     id INTEGER PRIMARY KEY CHECK(id=1),
     ts REAL,
@@ -240,6 +247,15 @@ class Store:
             [*params, int(limit), int(offset)],
         ).fetchall()
         return [dict(row) for row in rows], int(total)
+
+    def trade_filter_options(self):
+        options = {}
+        for key, column in (("symbols", "symbol"), ("strategies", "strategy_id"), ("exit_reasons", "exit_reason")):
+            rows = self._conn.execute(
+                f"SELECT DISTINCT {column} FROM trades WHERE {column} IS NOT NULL AND {column} != '' ORDER BY {column}"
+            ).fetchall()
+            options[key] = [row[0] for row in rows]
+        return options
 
     def insert_signal(self, row):
         values = (
@@ -410,6 +426,47 @@ class Store:
                 (key, self._json(value), time.time()),
             )
             self._conn.commit()
+
+    def create_session(self, token_hash, created_ts, expires_ts, user):
+        with self._lock:
+            self._conn.execute(
+                "INSERT OR REPLACE INTO sessions (token_hash,created_ts,expires_ts,user) VALUES (?,?,?,?)",
+                (token_hash, created_ts, expires_ts, user),
+            )
+            self._conn.commit()
+
+    def get_session(self, token_hash, now=None):
+        now = time.time() if now is None else now
+        row = self._conn.execute(
+            "SELECT token_hash,created_ts,expires_ts,user FROM sessions WHERE token_hash=?",
+            (token_hash,),
+        ).fetchone()
+        if row is None or float(row["expires_ts"] or 0) <= now:
+            if row is not None:
+                self.delete_session(token_hash)
+            return None
+        result = dict(row)
+        if float(result["expires_ts"]) - now < 6 * 3600:
+            result["expires_ts"] = now + 12 * 3600
+            with self._lock:
+                self._conn.execute(
+                    "UPDATE sessions SET expires_ts=? WHERE token_hash=?",
+                    (result["expires_ts"], token_hash),
+                )
+                self._conn.commit()
+        return result
+
+    def delete_session(self, token_hash):
+        with self._lock:
+            self._conn.execute("DELETE FROM sessions WHERE token_hash=?", (token_hash,))
+            self._conn.commit()
+
+    def delete_expired_sessions(self, now=None):
+        now = time.time() if now is None else now
+        with self._lock:
+            cursor = self._conn.execute("DELETE FROM sessions WHERE expires_ts<=?", (now,))
+            self._conn.commit()
+            return cursor.rowcount
 
     def write_heartbeat(self, fields: dict):
         columns = [

@@ -7,7 +7,7 @@ import time
 from dataclasses import asdict, fields, is_dataclass
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
-from typing import Any, get_args, get_origin
+from typing import get_origin
 
 from loguru import logger
 
@@ -383,7 +383,8 @@ class BotBridge:
             valid = (
                 isinstance(value, list) if origin is list else
                 isinstance(value, dict) if origin is dict else
-                type(value) is expected if expected in (int, float, bool, str) else False
+                (type(value) is expected or (expected is float and type(value) is int))
+                if expected in (int, float, bool, str) else False
             )
             if valid:
                 setattr(prod, field_info.name, value)
