@@ -56,4 +56,4 @@ jobs:
               -p "$PORT" \
               -o StrictHostKeyChecking=no \
               -o UserKnownHostsFile=/dev/null \
-              "$SERVER_USER@$SERVER_HOST" "bash /tmp/deploy_remote.sh"
+              "$SERVER_USER@$SERVER_HOST" "sed -i 's/\\r$//' /tmp/deploy_remote.sh && bash /tmp/deploy_remote.sh"
