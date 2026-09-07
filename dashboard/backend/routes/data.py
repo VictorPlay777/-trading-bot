@@ -93,12 +93,25 @@ async def summary(request: Request, _user: User):
         for period in bounds
     }
     snapshots = db.list_equity(now - 90 * 86400, now, limit=5000)
-    peak = max((float(row.get("equity") or 0) for row in snapshots), default=0)
-    current_equity = float(wallet.get("equity") or 0)
-    drawdown = {
-        "usd": max(0.0, peak - current_equity),
-        "pct": (max(0.0, peak - current_equity) / peak * 100) if peak > 0 else None,
-    }
+    if snapshots:
+        peak = max((float(row.get("equity") or 0) for row in snapshots), default=0)
+        current_equity = float(wallet.get("equity") or 0)
+        drawdown = {
+            "usd": max(0.0, peak - current_equity),
+            "pct": (max(0.0, peak - current_equity) / peak * 100) if peak > 0 else None,
+        }
+        drawdown_source = "equity_snapshots"
+    elif trades:
+        cumulative = cumulative_pnl(trades)
+        drawdowns = drawdown_series(cumulative)
+        drawdown = {
+            "usd": max((float(row["dd"]) for row in drawdowns), default=0.0),
+            "pct": None,
+        }
+        drawdown_source = "trades"
+    else:
+        drawdown = {"usd": None, "pct": None}
+        drawdown_source = None
     positions = db.list_positions()
     return {
         "status": current,
@@ -108,7 +121,7 @@ async def summary(request: Request, _user: User):
         "pnl_30d": pnl["30d"],
         "realized_pnl_all": sum(float(row.get("pnl") or 0) for row in trades),
         "drawdown": drawdown,
-        "drawdown_source": "equity_snapshots" if snapshots else ("trades" if trades else None),
+        "drawdown_source": drawdown_source,
         "open_positions": len(positions),
         "trades_today": sum(1 for row in trades if float(row.get("closed_ts") or 0) >= bounds["today"][0]),
         "kill_switch": db.get_setting("kill_switch_state", {}) or {},
@@ -279,6 +292,8 @@ async def stats(request: Request, _user: User, period: str = "all", start: float
     metrics = compute_metrics(rows)
     if metrics.get("sharpe_note"):
         notes.append(metrics["sharpe_note"])
+    if not equity and rows:
+        notes.append("drawdown % requires equity history")
     return {
         "metrics": metrics,
         "daily_pnl": daily_pnl(rows),

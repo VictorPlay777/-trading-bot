@@ -14,11 +14,16 @@ def test_metrics_and_strategy_breakdown():
     metrics = compute_metrics(rows)
     assert metrics["total_trades"] == 30
     assert metrics["wins"] == 15
-    assert metrics["win_rate"] == 0.5
+    assert metrics["win_rate"] == 50.0
+    assert metrics["long_win_rate"] == 100.0
+    assert metrics["short_win_rate"] == 0.0
+    assert metrics["max_drawdown_pct"] is None
     assert metrics["profit_factor"] == 2.0
     assert metrics["fees_source"] == "fees_actual"
     assert metrics["sharpe"] is not None
     assert by_strategy(rows)["s1"]["trades"] == 30
+    assert by_strategy(rows)["s1"]["win_rate"] == 50.0
+    assert by_strategy(rows)["s1"]["max_drawdown_pct"] is None
 
 
 def test_period_bounds():

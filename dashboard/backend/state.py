@@ -17,8 +17,12 @@ def compute_status(store, pm, exchange_client) -> dict:
     managed = pm.is_running()
     process_running = managed or external_pid is not None
     heartbeat = store.read_heartbeat()
-    heartbeat_ts = heartbeat.get("ts") if heartbeat else None
-    heartbeat_age = now - float(heartbeat_ts) if heartbeat_ts else None
+    raw_heartbeat_ts = heartbeat.get("ts") if heartbeat else None
+    try:
+        heartbeat_ts = float(raw_heartbeat_ts) if float(raw_heartbeat_ts or 0) > 0 else None
+    except (TypeError, ValueError):
+        heartbeat_ts = None
+    heartbeat_age = now - heartbeat_ts if heartbeat_ts is not None else None
     control = _merged(store, "control", DEFAULT_CONTROL)
     risk = _merged(store, "risk", DEFAULT_RISK)
     warnings = []

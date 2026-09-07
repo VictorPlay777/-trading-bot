@@ -116,8 +116,6 @@ async def unhandled_exception(request: Request, exc: Exception):
 
 @app.exception_handler(HTTPException)
 async def http_exception(request: Request, exc: HTTPException):
-    if exc.status_code == 404 and not request.url.path.startswith("/api") and (frontend_dist / "index.html").is_file():
-        return FileResponse(frontend_dist / "index.html")
     return JSONResponse({"detail": exc.detail}, status_code=exc.status_code, headers=exc.headers)
 
 
@@ -158,5 +156,15 @@ app.include_router(strategies.router)
 
 frontend_dist = Path(__file__).resolve().parents[1] / "frontend" / "dist"
 if frontend_dist.is_dir():
-    app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="frontend")
+    app.mount("/assets", StaticFiles(directory=str(frontend_dist / "assets")), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa(full_path: str):
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not Found")
+        candidate = (frontend_dist / full_path).resolve()
+        if full_path and candidate.is_file() and frontend_dist in candidate.parents:
+            return FileResponse(candidate)
+        return FileResponse(frontend_dist / "index.html")
+
 app.add_middleware(SecurityHeadersMiddleware)

@@ -48,3 +48,13 @@ def test_status_state_machine(tmp_path):
     db.write_heartbeat({"ts": time.time(), "started_ts": time.time(), "bybit_ok": 1})
     db.set_setting("control", {"kill_switch_triggered": True, "emergency_stop": False})
     assert compute_status(db, pm, exchange)["status"] == "KILL_SWITCH"
+
+
+def test_zero_heartbeat_is_unavailable(tmp_path):
+    db = Store(str(tmp_path / "db"))
+    pm = FakePM()
+    exchange = FakeExchange()
+    db.write_heartbeat({"ts": 0, "started_ts": 0, "bybit_ok": 1})
+    result = compute_status(db, pm, exchange)
+    assert result["last_heartbeat_ts"] is None
+    assert result["heartbeat_age_sec"] is None

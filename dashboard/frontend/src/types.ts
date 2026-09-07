@@ -78,7 +78,7 @@ export interface Summary {
   pnl_7d: number
   pnl_30d: number
   realized_pnl_all: number
-  drawdown: { usd: number; pct: number | null }
+  drawdown: { usd: number | null; pct: number | null }
   drawdown_source: string | null
   open_positions: number
   trades_today: number
@@ -170,13 +170,41 @@ export interface Trade {
 }
 
 export interface Stats {
-  metrics: Record<string, number | string | null>
+  metrics: {
+    total_trades: number
+    wins: number
+    losses: number
+    win_rate: number
+    profit_factor: number | null
+    expectancy: number
+    avg_win: number
+    avg_loss: number
+    avg_r: number | null
+    max_drawdown_usd: number
+    max_drawdown_pct: number | null
+    sharpe: number | null
+    sharpe_note: string | null
+    long_win_rate: number
+    short_win_rate: number
+    total_pnl: number
+    total_fees: number
+    fees_source: string
+  }
   daily_pnl: Array<{ date: string; pnl: number; trades: number }>
   cumulative_pnl: Array<{ ts: number; cum_pnl: number }>
   drawdown: Array<{ ts: number; drawdown: number }>
   trades_per_day: Array<{ date: string; pnl: number; trades: number }>
   equity_curve: Array<Record<string, number | string | null>>
-  by_strategy: Record<string, Record<string, number | string | null>>
+  by_strategy: Record<string, {
+    trades: number
+    win_rate: number
+    pnl: number
+    profit_factor: number | null
+    max_drawdown: number
+    max_drawdown_pct: number | null
+    avg_r: number | null
+    last_trade_ts: number | null
+  }>
   notes: string[]
 }
 
@@ -204,12 +232,13 @@ export interface Strategy {
   trades?: number
   win_rate?: number
   profit_factor?: number | null
-  total_pnl?: number
+  pnl?: number
   avg_r?: number | null
   max_drawdown?: number
+  max_drawdown_pct?: number | null
   trades_today: number
   open_positions: number
-  last_trade?: number | null
+  last_trade_ts?: number | null
   [key: string]: unknown
 }
 

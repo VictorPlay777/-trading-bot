@@ -133,10 +133,16 @@ export function ConfirmDialog({
 
 export function PeriodPicker({
   value,
+  startDate = '',
+  endDate = '',
   onChange,
+  onRangeChange,
 }: {
   value: string
+  startDate?: string
+  endDate?: string
   onChange: (value: string) => void
+  onRangeChange?: (startDate: string, endDate: string) => void
 }) {
   return (
     <div className="period-picker">
@@ -145,7 +151,7 @@ export function PeriodPicker({
           {period === 'today' ? 'Today' : period.toUpperCase()}
         </button>
       ))}
-      {value === 'custom' && <span className="date-inputs"><input type="date" /><input type="date" /></span>}
+      {value === 'custom' && <span className="date-inputs"><input type="date" value={startDate} onChange={(event) => onRangeChange?.(event.target.value, endDate)} /><input type="date" value={endDate} onChange={(event) => onRangeChange?.(startDate, event.target.value)} /></span>}
       <button className={clsx('button tiny', value === 'custom' && 'selected')} onClick={() => onChange('custom')}>Custom</button>
     </div>
   )
@@ -197,7 +203,7 @@ export function Layout({ children, onLogout }: { children: ReactNode; onLogout: 
         <header className="top-header">
           <div className="mobile-brand"><span className="brand-mark">B</span> Bot Panel</div>
           <div className="header-status"><StatusBadge status={status} compact /><span className={clsx('bybit-dot', status?.bybit.connected && 'on')} /> <span className="header-hide-mobile">{status?.bybit.connected ? 'Bybit OK' : 'Bybit unavailable'}</span></div>
-          <div className="header-metrics"><span className="tabular">{fmtUsd(summaryLight?.equity)}</span><span className={toneFor(summaryLight?.unrealized)}>{fmtUsd(summaryLight?.unrealized)}</span></div>
+          <div className="header-metrics" title={!status?.bybit.connected ? 'Bybit unavailable' : undefined}><span className="tabular">{status?.bybit.connected ? fmtUsd(summaryLight?.equity) : '—'}</span><span className={toneFor(summaryLight?.unrealized)}>{status?.bybit.connected ? fmtUsd(summaryLight?.unrealized) : '—'}</span></div>
           <button className="button tiny subtle" onClick={onLogout}>Logout</button>
         </header>
         <div className="page-content">{children}</div>
@@ -235,7 +241,7 @@ export function PositionsTable({ positions, onSelect }: { positions: Position[];
       { key: 'sl', label: 'SL', render: (row) => <span className="tabular">{fmtPrice(row.stop_loss)}</span> },
       { key: 'tp', label: 'TP', render: (row) => <span className="tabular">{fmtPrice(row.tp1)}</span> },
       { key: 'pnl', label: 'Unreal PnL', render: (row) => <span className={toneFor(row.unrealized_pnl)}>{fmtUsd(row.unrealized_pnl)}</span> },
-      { key: 'opened', label: 'Opened', render: (row) => <span className="muted">{fmtAge((Date.now() / 1000) - Number(row.opened_ts ?? 0))}</span> },
+      { key: 'opened', label: 'Opened', render: (row) => <span className="muted">{row.opened_ts ? fmtAge((Date.now() / 1000) - Number(row.opened_ts)) : '—'}</span> },
     ]}
   />
 }

@@ -19,13 +19,11 @@ def _frame(trades):
 
 def _drawdown(frame):
     if frame.empty:
-        return 0.0, None
+        return 0.0
     values = frame.sort_values("closed_ts")["pnl"].cumsum()
     peaks = values.cummax()
     drawdowns = peaks - values
-    max_abs = float(drawdowns.max() or 0.0)
-    pct_values = drawdowns.where(peaks > 0).div(peaks.where(peaks > 0))
-    return max_abs, (float(pct_values.max()) * 100 if pct_values.notna().any() else None)
+    return float(drawdowns.max() or 0.0)
 
 
 def compute_metrics(trades: list[dict]) -> dict:
@@ -44,7 +42,7 @@ def compute_metrics(trades: list[dict]) -> dict:
     losses = frame[frame.pnl <= 0]
     gross_profit = float(wins.pnl.sum())
     gross_loss = float(abs(losses.pnl.sum()))
-    max_dd, max_dd_pct = _drawdown(frame)
+    max_dd = _drawdown(frame)
     fee_actual = frame["fees_actual"] if "fees_actual" in frame else pd.Series(dtype=float)
     fees_source = "fees_actual" if not fee_actual.empty and fee_actual.notna().all() else "fees_est"
     fees = frame["fees_actual"] if fees_source == "fees_actual" else frame.get("fees_est", pd.Series(0, index=frame.index))
@@ -60,12 +58,12 @@ def compute_metrics(trades: list[dict]) -> dict:
         sharpe = float(daily.mean() / daily.std(ddof=1) * np.sqrt(365))
     def side_rate(side):
         subset = frame[frame.side == side]
-        return float((subset.pnl > 0).mean()) if len(subset) else 0.0
+        return float((subset.pnl > 0).mean() * 100) if len(subset) else 0.0
     return {
         "total_trades": int(len(frame)),
         "wins": int(len(wins)),
         "losses": int(len(losses)),
-        "win_rate": float(len(wins) / len(frame)),
+        "win_rate": float(len(wins) / len(frame) * 100),
         "profit_factor": (gross_profit / gross_loss) if gross_loss else None,
         "expectancy": float(frame.pnl.mean()),
         "avg_win": float(wins.pnl.mean()) if len(wins) else 0.0,
@@ -73,7 +71,7 @@ def compute_metrics(trades: list[dict]) -> dict:
         "avg_r": float(frame.r_multiple.dropna().mean()) if "r_multiple" in frame and frame.r_multiple.notna().any() else None,
         "max_drawdown": max_dd,
         "max_drawdown_usd": max_dd,
-        "max_drawdown_pct": max_dd_pct,
+        "max_drawdown_pct": None,
         "sharpe": sharpe,
         "sharpe_note": sharpe_note,
         "long_win_rate": side_rate("long"),
@@ -124,17 +122,17 @@ def by_strategy(trades):
         return {}
     result = {}
     for strategy_id, group in frame.groupby(frame.strategy_id.fillna("unknown")):
-        max_dd, max_dd_pct = _drawdown(group)
+        max_dd = _drawdown(group)
         wins = group[group.pnl > 0]
         losses = group[group.pnl <= 0]
         gross_loss = abs(float(losses.pnl.sum()))
         result[str(strategy_id)] = {
             "trades": int(len(group)),
-            "win_rate": float(len(wins) / len(group)),
+            "win_rate": float(len(wins) / len(group) * 100),
             "pnl": float(group.pnl.sum()),
             "profit_factor": float(wins.pnl.sum() / gross_loss) if gross_loss else None,
             "max_drawdown": max_dd,
-            "max_drawdown_pct": max_dd_pct,
+            "max_drawdown_pct": None,
             "avg_r": float(group.r_multiple.dropna().mean()) if "r_multiple" in group and group.r_multiple.notna().any() else None,
             "last_trade_ts": float(group.closed_ts.max()) if group.closed_ts.notna().any() else None,
         }
