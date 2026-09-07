@@ -22,15 +22,20 @@ def compute_status(store, pm, exchange_client) -> dict:
     control = _merged(store, "control", DEFAULT_CONTROL)
     risk = _merged(store, "risk", DEFAULT_RISK)
     warnings = []
+    started_ago = now - pm._running_since if managed and pm._running_since else None
+    booting = started_ago is not None and started_ago < 180
+    stale = heartbeat_age is None or heartbeat_age > 45
     if control.get("emergency_stop"):
         state = "EMERGENCY_STOP"
     elif not process_running:
         state = "STOPPED"
         if pm.last_exit_code not in (None, 0) and not getattr(pm, "_user_stopped", False):
             state = "ERROR"
-    elif heartbeat_age is None or heartbeat_age > 45:
+    elif stale and booting:
+        state = "STARTING"
+    elif stale:
         state = "ERROR"
-        warnings.append("heartbeat_stale")
+        warnings.append("heartbeat stale")
     elif heartbeat.get("bybit_ok") == 0:
         state = "CONNECTION_ERROR"
     elif control.get("kill_switch_triggered"):
@@ -39,8 +44,6 @@ def compute_status(store, pm, exchange_client) -> dict:
         state = "PAUSED"
     else:
         state = "RUNNING"
-    if heartbeat_age is None or heartbeat_age > 45:
-        warnings.append("heartbeat stale")
     if external_pid is not None:
         warnings.append(f"external bot process detected (pid {external_pid})")
     if not getattr(pm.settings, "dashboard_password", None):
@@ -56,7 +59,7 @@ def compute_status(store, pm, exchange_client) -> dict:
     return {
         "status": state,
         "state": state,
-        "substatus": "heartbeat_stale" if heartbeat_age is None or heartbeat_age > 45 else None,
+        "substatus": "heartbeat_stale" if process_running and stale else None,
         "process_running": process_running,
         "pid": pm.child_pid or external_pid,
         "managed": managed,
