@@ -22,7 +22,8 @@ def compute_status(store, pm, exchange_client) -> dict:
     control = _merged(store, "control", DEFAULT_CONTROL)
     risk = _merged(store, "risk", DEFAULT_RISK)
     warnings = []
-    started_ago = now - pm._running_since if managed and pm._running_since else None
+    running_since = getattr(pm, "_running_since", None)
+    started_ago = now - running_since if managed and running_since else None
     booting = started_ago is not None and started_ago < 180
     stale = heartbeat_age is None or heartbeat_age > 45
     if control.get("emergency_stop"):
