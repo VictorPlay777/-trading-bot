@@ -16,17 +16,19 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script_stop: false
           script: |
             set -e
             cd ~/-trading-bot
-            # Ensure public HTTPS remote so a stale token cannot break pulls.
+
+            # Ensure a public HTTPS remote so a stale token cannot break pulls.
+            git remote get-url origin >/dev/null 2>&1 || \
+              git remote add origin https://github.com/VictorPlay777/-trading-bot.git
             git remote set-url origin https://github.com/VictorPlay777/-trading-bot.git
             git fetch origin
             git reset --hard origin/main
             git clean -fd -e venv -e logs -e "bot_*.log" -e symbol_stats.json -e learning_history.json -e leverage_cache.json -e .env || true
 
-            source venv/bin/activate
+            . venv/bin/activate
             pip install -q -r requirements.txt
 
             # Stop previous bot/supervisor if running.
@@ -35,7 +37,8 @@ jobs:
             sleep 2
 
             # Start the v7 selective ML bot with the auto-restart supervisor.
-            nohup ./run_selective_ml_forever.sh >> selective_ml_supervisor.log 2>&1 &
+            chmod +x run_selective_ml_forever.sh
+            nohup bash run_selective_ml_forever.sh >> selective_ml_supervisor.log 2>&1 &
             sleep 3
 
             echo "Deployment complete!"
