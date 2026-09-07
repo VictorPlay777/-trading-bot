@@ -4,6 +4,10 @@ import time
 
 from dashboard.bot_bridge import DEFAULT_CONTROL, DEFAULT_RISK
 
+# A full scan cycle in selective_ml_bot can take 30-60s; the heartbeat is
+# emitted once per loop iteration, so allow well above one cycle.
+HEARTBEAT_STALE_SEC = 150
+
 
 def _merged(store, key, defaults):
     value = dict(defaults)
@@ -29,7 +33,7 @@ def compute_status(store, pm, exchange_client) -> dict:
     running_since = getattr(pm, "_running_since", None)
     started_ago = now - running_since if managed and running_since else None
     booting = started_ago is not None and started_ago < 180
-    stale = heartbeat_age is None or heartbeat_age > 45
+    stale = heartbeat_age is None or heartbeat_age > HEARTBEAT_STALE_SEC
     if control.get("emergency_stop"):
         state = "EMERGENCY_STOP"
     elif not process_running:
@@ -57,7 +61,7 @@ def compute_status(store, pm, exchange_client) -> dict:
     if control.get("kill_switch_triggered") and control.get("kill_switch_reason"):
         warnings.append(str(control["kill_switch_reason"]))
     bybit_connected = False
-    if process_running and heartbeat_age is not None and heartbeat_age <= 45:
+    if process_running and heartbeat_age is not None and heartbeat_age <= HEARTBEAT_STALE_SEC:
         bybit_connected = bool(heartbeat.get("bybit_ok"))
     elif exchange_client.last_ok_ts is not None:
         bybit_connected = now - exchange_client.last_ok_ts <= 60
