@@ -1,0 +1,8 @@
+fastapi>=0.110,<1
+uvicorn[standard]>=0.29,<1
+pydantic>=2,<3
+python-multipart
+sse-starlette>=2,<3
+httpx
+pytest
+pytest-asyncio

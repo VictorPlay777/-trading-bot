@@ -370,11 +370,12 @@ class Exchange:
             "qty_step": Decimal(str(lot.get("qtyStep", "0.001"))),
             "min_qty": Decimal(str(lot.get("minOrderQty", "0.001"))),
             "max_qty": Decimal(str(lot.get("maxOrderQty", "1000000000"))),
+            "max_mkt_qty": Decimal(str(lot.get("maxMktOrderQty", lot.get("maxOrderQty", "1000000000")))),
         }
         self._symbol_rules_cache[sym] = rules
         return rules
 
-    def normalize_qty(self, symbol: str, qty, price: float = None, qty_in_notional: bool = False):
+    def normalize_qty(self, symbol: str, qty, price: float = None, qty_in_notional: bool = False, is_market: bool = False):
         """
         Normalize quantity for Bybit linear contracts.
         - supports qty passed as contracts OR notional USDT
@@ -396,7 +397,7 @@ class Exchange:
             rules = self._get_symbol_rules(symbol)
             step = rules["qty_step"]
             min_q = rules["min_qty"]
-            max_q = rules["max_qty"]
+            max_q = rules["max_mkt_qty"] if is_market else rules["max_qty"]
             if step <= 0:
                 step = Decimal("0.001")
 
