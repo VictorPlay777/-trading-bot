@@ -4,6 +4,9 @@ import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-route
 import { api } from './api'
 import { Layout, Spinner, Toasts } from './components'
 import { LiveProvider } from './live'
+import { LangProvider } from './i18n'
+import { LiveLogsPage } from './LiveLogs'
+import { ResearchPage } from './Research'
 import { Dashboard, EventsPage, Login, PositionsPage, RiskPage, StatisticsPage, StrategiesPage, StrategySettingsPage, TradesPage } from './pages'
 import './App.css'
 
@@ -41,6 +44,8 @@ function Protected() {
             <Route path="/statistics" element={<StatisticsPage />} />
             <Route path="/trades" element={<TradesPage />} />
             <Route path="/events" element={<EventsPage />} />
+            <Route path="/logs" element={<LiveLogsPage />} />
+            <Route path="/research" element={<ResearchPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Layout>
@@ -53,12 +58,14 @@ function Protected() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <LangProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/*" element={<Protected />} />
         </Routes>
       </BrowserRouter>
+      </LangProvider>
     </QueryClientProvider>
   )
 }

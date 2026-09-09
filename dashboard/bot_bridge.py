@@ -47,6 +47,90 @@ def _float(value, default=0.0):
         return default
 
 
+def bucket_confidence(c):
+    c = _float(c)
+    if c < 0.50:
+        return "<0.50"
+    for lo in (0.90, 0.85, 0.80, 0.75, 0.70, 0.65, 0.60, 0.55, 0.50):
+        if c >= lo:
+            hi = lo + 0.05
+            return f"{lo:.2f}-{hi:.2f}" if lo < 0.90 else "0.90+"
+    return "0.90+"
+
+
+def bucket_adx(v):
+    v = _float(v)
+    for lo, hi in ((40, None), (30, 40), (25, 30), (20, 25), (15, 20), (10, 15)):
+        if hi is None and v >= lo:
+            return "40+"
+        if hi is not None and lo <= v < hi:
+            return f"{lo}-{hi}"
+    return "<10"
+
+
+def bucket_atr_pct(v):
+    v = _float(v)
+    if v < 0.15:
+        return "low"
+    if v < 0.4:
+        return "normal"
+    if v < 0.8:
+        return "high"
+    return "extreme"
+
+
+def bucket_volume(rel):
+    rel = _float(rel)
+    if rel < 0.7:
+        return "low"
+    if rel < 1.3:
+        return "normal"
+    if rel < 2.5:
+        return "high"
+    return "extreme"
+
+
+def bucket_funding(rate):
+    rate = _float(rate)
+    if rate >= 0.0005:
+        return "strong_positive"
+    if rate > 0.0001:
+        return "positive"
+    if rate <= -0.0005:
+        return "strong_negative"
+    if rate < -0.0001:
+        return "negative"
+    return "neutral"
+
+
+def bucket_oi(change):
+    if change is None:
+        return None
+    change = _float(change)
+    if change > 0.02:
+        return "strong_rising"
+    if change > 0.005:
+        return "rising"
+    if change < -0.02:
+        return "strong_falling"
+    if change < -0.005:
+        return "falling"
+    return "neutral"
+
+
+def bucket_depth(depth):
+    depth = _float(depth)
+    if depth < 2000:
+        return "<2k"
+    if depth < 7000:
+        return "2k-7k"
+    if depth < 20000:
+        return "7k-20k"
+    if depth < 50000:
+        return "20k-50k"
+    return "50k+"
+
+
 def _decimal(value, default=Decimal("0")):
     try:
         return Decimal(str(value))
@@ -72,7 +156,19 @@ def trade_row_from_record(
     qty = _float(record.get("qty_total"))
     stop_loss = _float(record.get("stop_loss_price"))
     notional = _float(record.get("notional_entry"), entry * qty)
-    risk_dollars = abs(entry - stop_loss) * qty if stop_loss > 0 else 0.0
+    # Correct risk amount: use provided value, else fall back to intended SL distance.
+    risk_amount = _float(record.get("risk_amount"))
+    r_multiple_calc = record.get("r_multiple_calc") or "sl_based"
+    if risk_amount <= 0 and stop_loss > 0:
+        risk_amount = abs(entry - stop_loss) * qty
+        r_multiple_calc = "sl_based"
+    # If no TP/SL was used, risk is effectively the notional and R is a return ratio.
+    if risk_amount <= 0 and notional > 0:
+        risk_amount = notional
+        r_multiple_calc = "notional_fallback"
+    r_multiple = record.get("r_multiple")
+    if r_multiple is None and risk_amount > 0:
+        r_multiple = pnl / risk_amount
     return {
         "trade_id": record.get("trade_id") or f"{record.get('symbol', '')}_{int(_float(record.get('opened_ts')))}",
         "strategy_id": record.get("strategy_id"),
@@ -96,7 +192,9 @@ def trade_row_from_record(
         "fees_est": _float(record.get("entry_fees_est")) + _float(record.get("exit_fees_est")),
         "fees_actual": None,
         "funding_est": _float(record.get("funding_estimate")),
-        "r_multiple": (pnl / risk_dollars) if risk_dollars > 0 else None,
+        "r_multiple": r_multiple,
+        "risk_amount": risk_amount,
+        "r_multiple_calc": r_multiple_calc,
         "exit_reason": exit_reason or last_reason or "manual_or_external",
         "exit_reasons_json": json.dumps(reasons, ensure_ascii=False, default=str),
         "signal_json": json.dumps(signal, ensure_ascii=False, default=str),
@@ -106,6 +204,17 @@ def trade_row_from_record(
         "ev": signal.get("ev"),
         "score": signal.get("score"),
         "updated_ts": time.time(),
+        "signal_snapshot_id": record.get("signal_snapshot_id"),
+        "signal_id": signal.get("signal_id") or record.get("signal_id"),
+        "mae": record.get("mae"),
+        "mfe": record.get("mfe"),
+        "mae_r": record.get("mae_r"),
+        "mfe_r": record.get("mfe_r"),
+        "gross_pnl": record.get("gross_pnl"),
+        "result": record.get("result") or (
+            "WIN" if pnl > 0 else "LOSS" if pnl < 0 else "BREAKEVEN"
+        ),
+        "size_mult": signal.get("size_mult"),
     }
 
 
@@ -288,6 +397,106 @@ class BotBridge:
                 "strategy_id": sig.get("strategy_id", self.strategy_id),
             }
         )
+        return self._record_signal_snapshot(sig, allowed, reason)
+
+    def _record_signal_snapshot(self, sig, allowed, reason):
+        try:
+            ts = _float(sig.get("timestamp"), time.time()) or time.time()
+            dt = datetime.fromtimestamp(ts, timezone.utc)
+            atr = _float(sig.get("atr"))
+            entry = _float(sig.get("entry"))
+            atr_pct = atr / entry * 100.0 if entry > 0 else None
+            reasons = sig.get("_rejection_reasons")
+            extra = {}
+            for key, value in (sig.get("full_features") or {}).items():
+                if isinstance(value, (int, float, str, bool)) or value is None:
+                    extra[key] = value
+            row = {
+                "ts": ts,
+                "signal_id": sig.get("_signal_id") or None,
+                "symbol": sig.get("symbol"),
+                "direction": sig.get("direction"),
+                "timeframe": sig.get("timeframe"),
+                "entry_price": entry,
+                "probability_long": sig.get("probability_long"),
+                "probability_short": sig.get("probability_short"),
+                "predicted_direction": sig.get("predicted_direction"),
+                "di_plus": sig.get("di_plus"),
+                "di_minus": sig.get("di_minus"),
+                "ema_slope": sig.get("ema_slope"),
+                "ret_1": sig.get("ret_1"), "ret_3": sig.get("ret_3"),
+                "ret_5": sig.get("ret_5"), "ret_10": sig.get("ret_10"),
+                "momentum": sig.get("momentum"),
+                "distance_from_high": sig.get("distance_from_high"),
+                "distance_from_low": sig.get("distance_from_low"),
+                "volume_change": sig.get("volume_change"),
+                "confidence": _float(sig.get("confidence")),
+                "probability": sig.get("probability"),
+                "agreement": int(_float(sig.get("agreement"))),
+                "h3_dir": sig.get("h3_dir"), "h3_conf": sig.get("h3_conf"),
+                "h5_dir": sig.get("h5_dir"), "h5_conf": sig.get("h5_conf"),
+                "h10_dir": sig.get("h10_dir"), "h10_conf": sig.get("h10_conf"),
+                "regime": sig.get("regime"),
+                "regime_confidence": sig.get("regime_confidence"),
+                "trend_score": sig.get("trend_score"),
+                "breakout_score": sig.get("breakout_score"),
+                "chop_score": sig.get("chop_score"),
+                "panic_score": sig.get("panic_score"),
+                "atr": atr,
+                "atr_pct": atr_pct,
+                "realized_volatility": sig.get("realized_volatility"),
+                "adx": sig.get("adx"),
+                "ema_distance": sig.get("ema_distance"),
+                "trend_strength": sig.get("trend_strength"),
+                "volume": sig.get("volume"),
+                "rel_volume": sig.get("rel_volume"),
+                "spread_bps": _float(sig.get("spread_bps")),
+                "spread_pct": sig.get("spread_pct"),
+                "bid_depth": sig.get("bid_depth"),
+                "ask_depth": sig.get("ask_depth"),
+                "total_depth": sig.get("total_depth"),
+                "imbalance": sig.get("imbalance"),
+                "funding_rate": sig.get("funding_rate"),
+                "open_interest": sig.get("open_interest"),
+                "oi_change": sig.get("oi_change"),
+                "basis": sig.get("basis"),
+                "pc_1m": sig.get("pc_1m"), "pc_5m": sig.get("pc_5m"),
+                "pc_15m": sig.get("pc_15m"), "pc_1h": sig.get("pc_1h"),
+                "hl_range": sig.get("hl_range"),
+                "wick_ratio": sig.get("wick_ratio"),
+                "quality_score": _float(sig.get("score")),
+                "uncertainty": sig.get("uncertainty"),
+                "ev": sig.get("ev"),
+                "edge_score": sig.get("edge_score"),
+                "allowed": int(bool(allowed)),
+                "rejection_reason": None if allowed else reason,
+                "rejection_reasons_json": None if allowed else (reasons or ([reason] if reason else [])),
+                "size_mult": sig.get("_size_mult"),
+                "confidence_bucket": bucket_confidence(sig.get("confidence")),
+                "adx_bucket": bucket_adx(sig.get("adx")),
+                "atr_bucket": bucket_atr_pct(atr_pct),
+                "volume_bucket": bucket_volume(sig.get("rel_volume")),
+                "volatility_bucket": bucket_atr_pct(atr_pct),
+                "funding_bucket": bucket_funding(sig.get("funding_rate")),
+                "oi_bucket": bucket_oi(sig.get("oi_change")),
+                "depth_bucket": bucket_depth(sig.get("depth_usdt")),
+                "hour_utc": dt.hour,
+                "dow_utc": dt.weekday(),
+                "feature_version": sig.get("feature_version"),
+                "signal_schema_version": sig.get("signal_schema_version"),
+                "strategy_id": sig.get("strategy_id", self.strategy_id),
+                "extra_json": extra or None,
+            }
+            return self.store.insert_signal_snapshot(row)
+        except Exception:
+            return None
+
+    # --- Counterfactual outcome resolution (research only, never decision path) ---
+    def list_unresolved_signals(self, min_ts, limit=500):
+        return self.store.list_unresolved_signals(min_ts, limit)
+
+    def insert_signal_outcome(self, row):
+        self.store.insert_signal_outcome(row)
 
     def record_trade(self, record: dict, realized_pnl_net: float, exit_reason: str, exit_price: float):
         self.store.upsert_trade(trade_row_from_record(record, realized_pnl_net, exit_reason, exit_price))
@@ -399,6 +608,21 @@ class BotBridge:
             record = getattr(message, "record", {}) or {}
             level = getattr(record.get("level"), "name", "INFO")
             symbol = self._symbol(text)
+            clean = re.sub(
+                r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+ \| [A-Z]+ *\| [^ ]+ - ",
+                "",
+                text,
+            )
+            try:
+                self.store.insert_log(
+                    record.get("time").timestamp() if record.get("time") else time.time(),
+                    level,
+                    self._log_category(clean, level),
+                    clean,
+                    symbol=symbol,
+                )
+            except Exception:
+                pass
             event_type = None
             event_level = level
             metadata = {}
@@ -448,6 +672,27 @@ class BotBridge:
                 self.event(event_level, event_type, text, symbol=symbol, metadata=metadata or None)
         except Exception:
             return
+
+    _TRADE_TAGS = (
+        "[OPEN]", "[EXIT]", "[FILL]", "[TRADE", "[ORDER", "[ENTRY", "[POSITION]",
+        "[TP", "[SL", "POSITION_OPENED", "POSITION_CLOSED", "filled", "Fill ",
+    )
+    _SYSTEM_TAGS = (
+        "[BOOT]", "[HEALTH]", "[DASHBOARD]", "[RISK]", "[KILL", "[RECONCILE",
+        "[MANUAL", "graceful_shutdown", "stop_requested", "[STATE]",
+    )
+
+    @classmethod
+    def _log_category(cls, text, level):
+        if any(tag in text for tag in cls._TRADE_TAGS):
+            return "TRADE"
+        if level in ("WARNING", "ERROR", "CRITICAL"):
+            return level if level != "CRITICAL" else "ERROR"
+        if any(tag in text for tag in cls._SYSTEM_TAGS):
+            return "SYSTEM"
+        if level == "SUCCESS":
+            return "SUCCESS"
+        return "INFO"
 
     @staticmethod
     def _symbol(text):

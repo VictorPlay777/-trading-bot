@@ -131,6 +131,15 @@ export interface Fill {
   [key: string]: unknown
 }
 
+export interface LogLine {
+  id: number
+  ts: number
+  level: string
+  category: 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR' | 'TRADE' | 'SYSTEM' | string
+  message: string
+  symbol?: string | null
+}
+
 export interface Event {
   id: number
   ts: number

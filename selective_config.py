@@ -7,7 +7,7 @@ class ProductionConfig:
     # Strategy versioning: identifier persisted into each trade record and
     # used to snapshot the active config to strategies/<strategy_id>.json.
     # Bump this whenever you change parameters that should be tracked separately.
-    strategy_id: str = "v7_stats_collection_buckets_2026-05-05"
+    strategy_id: str = "v7_v2_professional_stats_2026-09-07"
     strategy_notes: str = (
         "v7: DATA COLLECTION MODE. Multi-bucket entries (conf >= 0.55), fixed notional 10k, "
         "leverage 1x, TP=SL=0.5 ATR (inherited from v6 for cleanliness), no cooldowns. "
@@ -29,6 +29,9 @@ class ProductionConfig:
     # Model EV typically 1-4% per signal, 1 ATR was often too far (1.4-5%).
     # 0.5 ATR (0.7-2.5%) brings target within model's expected move range.
     # Fees ~0.12%, so 0.5 ATR keeps fee-eat at 5-17% (acceptable).
+    # v8: TP/SL exits disabled — positions are closed manually via dashboard.
+    # Research counterfactuals still record hypothetical TP/SL outcomes.
+    enable_tp_sl_exits: bool = False
     sl_atr_mult: float = 0.5      # v6: SL = 0.5*ATR
     tp1_r: float = 0.5            # v6: TP = 0.5*ATR
     tp2_r: float = 0.5            # unused when single_tp_full_close=True

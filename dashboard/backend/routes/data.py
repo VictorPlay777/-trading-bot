@@ -331,6 +331,41 @@ async def events(
     return {"items": _event_rows(rows), "total": total, "event_types": request.app.state.store.distinct_event_types()}
 
 
+@router.get("/logs")
+async def logs(
+    request: Request,
+    _user: User,
+    level: str | None = None,
+    category: str | None = None,
+    symbol: str | None = None,
+    q: str | None = None,
+    since_id: int | None = None,
+    start: float | None = None,
+    limit: int = Query(200, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+):
+    rows = request.app.state.store.list_logs(
+        {"level": level, "category": category, "symbol": symbol, "q": q, "since_id": since_id, "start_ts": start},
+        limit, offset,
+    )
+    return {"items": rows}
+
+
+@router.get("/logs/export")
+async def logs_export(request: Request, _user: User, limit: int = Query(5000, ge=1, le=50000)):
+    from fastapi.responses import PlainTextResponse
+    rows = request.app.state.store.list_logs({}, limit, 0)
+    lines = []
+    for row in reversed(rows):
+        import datetime
+        stamp = datetime.datetime.fromtimestamp(float(row["ts"])).strftime("%Y-%m-%d %H:%M:%S")
+        lines.append(f"[{stamp}] {row['level']:<8} {row['category']:<8} {row['message']}")
+    return PlainTextResponse(
+        "\n".join(lines),
+        headers={"Content-Disposition": "attachment; filename=bot_live_logs.txt"},
+    )
+
+
 @router.get("/signals")
 async def signals(
     request: Request,

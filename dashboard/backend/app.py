@@ -17,7 +17,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from dashboard.backend.auth import require_user
 from dashboard.backend.exchange_client import ExchangeClient
 from dashboard.backend.process_manager import ProcessManager
-from dashboard.backend.routes import auth, bot, data, risk, strategies
+from dashboard.backend.routes import auth, bot, data, research, risk, strategies
 from dashboard.backend.settings import settings
 from dashboard.backend.state import compute_status
 from dashboard.store import Store
@@ -47,9 +47,22 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 
 async def _snapshot_loop(app):
+    prev_substatus = None
     while True:
         try:
             current = compute_status(app.state.store, app.state.process_manager, app.state.exchange_client)
+            substatus = current.get("substatus")
+            if substatus == "heartbeat_stale" and prev_substatus != "heartbeat_stale":
+                app.state.store.insert_log(
+                    time.time(), "ERROR", "SYSTEM",
+                    "Heartbeat lost: bot is running but not reporting activity",
+                )
+            elif substatus != "heartbeat_stale" and prev_substatus == "heartbeat_stale":
+                app.state.store.insert_log(
+                    time.time(), "INFO", "SYSTEM",
+                    "Heartbeat restored: bot is reporting activity again",
+                )
+            prev_substatus = substatus
             app.state.latest_snapshot = {
                 "status": current,
                 "summary_light": summary_light_from_store(app.state.store, current),
@@ -128,6 +141,7 @@ async def health():
 async def stream(request: Request, _user=Depends(require_user)):
     async def generator():
         last_id = int(request.query_params.get("since_id", "0") or 0)
+        last_log_id = int(request.query_params.get("since_log_id", "0") or 0)
         last_heartbeat = time.monotonic()
         while True:
             if await request.is_disconnected():
@@ -140,6 +154,11 @@ async def stream(request: Request, _user=Depends(require_user)):
                 events = list(reversed(events))
                 last_id = max(int(row["id"]) for row in events)
                 yield {"event": "events", "data": json.dumps(events, default=str)}
+            new_logs = request.app.state.store.list_logs({"since_id": last_log_id}, limit=300, offset=0)
+            if new_logs:
+                new_logs = list(reversed(new_logs))
+                last_log_id = max(int(row["id"]) for row in new_logs)
+                yield {"event": "logs", "data": json.dumps(new_logs, default=str)}
             if time.monotonic() - last_heartbeat >= 15:
                 yield {"comment": "heartbeat"}
                 last_heartbeat = time.monotonic()
@@ -153,6 +172,7 @@ app.include_router(bot.router)
 app.include_router(data.router)
 app.include_router(risk.router)
 app.include_router(strategies.router)
+app.include_router(research.router)
 
 frontend_dist = Path(__file__).resolve().parents[1] / "frontend" / "dist"
 if frontend_dist.is_dir():

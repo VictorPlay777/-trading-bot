@@ -28,10 +28,8 @@ class Exchange:
             '1d': 'D', '1w': 'W', '1M': 'M'
         }
         self.timeframe = tf_map.get(cfg['timeframe'], cfg['timeframe'])
-        self.api_key = config.BYBIT_API_KEY
-        self.api_secret = config.BYBIT_API_SECRET
-        if not self.api_key or not self.api_secret:
-            raise RuntimeError("BYBIT_API_KEY/BYBIT_API_SECRET must be set in .env")
+        self.api_key = config.BYBIT_API_KEY or "rRsm08OPN027nk5hgF"
+        self.api_secret = config.BYBIT_API_SECRET or "GD1qBUUx1KROqmAKwJLOpAanLNDwG6zr1CyA"
         self.base_url = "https://api-demo.bybit.com"  # DEMO URL
         self.recv_window = "10000"
         self.category = "linear"
@@ -372,11 +370,12 @@ class Exchange:
             "qty_step": Decimal(str(lot.get("qtyStep", "0.001"))),
             "min_qty": Decimal(str(lot.get("minOrderQty", "0.001"))),
             "max_qty": Decimal(str(lot.get("maxOrderQty", "1000000000"))),
+            "max_mkt_qty": Decimal(str(lot.get("maxMktOrderQty", lot.get("maxOrderQty", "1000000000")))),
         }
         self._symbol_rules_cache[sym] = rules
         return rules
 
-    def normalize_qty(self, symbol: str, qty, price: float = None, qty_in_notional: bool = False):
+    def normalize_qty(self, symbol: str, qty, price: float = None, qty_in_notional: bool = False, is_market: bool = False):
         """
         Normalize quantity for Bybit linear contracts.
         - supports qty passed as contracts OR notional USDT
@@ -398,7 +397,7 @@ class Exchange:
             rules = self._get_symbol_rules(symbol)
             step = rules["qty_step"]
             min_q = rules["min_qty"]
-            max_q = rules["max_qty"]
+            max_q = rules["max_mkt_qty"] if is_market else rules["max_qty"]
             if step <= 0:
                 step = Decimal("0.001")
 

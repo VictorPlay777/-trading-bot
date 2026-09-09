@@ -3,17 +3,20 @@ import { Link, NavLink } from 'react-router-dom'
 import clsx from 'clsx'
 import { fmtAge, fmtPrice, fmtTs, fmtUsd, toneFor } from './format'
 import { useLiveStore } from './live'
+import { useLang, LangToggle } from './i18n'
 import type { Event, Position, Status } from './types'
 
-const navItems = [
-  ['/', '▦', 'Dashboard'],
-  ['/positions', '◈', 'Positions'],
-  ['/strategies', '◎', 'Strategies'],
-  ['/risk', '◆', 'Risk'],
-  ['/statistics', '▥', 'Statistics'],
-  ['/trades', '≋', 'Trades'],
-  ['/events', '⋮', 'Events'],
-] as const
+const navItems: ReadonlyArray<readonly [string, string, string, string]> = [
+  ['/', '▦', 'Dashboard', 'Дашборд'],
+  ['/positions', '◈', 'Positions', 'Позиции'],
+  ['/strategies', '◎', 'Strategies', 'Стратегии'],
+  ['/risk', '◆', 'Risk', 'Риск'],
+  ['/statistics', '▥', 'Statistics', 'Статистика'],
+  ['/trades', '≋', 'Trades', 'Сделки'],
+  ['/logs', '▤', 'Live Logs', 'Логи'],
+  ['/research', '⌬', 'Research', 'Исследование'],
+  ['/events', '⋮', 'Events', 'События'],
+]
 
 export function StatusBadge({ status, compact = false }: { status: Status | string | null; compact?: boolean }) {
   const value = typeof status === 'string' ? status : status?.state
@@ -186,6 +189,7 @@ export function DataTable<T>({
 
 export function Layout({ children, onLogout }: { children: ReactNode; onLogout: () => void }) {
   const { status, summaryLight, connected } = useLiveStore()
+  const { lang, t } = useLang()
   const [disconnectedFor, setDisconnectedFor] = useState(0)
   useEffect(() => {
     const timer = window.setInterval(() => setDisconnectedFor((value) => connected ? 0 : value + 1000), 1000)
@@ -193,22 +197,23 @@ export function Layout({ children, onLogout }: { children: ReactNode; onLogout: 
   }, [connected])
   return (
     <div className="app-shell">
-      {!connected && disconnectedFor > 10000 && <div className="lost-banner">Live connection lost · polling status every 5s</div>}
+      {!connected && disconnectedFor > 10000 && <div className="lost-banner">{t('Live connection lost · polling status every 5s', 'Соединение потеряно · опрос статуса каждые 5с')}</div>}
       <aside className="sidebar">
         <Link to="/" className="brand"><span className="brand-mark">B</span><span>Bybit Bot Panel</span></Link>
-        <nav>{navItems.map(([path, icon, label]) => <NavLink key={path} to={path} end={path === '/'} className={({ isActive }) => clsx('nav-link', isActive && 'active')}><span>{icon}</span>{label}</NavLink>)}</nav>
-        <div className="sidebar-footer"><span className={clsx('connection-dot', connected && 'on')} /> SSE {connected ? 'connected' : 'reconnecting'}</div>
+        <nav>{navItems.map(([path, icon, label, ru]) => <NavLink key={path} to={path} end={path === '/'} className={({ isActive }) => clsx('nav-link', isActive && 'active')}><span>{icon}</span>{lang === 'ru' ? ru : label}</NavLink>)}</nav>
+        <div className="sidebar-footer"><span className={clsx('connection-dot', connected && 'on')} /> SSE {connected ? t('connected', 'подключено') : t('reconnecting', 'переподключение')}</div>
       </aside>
       <main className="main">
         <header className="top-header">
           <div className="mobile-brand"><span className="brand-mark">B</span> Bot Panel</div>
-          <div className="header-status"><StatusBadge status={status} compact /><span className={clsx('bybit-dot', status?.bybit.connected && 'on')} /> <span className="header-hide-mobile">{status?.bybit.connected ? 'Bybit OK' : 'Bybit unavailable'}</span></div>
-          <div className="header-metrics" title={!status?.bybit.connected ? 'Bybit unavailable' : undefined}><span className="tabular">{status?.bybit.connected ? fmtUsd(summaryLight?.equity) : '—'}</span><span className={toneFor(summaryLight?.unrealized)}>{status?.bybit.connected ? fmtUsd(summaryLight?.unrealized) : '—'}</span></div>
-          <button className="button tiny subtle" onClick={onLogout}>Logout</button>
+          <div className="header-status"><StatusBadge status={status} compact /><span className={clsx('bybit-dot', status?.bybit.connected && 'on')} /> <span className="header-hide-mobile">{status?.bybit.connected ? 'Bybit OK' : t('Bybit unavailable', 'Bybit недоступен')}</span></div>
+          <div className="header-metrics" title={!status?.bybit.connected ? t('Bybit unavailable', 'Bybit недоступен') : undefined}><span className="tabular">{status?.bybit.connected ? fmtUsd(summaryLight?.equity) : '—'}</span><span className={toneFor(summaryLight?.unrealized)}>{status?.bybit.connected ? fmtUsd(summaryLight?.unrealized) : '—'}</span></div>
+          <LangToggle />
+          <button className="button tiny subtle" onClick={onLogout}>{t('Logout', 'Выход')}</button>
         </header>
         <div className="page-content">{children}</div>
       </main>
-      <nav className="bottom-nav">{navItems.slice(0, 5).map(([path, icon, label]) => <NavLink key={path} to={path} end={path === '/'} className={({ isActive }) => clsx('bottom-link', isActive && 'active')}><span>{icon}</span><small>{label}</small></NavLink>)}</nav>
+      <nav className="bottom-nav">{navItems.slice(0, 5).map(([path, icon, label, ru]) => <NavLink key={path} to={path} end={path === '/'} className={({ isActive }) => clsx('bottom-link', isActive && 'active')}><span>{icon}</span><small>{lang === 'ru' ? ru : label}</small></NavLink>)}</nav>
     </div>
   )
 }

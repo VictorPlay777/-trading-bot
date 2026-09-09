@@ -1,5 +1,6 @@
 import type {
   EventResponse,
+  LogLine,
   Position,
   PositionDetail,
   RiskResponse,
@@ -65,6 +66,9 @@ export const getPosition = (symbol: string) => api<PositionDetail>(`/api/positio
 export const getTrades = (query: string) => api<TradeResponse>(`/api/trades?${query}`)
 export const getTrade = (id: string) => api<TradeDetail>(`/api/trades/${encodeURIComponent(id)}`)
 export const getEvents = (query: string) => api<EventResponse>(`/api/events?${query}`)
+export const getLogs = (query: string) => api<{ items: LogLine[] }>(`/api/logs?${query}`)
+export const getResearch = <T = unknown>(section: string, query = '') =>
+  api<T>(`/api/research/${section}${query ? `?${query}` : ''}`)
 export const getStats = (query: string) => api<Stats>(`/api/stats?${query}`)
 export const getStrategies = () => api<Strategy[]>('/api/strategies')
 export const getStrategySettings = (id: string) =>

@@ -220,4 +220,11 @@ marimo/_lsp/
 __marimo__/
 
 # Streamlit
-.streamlit/secrets.tomlgit remote set-url origin httpsVict.txt 
+.streamlit/secrets.toml
+
+# Local secrets and build artifacts
+.github_token.txt
+*.bundle
+deploy.tar.gz
+logs/
+.venv-v7/ 

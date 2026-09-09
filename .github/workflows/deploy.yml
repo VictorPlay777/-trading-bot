@@ -8,20 +8,52 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
+    env:
+      SERVER_HOST: ${{ secrets.SERVER_HOST }}
+      SERVER_USER: ${{ secrets.SERVER_USER }}
+      SERVER_PORT: ${{ secrets.SERVER_PORT }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      
-      - name: Deploy to server
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd ~/-trading-bot
-            git pull origin main
-            sudo systemctl restart trading-bot
-            echo "Deployment complete!"
-            sudo systemctl status trading-bot --no-pager
+      - name: Download source archive
+        run: |
+          set -e
+          curl -fsSL -o source.tar.gz "https://github.com/VictorPlay777/-trading-bot/archive/main.tar.gz"
+          mkdir -p trading-bot
+          tar -xzf source.tar.gz -C trading-bot --strip-components=1
+
+      - name: Create deployment archive
+        run: |
+          tar -czf deploy.tar.gz -C trading-bot \
+            --exclude='.git' \
+            --exclude='venv' \
+            --exclude='.venv*' \
+            --exclude='logs' \
+            --exclude='.env' \
+            --exclude='*.log' \
+            --exclude='__pycache__' \
+            --exclude='*.pyc' \
+            --exclude='*.bundle' \
+            .
+
+      - name: Upload and deploy to server
+        run: |
+          set -e
+          mkdir -p ~/.ssh
+          install -m 600 /dev/null ~/.ssh/deploy_key
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+
+          PORT="${SERVER_PORT:-22}"
+
+          scp -i ~/.ssh/deploy_key \
+              -P "$PORT" \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              deploy.tar.gz trading-bot/deploy_remote.sh "$SERVER_USER@$SERVER_HOST:/tmp/"
+
+          ssh -i ~/.ssh/deploy_key \
+              -p "$PORT" \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              "$SERVER_USER@$SERVER_HOST" "sed -i 's/\\r$//' /tmp/deploy_remote.sh && bash /tmp/deploy_remote.sh"

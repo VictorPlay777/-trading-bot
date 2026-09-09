@@ -45,12 +45,33 @@ from trader.exchange_demo import Exchange
 from execution_tracker import ExecutionTracker
 from pnl_engine import build_net_expectancy
 from stats_collector import StatsCollector
-from dashboard.bot_bridge import BotBridge
+# Professional statistics system v2
+from stats import (
+    SystemIDGenerator,
+    SignalLogger,
+    TradeLogger,
+    EquityTracker,
+    MAEMFETracker,
+    DataQualityChecker,
+    AdvancedMetricsCalculator
+)
 
 try:
     import psutil  # type: ignore
 except Exception:
     psutil = None
+
+# Dashboard bridge (optional; live on the server where the dashboard package exists)
+try:
+    from dashboard.bot_bridge import BotBridge
+except Exception:
+    BotBridge = None
+
+# Research layer (write-only)
+try:
+    from research import ResearchCollector
+except Exception:
+    ResearchCollector = None
 
 
 def setup_logging():
@@ -124,16 +145,6 @@ class SelectiveMLBot:
         self.cfg = yaml.safe_load(open(cfg_path, "r", encoding="utf-8"))
         self.ex = Exchange(self.cfg)
         self.prod = ProductionConfig()
-        self.bridge = None
-        try:
-            self.bridge = BotBridge(
-                strategy_id=getattr(self.prod, "strategy_id", "unknown"),
-                config_path=cfg_path,
-            )
-            self.bridge.apply_strategy_overrides(self.prod)
-            self.bridge.install_log_sink()
-        except Exception as e:
-            logger.warning(f"[DASHBOARD] bridge initialization failed: {e}")
         try:
             logger.info(
                 f"[BOOT] selective_ml_bot start sizing_mode={getattr(self.prod, 'sizing_mode', None)} "
@@ -180,6 +191,14 @@ class SelectiveMLBot:
         self.exec_tracker = ExecutionTracker(self.ex, log_dir="logs")
         # v7: stats collector for signal/trade logging and per-bucket aggregates.
         self.stats = StatsCollector(stats_print_every=20)
+        
+        # v2: Professional statistics system with complete tracking
+        self.signal_logger = SignalLogger(logs_dir="logs")
+        self.trade_logger = TradeLogger(logs_dir="logs")
+        self.equity_tracker = EquityTracker(logs_dir="logs")
+        self.mae_mfe_tracker = MAEMFETracker()
+        self.data_quality = DataQualityChecker(logs_dir="logs")
+        self.advanced_metrics = AdvancedMetricsCalculator(logs_dir="logs")
         self.cooldown = CooldownManager()
         self.exposure = ExposureLimits(self.prod.max_concurrent_positions, self.prod.max_positions_per_symbol)
         self.heat = PortfolioHeat(self.prod.max_portfolio_heat)
@@ -193,6 +212,8 @@ class SelectiveMLBot:
         # Signal stickiness state: {symbol: {"count": int, "direction": str, "last_conf": float}}
         self._stickiness = {}
         self._ohlcv_cache = {}  # symbol -> (ts, df)
+        self._candidate_meta = {}  # symbol -> select_symbols row (wick_ratio, pct, vol24)
+        self._oi_prev = {}  # symbol -> previous open interest (for oi_change)
         self.position_states = {}
         self._last_funding_refresh = 0.0
         self._funding_cache = {}
@@ -207,6 +228,31 @@ class SelectiveMLBot:
         self._health_path = Path("logs/health.json")
         self._snapshot_dir = Path("logs/error_snapshots")
         self._snapshot_dir.mkdir(parents=True, exist_ok=True)
+
+        # Dashboard bridge (optional)
+        self.bridge = None
+        if BotBridge is not None:
+            try:
+                self.bridge = BotBridge(
+                    strategy_id=getattr(self.prod, "strategy_id", "unknown"),
+                    config_path=str(cfg_path),
+                )
+                self.bridge.install_log_sink()
+                logger.info("[DASHBOARD] bridge initialized")
+            except Exception as e:
+                logger.warning(f"[DASHBOARD] bridge init failed: {e}")
+
+        # Research collector (write-only; never read by trading logic)
+        self.research = None
+        if ResearchCollector is not None:
+            try:
+                self.research = ResearchCollector(
+                    bridge=self.bridge,
+                    strategy_id=getattr(self.prod, "strategy_id", "unknown"),
+                )
+                logger.info("[RESEARCH] collector initialized")
+            except Exception as e:
+                logger.warning(f"[RESEARCH] collector init failed: {e}")
 
     @staticmethod
     def _f(x, default=0.0) -> float:
@@ -361,7 +407,9 @@ class SelectiveMLBot:
             for i in range(60, len(df) - max(self.prod.horizons) - 1):
                 sub = df.iloc[: i + 1]
                 feat_rows.append(self.feature_store.build(sub, ob, funding=funding, oi_delta=oi))
-            X = pd.DataFrame(feat_rows).fillna(0.0)
+            X = pd.DataFrame(
+                [{k: v for k, v in r.items() if not k.startswith("_")} for r in feat_rows]
+            ).fillna(0.0)
             if len(X) < 80:
                 return None
 
@@ -383,6 +431,12 @@ class SelectiveMLBot:
         direction, confidence, agreement = self.ensemble.vote(horizon_probs, regime)
         probs = horizon_probs[self.prod.horizons[0]]
         primary_dir, p_primary, unc = self.edge.compute(probs)
+        # Per-horizon directions/confidences for the research snapshot (read-only).
+        horizon_detail = {}
+        for h in self.prod.horizons:
+            hp = horizon_probs.get(h, {})
+            h_dir = "long" if hp.get(1, 0.0) > hp.get(-1, 0.0) else "short"
+            horizon_detail[h] = (h_dir, abs(hp.get(1, 0.0) - hp.get(-1, 0.0)))
         if primary_dir != direction:
             confidence *= 0.8
         # Experimental: invert model direction (long<->short).
@@ -410,6 +464,33 @@ class SelectiveMLBot:
         avg_win = (self.prod.tp2_r * risk) / entry
         avg_loss = risk / entry
         ev = self.ev_engine.estimate(p_primary, avg_win, avg_loss, slip)
+        
+        # Build complete feature snapshot for v2 statistics
+        full_features = self.feature_store.build(df, ob, funding, oi)
+
+        # --- Research snapshot enrichment (read-only; no trading logic impact) ---
+        c = df["close"]
+        def _pc(n):
+            return float(c.pct_change(n).iloc[-1]) if len(df) > n else None
+        ema50 = float(c.ewm(span=50, adjust=False).mean().iloc[-1])
+        ema20 = float(c.ewm(span=20, adjust=False).mean().iloc[-1])
+        high_20 = float(df["high"].rolling(20).max().iloc[-1])
+        low_20 = float(df["low"].rolling(20).min().iloc[-1])
+        last_v = float(df["volume"].iloc[-1])
+        prev_v = float(df["volume"].iloc[-2]) if len(df) > 1 else 0.0
+        dmi = self._calculate_dmi(symbol)
+        p_primary_probs = horizon_probs.get(self.prod.horizons[0], {})
+        prev_oi = self._oi_prev.get(symbol)
+        self._oi_prev[symbol] = oi
+        oi_change = (oi - prev_oi) / prev_oi if prev_oi and prev_oi > 0 else None
+        bids = ob.get("bids") or []
+        asks = ob.get("asks") or []
+        bid_depth = float(sum(p * q for p, q in bids[:10])) if bids else None
+        ask_depth = float(sum(p * q for p, q in asks[:10])) if asks else None
+        cand = self._candidate_meta.get(symbol) or {}
+        last_bar = df.iloc[-1]
+        hl_range = float((last_bar["high"] - last_bar["low"]) / (c.iloc[-1] + 1e-12))
+
         return {
             "symbol": symbol,
             "df": df,
@@ -422,8 +503,57 @@ class SelectiveMLBot:
             "spread_bps": spread_bps,
             "depth_usdt": ob.get("depth_usdt", 0.0),
             "ev": ev,
+            # research snapshot fields
+            "probability": p_primary,
+            "probability_long": p_primary_probs.get(1),
+            "probability_short": p_primary_probs.get(-1),
+            "predicted_direction": primary_dir if isinstance(primary_dir, str) else ("long" if primary_dir == 1 else "short" if primary_dir == -1 else None),
+            "di_plus": dmi.get("di_plus"),
+            "di_minus": dmi.get("di_minus"),
+            "ema_slope": full_features.get("ema_slope_20"),
+            "ret_1": full_features.get("ret_1"),
+            "ret_3": full_features.get("ret_3"),
+            "ret_5": _pc(5),
+            "ret_10": _pc(10),
+            "momentum": full_features.get("momentum_accel"),
+            "distance_from_high": (high_20 - entry) / (entry + 1e-12) if entry > 0 else None,
+            "distance_from_low": (entry - low_20) / (entry + 1e-12) if entry > 0 else None,
+            "volume_change": (last_v / prev_v - 1.0) if prev_v > 0 else None,
+            "h3_dir": horizon_detail.get(3, (None, None))[0],
+            "h3_conf": horizon_detail.get(3, (None, None))[1],
+            "h5_dir": horizon_detail.get(5, (None, None))[0],
+            "h5_conf": horizon_detail.get(5, (None, None))[1],
+            "h10_dir": horizon_detail.get(10, (None, None))[0],
+            "h10_conf": horizon_detail.get(10, (None, None))[1],
+            "atr_pct": (atr_v / entry * 100.0) if entry > 0 else None,
+            "realized_volatility": full_features.get("vol_compression"),
+            "adx": dmi.get("adx"),
+            "ema_distance": (entry - ema50) / (entry + 1e-12),
+            "trend_strength": full_features.get("ema_slope_50"),
+            "volume": float(df["volume"].iloc[-1]),
+            "rel_volume": full_features.get("rel_volume"),
+            "spread_pct": spread_bps / 10000.0,
+            "bid_depth": bid_depth,
+            "ask_depth": ask_depth,
+            "total_depth": (bid_depth + ask_depth) if bid_depth is not None and ask_depth is not None else None,
+            "imbalance": ob.get("imbalance"),
+            "funding_rate": funding,
+            "open_interest": oi,
+            "oi_change": oi_change,
+            "basis": None,
+            "pc_1m": _pc(1), "pc_5m": _pc(5), "pc_15m": _pc(15), "pc_1h": _pc(60),
+            "hl_range": hl_range,
+            "wick_ratio": cand.get("wick_ratio"),
+            "edge_score": (p_primary - 0.5) if isinstance(p_primary, (int, float)) else None,
             "entry": entry,
             "atr": atr_v,
+            # v2: Complete feature snapshot and metadata
+            "full_features": full_features,
+            "timestamp": time.time(),
+            "timeframe": "1m",
+            "strategy_version": getattr(self.prod, "strategy_id", "unknown"),
+            "model_version": "catboost_v1",  # TODO: Track actual model version
+            "feature_version": self.feature_store.get_version(),
         }
 
     def _is_high_ev_override_candidate(self, sig) -> bool:
@@ -520,7 +650,26 @@ class SelectiveMLBot:
             "adx": float(sig.get("adx", 0.0) or 0.0),
             "funding_rate": float(sig.get("funding_rate", 0.0) or 0.0),
             "size_mult": float(sig.get("_size_mult", 1.0) or 1.0),
+            # v2: Add signal_id for linkage
+            "signal_id": sig.get("_signal_id", ""),
+            # Research: dashboard snapshot linkage
+            "signal_snapshot_id": sig.get("_dash_signal_id"),
+            # v2: Add version information
+            "strategy_version": sig.get("strategy_version", "unknown"),
+            "model_version": sig.get("model_version", "unknown"),
+            "feature_version": sig.get("feature_version", "v1"),
         }
+        
+        # v2: Register position for MAE/MFE tracking
+        try:
+            self.mae_mfe_tracker.register_position(
+                symbol=sig["symbol"],
+                entry_price=float(sig["entry"]),
+                side=sig["direction"],
+                entry_time=st.opened_ts
+            )
+        except Exception as _e_mae_mfe:
+            logger.debug(f"[V2_STATS] MAE/MFE registration failed: {_e_mae_mfe}")
         if ex_row is not None:
             if ex_row.get("cumRealisedPnl") is not None:
                 st.cum_realised_pnl = self._f(ex_row.get("cumRealisedPnl", 0.0))
@@ -626,6 +775,15 @@ class SelectiveMLBot:
                         st.cum_realised_pnl = cum_now
                 self._hydrate_from_exchange_row(st, p)
                 st.updated_ts = time.time()
+                
+                # v2: Update MAE/MFE for open positions
+                try:
+                    # Get current price for the symbol
+                    current_price = float(p.get("markPrice", entry) or entry)
+                    if current_price > 0:
+                        self.mae_mfe_tracker.update_position(sym, current_price)
+                except Exception as _e_mae_mfe:
+                    logger.debug(f"[V2_STATS] MAE/MFE update failed for {sym}: {_e_mae_mfe}")
 
         for sym, st in list(self.position_states.items()):
             if sym not in live:
@@ -679,6 +837,10 @@ class SelectiveMLBot:
                 continue
         # We don't have per-exit price here reliably (market closes with slippage) – leave 0 if unknown.
         duration = max(0.0, now - float(st.opened_ts or now))
+        
+        # v2: Get MAE/MFE metrics before closing position tracker
+        mae_mfe_metrics = self.mae_mfe_tracker.close_position(st.symbol, float(avg_exit))
+        
         record = {
             "schema": "selective_trade_v1",
             "strategy_id": getattr(self.prod, "strategy_id", "unknown"),
@@ -706,6 +868,15 @@ class SelectiveMLBot:
             "funding_estimate": float(st.funding_estimate),
             "notional_entry": float(st.entry_price) * float(st.qty_total or 0),
             "exit_price": float(avg_exit),
+            # Research fields
+            "signal_snapshot_id": (st.signal_meta or {}).get("signal_snapshot_id"),
+            "signal_id": (st.signal_meta or {}).get("signal_id", ""),
+            "mae": mae_mfe_metrics.get("mae", 0.0),
+            "mfe": mae_mfe_metrics.get("mfe", 0.0),
+            "mae_r": mae_mfe_metrics.get("mae_r", 0.0),
+            "mfe_r": mae_mfe_metrics.get("mfe_r", 0.0),
+            "gross_pnl": float(realized_net) + float(st.entry_fees) + float(st.exit_fees_estimate),
+            "result": "WIN" if realized_net > 0 else "LOSS" if realized_net < 0 else "BREAKEVEN",
         }
         try:
             # Absolute path to ensure consistent location
@@ -733,13 +904,86 @@ class SelectiveMLBot:
             )
         except Exception as _e_stats:
             logger.debug(f"[STATS] log_trade_close wrap failed: {_e_stats}")
+        
+        # v2: Professional trade logging with complete metrics
         try:
-            if self.bridge is not None:
-                exit_reasons_list = list(st.exit_reasons or [])
-                exit_reason_label = exit_reasons_list[-1].get("reason", "") if exit_reasons_list else ""
-                self.bridge.record_trade(record, realized_net, str(exit_reason_label), float(avg_exit))
-        except Exception as _e_bridge:
-            logger.debug(f"[DASHBOARD] record_trade wrap failed: {_e_bridge}")
+            # Prepare trade data for v2 logger
+            trade_data_v2 = {
+                "trade_id": record["trade_id"],
+                "signal_id": st.signal_meta.get("signal_id", ""),
+                
+                "strategy_version": record["strategy_id"],
+                "model_version": st.signal_meta.get("model_version", "unknown"),
+                "feature_version": st.signal_meta.get("feature_version", "v1"),
+                
+                "symbol": record["symbol"],
+                "timeframe": "1m",
+                "side": record["direction"],
+                
+                "signal_timestamp": record["opened_ts"],
+                "entry_timestamp": record["opened_ts"],
+                "exit_timestamp": record["closed_ts"],
+                
+                "entry_price": record["entry_price"],
+                "exit_price": record["exit_price"],
+                "quantity": float(record["qty_total"]),
+                
+                "stop_loss": record["stop_loss_price"],
+                "take_profit": record["take_profit_levels"].get("tp1", 0.0),
+                
+                "exit_reason": exit_reason_label,
+                "holding_time": duration,
+                
+                "gross_pnl": record["realized_pnl_net"] + record["entry_fees_est"] + record["exit_fees_est"],
+                "commission": record["entry_fees_est"] + record["exit_fees_est"],
+                "funding": record["funding_estimate"],
+                "slippage": 0.0,  # TODO: Calculate from execution data
+                "spread_cost": 0.0,  # TODO: Calculate from orderbook data
+                "net_pnl": record["realized_pnl_net"],
+                
+                "return_pct": 0.0,  # Will be calculated by TradeLogger
+                "risk_amount": abs(record["entry_price"] - record["stop_loss_price"]) * float(record["qty_total"]),
+                "r_multiple": 0.0,  # Will be calculated by TradeLogger
+                
+                # MAE/MFE metrics
+                "mae": mae_mfe_metrics.get("mae", 0.0),
+                "mae_pct": mae_mfe_metrics.get("mae_pct", 0.0),
+                "mae_r": mae_mfe_metrics.get("mae_r", 0.0),
+                "mfe": mae_mfe_metrics.get("mfe", 0.0),
+                "mfe_pct": mae_mfe_metrics.get("mfe_pct", 0.0),
+                "mfe_r": mae_mfe_metrics.get("mfe_r", 0.0),
+                
+                "equity_at_entry": 0.0,  # TODO: Get from equity tracker
+                "equity_at_exit": 0.0,  # TODO: Get from equity tracker
+            }
+            
+            self.trade_logger.log_trade(trade_data_v2)
+            
+            # Link signal to trade if signal_id exists
+            if st.signal_meta.get("signal_id"):
+                self.signal_logger.link_trade(st.signal_meta["signal_id"], record["trade_id"])
+            
+        except Exception as _e_v2_stats:
+            logger.debug(f"[V2_STATS] trade_logger failed: {_e_v2_stats}")
+
+        # Research / Dashboard closed trade record
+        exit_reasons_list = list(st.exit_reasons or [])
+        exit_reason_label = exit_reasons_list[-1].get("reason", "") if exit_reasons_list else ""
+        if self.research:
+            try:
+                self.research.record_exit(
+                    record,
+                    float(realized_net),
+                    str(exit_reason_label),
+                    float(avg_exit),
+                )
+            except Exception as _e_research:
+                logger.debug(f"[RESEARCH] record_exit failed: {_e_research}")
+        elif self.bridge:
+            try:
+                self.bridge.record_trade(record, float(realized_net), str(exit_reason_label), float(avg_exit))
+            except Exception as _e_dash:
+                logger.debug(f"[DASHBOARD] record_trade failed: {_e_dash}")
 
     def _get_closed_pnl_for_trade(self, symbol: str, opened_ts: float, closed_ts: float = None):
         try:
@@ -843,13 +1087,6 @@ class SelectiveMLBot:
                 with open(trade_log_path, "w", encoding="utf-8") as f:
                     f.writelines(lines)
                 logger.info(f"[TRADE PATCHED] {symbol} realized_pnl_net={corrected_pnl:.2f}")
-                try:
-                    if self.bridge is not None:
-                        self.bridge.patch_trade_pnl(
-                            f"{symbol}_{int(opened_ts)}", corrected_pnl, exit_price
-                        )
-                except Exception as _e_bridge:
-                    logger.debug(f"[DASHBOARD] patch_trade_pnl wrap failed: {_e_bridge}")
         except Exception as e:
             logger.warning(f"[TRADE PATCH] {symbol} failed: {e}")
 
@@ -991,11 +1228,6 @@ class SelectiveMLBot:
                 try:
                     fills = self.exec_tracker.poll_symbol(sym, limit=100)
                     for f in fills:
-                        try:
-                            if self.bridge is not None:
-                                self.bridge.record_fill(f)
-                        except Exception as _e_bridge:
-                            logger.debug(f"[DASHBOARD] record_fill wrap failed: {_e_bridge}")
                         logger.info(
                             f"[FILL] {f.symbol} side={f.side} qty={f.qty} price={f.price} fee={f.fee} "
                             f"fee_ccy={f.fee_currency} maker={f.is_maker} ts_ms={f.ts_ms} exec_id={f.exec_id}"
@@ -1071,26 +1303,9 @@ class SelectiveMLBot:
                 except Exception as e:
                     logger.debug(f"[EXPECTANCY] failed {sym}: {e}")
 
-                try:
-                    ov = self.bridge.position_overrides(sym) if self.bridge is not None else None
-                    if ov:
-                        tp1_changed = ov.get("tp1") is not None and float(ov["tp1"]) != float(
-                            st.take_profit_levels.get("tp1", 0.0)
-                        )
-                        if ov.get("stop_loss") is not None:
-                            st.stop_loss_price = float(ov["stop_loss"])
-                        for tp_key in ("tp1", "tp2", "tp3"):
-                            if ov.get(tp_key) is not None:
-                                st.take_profit_levels[tp_key] = float(ov[tp_key])
-                        if tp1_changed:
-                            st.tp1_done = False
-                        logger.info(
-                            f"[MANUAL_OVERRIDE] {sym} sl={st.stop_loss_price} "
-                            f"tp1={st.take_profit_levels.get('tp1')}"
-                        )
-                except Exception as _e_bridge:
-                    logger.debug(f"[DASHBOARD] position override wrap failed: {_e_bridge}")
-
+                # v8: TP/SL exits disabled — positions stay open until manual close.
+                if not getattr(self.prod, "enable_tp_sl_exits", True):
+                    continue
                 sl_hit = price <= st.stop_loss_price if st.side == "long" else price >= st.stop_loss_price
                 if sl_hit:
                     if self._close_market_reduce_only(st, rem, "stop_loss"):
@@ -1156,14 +1371,17 @@ class SelectiveMLBot:
                 continue
 
     def allowed(self, sig, open_positions, equity, used_notional):
-        try:
-            if self.bridge is not None:
-                ok, why = self.bridge.risk_check(sig, open_positions, equity)
-                if not ok:
-                    return False, why, 1.0
-        except Exception as _e_bridge:
-            logger.debug(f"[DASHBOARD] risk_check wrap failed: {_e_bridge}")
         override = self._is_high_ev_override_candidate(sig)
+        # Dashboard risk controls (optional)
+        if self.bridge:
+            try:
+                if self.bridge.is_paused():
+                    return False, "dashboard_paused", 1.0
+                ok, reason = self.bridge.risk_check(sig, open_positions, equity)
+                if not ok:
+                    return False, f"dashboard_{reason}", 1.0
+            except Exception as _e_dash:
+                logger.debug(f"[DASHBOARD] risk_check failed: {_e_dash}")
         if not self.cooldown.allow(sig["symbol"]):
             return False, "cooldown", 1.0
         if not self.exposure.allow(open_positions, sig["symbol"]):
@@ -1263,6 +1481,188 @@ class SelectiveMLBot:
             return True, "override_high_ev", size_mult
         return True, "ok", 1.0
 
+    def _resolve_signal_outcomes(self, max_batch: int = 60):
+        """Counterfactual outcome resolution (research only).
+
+        For each logged signal older than 10 bars, fetch recent OHLCV and
+        compute: future returns at +3/+5/+10 bars, hypothetical TP/SL hit
+        (using the signal's own ATR-scaled brackets), which hit first, and
+        favorable/adverse excursions. Results are written to signal_outcomes
+        and are NEVER used by the decision path (no look-ahead).
+        """
+        if not self.bridge:
+            return
+        min_ts = time.time() - 10 * 60  # need at least 10 1m bars after signal
+        pending = self.bridge.list_unresolved_signals(min_ts, limit=max_batch)
+        if not pending:
+            return
+        resolved = 0
+        for s in pending:
+            try:
+                sym = s.get("symbol")
+                direction = s.get("direction")
+                entry = float(s.get("entry_price") or 0)
+                atr_v = float(s.get("atr") or 0)
+                sig_ts = float(s.get("ts") or 0)
+                if not sym or direction not in ("long", "short") or entry <= 0 or sig_ts <= 0:
+                    # Cannot resolve — mark with zero row so it is not retried
+                    self.bridge.insert_signal_outcome({
+                        "signal_snapshot_id": s["id"], "symbol": sym,
+                        "direction": direction, "entry_price": entry,
+                        "resolved_ts": time.time(),
+                    })
+                    continue
+                df = self.market.get_ohlcv(sym, limit=30)
+                if df is None or df.empty:
+                    continue
+                # bars strictly AFTER the signal bar
+                df.index = df.index.tz_localize(None) if getattr(df.index, "tz", None) is not None else df.index
+                after = df[df.index > pd.to_datetime(sig_ts, unit="s")]
+                if after.empty:
+                    continue
+                closes = after["close"].values
+                highs = after["high"].values
+                lows = after["low"].values
+                sign = 1.0 if direction == "long" else -1.0
+
+                def _fr(n):
+                    return float(sign * (closes[n - 1] - entry) / entry) if len(closes) >= n else None
+
+                # Hypothetical brackets: same TP=SL=0.5*ATR as live strategy
+                risk = max(atr_v * self.prod.sl_atr_mult, entry * 0.001)
+                tp_px = entry + sign * risk * self.prod.tp1_r / self.prod.sl_atr_mult
+                sl_px = entry - sign * risk
+                tp_hit = sl_hit = 0
+                tp_first = None
+                mfe = mae = 0.0
+                for i in range(min(10, len(after))):
+                    hi, lo = float(highs[i]), float(lows[i])
+                    up_move = (hi - entry) * sign
+                    dn_move = (lo - entry) * sign
+                    mfe = max(mfe, up_move / entry)
+                    mae = max(mae, -dn_move / entry)
+                    if not tp_hit and up_move >= risk * self.prod.tp1_r / self.prod.sl_atr_mult:
+                        tp_hit = 1
+                        if tp_first is None:
+                            tp_first = 1
+                    if not sl_hit and -dn_move >= risk:
+                        sl_hit = 1
+                        if tp_first is None:
+                            tp_first = 0
+                cf_r = None
+                if tp_first is not None:
+                    cf_r = self.prod.tp1_r / self.prod.sl_atr_mult if tp_first else -1.0
+                self.bridge.insert_signal_outcome({
+                    "signal_snapshot_id": s["id"], "symbol": sym,
+                    "direction": direction, "entry_price": entry,
+                    "resolved_ts": time.time(),
+                    "future_return_3": _fr(3), "future_return_5": _fr(5), "future_return_10": _fr(10),
+                    "tp_hit": tp_hit, "sl_hit": sl_hit, "tp_first": tp_first,
+                    "cf_mfe": mfe, "cf_mae": mae, "cf_r": cf_r,
+                })
+                resolved += 1
+            except Exception:
+                continue
+        if resolved:
+            logger.info(f"[RESEARCH] outcomes resolved: {resolved}/{len(pending)}")
+
+    def _audit_rejections(self, sig, open_positions, equity, used_notional):
+        """Read-only replica of allowed(): evaluates every gate and returns ALL
+        failing reasons (for research statistics). Does not change the decision —
+        the real decision is still made by allowed()."""
+        reasons = []
+        try:
+            if self.bridge:
+                try:
+                    if self.bridge.is_paused():
+                        reasons.append("DASHBOARD_PAUSED")
+                    ok, reason = self.bridge.risk_check(sig, open_positions, equity)
+                    if not ok:
+                        reasons.append(f"RISK_{str(reason).upper()}")
+                except Exception:
+                    pass
+            if not self.cooldown.allow(sig["symbol"]):
+                reasons.append("COOLDOWN")
+            if not self.exposure.allow(open_positions, sig["symbol"]):
+                reasons.append("EXPOSURE_LIMIT")
+            if getattr(self.prod, "block_same_direction_stack", False):
+                new_dir = sig.get("direction", "")
+                for p in open_positions:
+                    try:
+                        if float(p.get("size", 0) or 0) <= 0:
+                            continue
+                        if p.get("symbol") == sig["symbol"]:
+                            continue
+                        if ("long" if p.get("side") == "Buy" else "short") == new_dir:
+                            reasons.append("CORRELATION_STACK")
+                            break
+                    except Exception:
+                        continue
+            if getattr(self.prod, "enable_risk_engine", True):
+                sym_val = 0.0
+                tot_val = 0.0
+                for p in open_positions:
+                    try:
+                        if float(p.get("size", 0) or 0) <= 0:
+                            continue
+                        v = float(p.get("positionValue", 0) or 0)
+                        tot_val += v
+                        if p.get("symbol") == sig["symbol"]:
+                            sym_val += v
+                    except Exception:
+                        continue
+                if sym_val >= float(getattr(self.prod, "max_exposure_per_symbol_usdt", 250000.0)):
+                    reasons.append("RISK_SYMBOL_EXPOSURE")
+                if tot_val >= float(getattr(self.prod, "max_total_exposure_usdt", 1000000.0)):
+                    reasons.append("RISK_TOTAL_EXPOSURE")
+            if sig["agreement"] < 2:
+                reasons.append("LOW_AGREEMENT")
+            regime_thr = self.prod.regime_thresholds.get(sig["regime"], self.prod.prob_threshold_base)
+            if sig["confidence"] < regime_thr:
+                reasons.append("LOW_CONFIDENCE")
+            if sig["uncertainty"] < self.prod.uncertainty_filter:
+                reasons.append("HIGH_UNCERTAINTY")
+            regime_quality_thr = getattr(self.prod, "regime_quality_thresholds", {}).get(
+                sig["regime"], self.prod.min_trade_quality
+            )
+            if sig["score"] < regime_quality_thr:
+                reasons.append("LOW_QUALITY")
+            if sig["ev"] < self.prod.min_ev:
+                reasons.append("NEGATIVE_EV")
+            if not self.spread_guard.allow(sig["spread_bps"]):
+                reasons.append("SPREAD")
+            if sig["depth_usdt"] < self.prod.min_depth_usdt:
+                reasons.append("LOW_DEPTH")
+            min_adx = getattr(self.prod, "min_adx", 0.0)
+            if min_adx > 0:
+                adx = sig.get("adx")
+                if adx is None:
+                    adx = self._calculate_adx(sig["symbol"])
+                if adx < min_adx:
+                    reasons.append("ADX")
+            funding_thr = float(getattr(self.prod, "funding_penalty_threshold", 0.0005))
+            if funding_thr > 0:
+                funding_rate = sig.get("funding_rate")
+                if funding_rate is None:
+                    try:
+                        funding_rate = float(self._funding_cache.get(sig["symbol"]) or self.ex.get_funding_rate(sig["symbol"]) or 0.0)
+                    except Exception:
+                        funding_rate = 0.0
+                unfavorable = (sig["direction"] == "long" and funding_rate > funding_thr) or \
+                              (sig["direction"] == "short" and funding_rate < -funding_thr)
+                if unfavorable:
+                    reasons.append("FUNDING")
+            if getattr(self.prod, "sizing_mode", "notional_sizer") != "max_exchange_qty":
+                try:
+                    notional = self.sizer.size_notional(sig["confidence"], sig["atr"] / (sig["entry"] + 1e-12), 0.5, 1.0)
+                    if not self.heat.can_open(used_notional, equity, notional):
+                        reasons.append("HEAT_LIMIT")
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        return reasons
+
     def _ensure_leverage_1x(self, symbol: str):
         """Safeguard: ensure leverage is set to 1x before opening position."""
         if not getattr(self.prod, "force_leverage_1x", False):
@@ -1286,40 +1686,38 @@ class SelectiveMLBot:
             logger.error(f"[LEVERAGE SAFEGUARD] Failed to set leverage for {symbol}: {e}")
             return False
 
-    def _calculate_adx(self, symbol: str) -> float:
-        """Calculate ADX(14) for trend confirmation using cached OHLCV data."""
+    def _calculate_dmi(self, symbol: str) -> dict:
+        """ADX(14) + +DI/−DI for research snapshots. Read-only."""
         try:
             df = self._cached_ohlcv(symbol, limit=50)
             if df is None or len(df) < 15:
-                return 0.0
-            # Use last 15 candles for ADX(14) calculation
+                return {"adx": 0.0, "di_plus": None, "di_minus": None}
             df = df.tail(15)
-            # Simple ADX calculation (14-period)
             high = df['high'].values
             low = df['low'].values
             close = df['close'].values
-            
             tr = np.zeros(len(high))
             plus_dm = np.zeros(len(high))
             minus_dm = np.zeros(len(high))
-            
             for i in range(1, len(high)):
                 tr[i] = max(high[i] - low[i], abs(high[i] - close[i-1]), abs(low[i] - close[i-1]))
                 up = high[i] - high[i-1]
                 down = low[i-1] - low[i]
                 plus_dm[i] = up if up > down and up > 0 else 0
                 minus_dm[i] = down if down > up and down > 0 else 0
-            
             atr = np.mean(tr)
             plus_di = 100 * np.mean(plus_dm) / atr if atr > 0 else 0
             minus_di = 100 * np.mean(minus_dm) / atr if atr > 0 else 0
             dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di) if (plus_di + minus_di) > 0 else 0
             adx = np.mean(dx)
-            
-            return adx
+            return {"adx": float(adx), "di_plus": float(plus_di), "di_minus": float(minus_di)}
         except Exception as e:
             logger.error(f"[ADX] Failed to calculate ADX for {symbol}: {e}")
-            return 0.0
+            return {"adx": 0.0, "di_plus": None, "di_minus": None}
+
+    def _calculate_adx(self, symbol: str) -> float:
+        """Calculate ADX(14) for trend confirmation using cached OHLCV data."""
+        return float(self._calculate_dmi(symbol).get("adx") or 0.0)
 
     def _entry_qty(self, sig, size_mult: float, equity: float = None):
         """
@@ -1348,7 +1746,7 @@ class SelectiveMLBot:
                 f"[SIZING FIXED] {sig['symbol']} fixed_notional={fixed_notional:.2f} entry={entry_px} "
                 f"qty={qty} notional={float(qty) * entry_px:.2f}"
             )
-            return qty
+            return self._cap_qty(sig["symbol"], qty, entry_px)
 
         # Risk-based sizing implementation
         if mode == "risk_based":
@@ -1380,7 +1778,7 @@ class SelectiveMLBot:
                     f"risk_amount={risk_amount:.2f} stop_distance={stop_distance:.6f} "
                     f"qty={qty} notional={float(qty) * entry_price:.2f}"
                 )
-                return qty
+                return self._cap_qty(sig["symbol"], qty, float(entry_price or 0))
             else:
                 logger.warning(f"[SIZING RISK_BASED] Invalid ATR or entry price for {sig['symbol']}")
                 return Decimal("0")
@@ -1411,12 +1809,22 @@ class SelectiveMLBot:
                 f"size_mult={size_mult} q_before_cap={q_before_cap} "
                 f"entry_px={sig.get('entry')} cap_usd={cap_usd} q_final={q}"
             )
-            return q
+            return self._cap_qty(sig["symbol"], q, float(sig.get("entry", 0) or 0))
 
         if self.sizer is None:
             return Decimal("0")
         notional = self.sizer.size_notional(sig["confidence"], sig["atr"] / (sig["entry"] + 1e-12), 0.5, 1.0) * size_mult
-        return Decimal(str(notional / max(sig["entry"], 1e-12)))
+        qty = Decimal(str(notional / max(sig["entry"], 1e-12)))
+        return self._cap_qty(sig["symbol"], qty, float(sig.get("entry", 0) or 0))
+
+    def _cap_qty(self, symbol: str, qty: Decimal, entry: float) -> Decimal:
+        if not self.bridge or not qty:
+            return qty
+        try:
+            return self.bridge.cap_qty(symbol, qty, entry)
+        except Exception as _e_dash:
+            logger.debug(f"[DASHBOARD] cap_qty failed: {_e_dash}")
+        return qty
 
     async def run(self):
         try:
@@ -1438,55 +1846,50 @@ class SelectiveMLBot:
             executed_orders = 0
             equity = 0.0
             try:
+                positions_resp = None
                 try:
                     positions_resp = self.ex.get_positions()
                     if int(positions_resp.get("retCode", -1)) != 0:
                         raise RuntimeError(f"get_positions ret={positions_resp}")
                     positions = positions_resp.get("result", {}).get("list", [])
-                    try:
-                        if self.bridge is not None:
+                    self._bybit_last_ok = True
+                    self._bybit_last_ok_ts = time.time()
+                    self._bybit_last_error = None
+                    if self.bridge:
+                        try:
                             self.bridge.bybit_ok()
-                    except Exception as _e_bridge:
-                        logger.debug(f"[DASHBOARD] bybit_ok wrap failed: {_e_bridge}")
+                        except Exception:
+                            pass
                 except Exception as e:
                     logger.warning(f"[LOOP] get_positions failed: {e}")
                     self._reconnect_count += 1
+                    self._bybit_last_ok = False
+                    self._bybit_last_error = str(e)
                     positions = []
-                    try:
-                        if self.bridge is not None:
+                    if self.bridge:
+                        try:
                             self.bridge.bybit_error(str(e))
-                    except Exception as _e_bridge:
-                        logger.debug(f"[DASHBOARD] bybit_error wrap failed: {_e_bridge}")
+                        except Exception:
+                            pass
 
                 self._sync_state_from_exchange(positions)
                 self._cleanup_entry_orders()
                 self._monitor_positions()
-                try:
-                    if self.bridge is not None:
-                        prices = {
-                            p.get("symbol"): float(p.get("markPrice", 0) or 0)
-                            for p in positions
-                            if p.get("symbol") and float(p.get("markPrice", 0) or 0) > 0
+
+                if self.bridge:
+                    try:
+                        exchange_rows_by_symbol = {
+                            p["symbol"]: p for p in positions if p.get("symbol")
                         }
-                        self.bridge.snapshot_positions(
-                            self.position_states,
-                            {p["symbol"]: p for p in positions if p.get("symbol")},
-                            prices,
-                        )
-                        self.bridge.heartbeat(
-                            cycle_ms=int((time.time() - cycle_started) * 1000),
-                            active_positions=len(self.position_states),
-                        )
-                except Exception as _e_bridge:
-                    logger.debug(f"[DASHBOARD] position heartbeat wrap failed: {_e_bridge}")
+                        prices = {
+                            p["symbol"]: float(p.get("markPrice") or p.get("lastPrice") or 0)
+                            for p in positions if p.get("symbol")
+                        }
+                        self.bridge.snapshot_positions(self.position_states, exchange_rows_by_symbol, prices)
+                    except Exception as _e_dash:
+                        logger.debug(f"[DASHBOARD] snapshot_positions failed: {_e_dash}")
 
                 now = time.time()
-                try:
-                    if self.bridge is not None and self.bridge.is_paused():
-                        await asyncio.sleep(self.prod.position_loop_interval_sec)
-                        continue
-                except Exception as _e_bridge:
-                    logger.debug(f"[DASHBOARD] pause check wrap failed: {_e_bridge}")
                 if now - self.last_scan < 60:
                     self._last_heartbeat = time.time()
                     await asyncio.sleep(self.prod.position_loop_interval_sec)
@@ -1495,6 +1898,7 @@ class SelectiveMLBot:
 
                 candidates = self.select_symbols()
                 logger.info(f"[SELECT] symbols={len(candidates)}")
+                self._candidate_meta = {c["symbol"]: c for c in candidates}
                 candidate_symbols = [c["symbol"] for c in candidates]
                 ob_map = await self._fetch_ob_batch(candidate_symbols)
                 signals_after_tier1 = 0
@@ -1509,6 +1913,28 @@ class SelectiveMLBot:
                         cc = dict(c)
                         cc["tier1_score"] = tscore
                         tier1_passed.append(cc)
+                    elif self.bridge:
+                        # Research: record tier1 rejects as minimal signal rows so
+                        # filter analysis sees the full funnel (no ML fields — NULL).
+                        try:
+                            t1_reason = (
+                                "LOW_DEPTH" if float(ob.get("depth_usdt", 0.0)) < self.prod.min_depth_usdt * 0.30
+                                else "LOW_VOL24" if c["vol24"] < self.prod.min_volume_24h_usdt
+                                else "LOW_PCT"
+                            )
+                            self.bridge.record_signal(
+                                {
+                                    "symbol": c["symbol"], "timestamp": now,
+                                    "spread_bps": ob.get("spread_bps"),
+                                    "depth_usdt": ob.get("depth_usdt"),
+                                    "imbalance": ob.get("imbalance"),
+                                    "wick_ratio": c.get("wick_ratio"),
+                                    "_rejection_reasons": [t1_reason],
+                                },
+                                False, t1_reason,
+                            )
+                        except Exception:
+                            pass
                 tier1_passed.sort(key=lambda x: x["tier1_score"], reverse=True)
                 symbols = [x["symbol"] for x in tier1_passed[: self.prod.deep_eval_top_n]]
                 # Force-include open positions in evaluation for reversal exit logic
@@ -1524,22 +1950,45 @@ class SelectiveMLBot:
                                 ob_map[op_sym] = {"spread_bps": 999.0, "depth_usdt": 0.0, "imbalance": 0.0}
                 signals_after_tier1 = len(symbols)
 
-                bal = {}
                 try:
                     bal = self.ex.get_wallet_balance()
                     if int(bal.get("retCode", -1)) == 0:
                         equity = float(bal.get("result", {}).get("list", [{}])[0].get("totalEquity", 0) or 0)
+                        balance = float(bal.get("result", {}).get("list", [{}])[0].get("totalWalletBalance", 0) or equity)
+                        
+                        # v2: Log equity snapshot
+                        try:
+                            # Calculate portfolio state
+                            open_positions_count = len([p for p in positions if float(p.get("size", 0) or 0) > 0])
+                            gross_exposure = sum(abs(float(p.get("positionValue", 0) or 0)) for p in positions)
+                            net_exposure = sum(float(p.get("positionValue", 0) or 0) for p in positions)
+                            
+                            # Calculate realized/unrealized PnL
+                            realized_pnl = sum(float(p.get("cumRealisedPnl", 0) or 0) for p in positions)
+                            unrealized_pnl = sum(float(p.get("unrealisedPnl", 0) or 0) for p in positions)
+                            
+                            equity_data = {
+                                "balance": balance,
+                                "equity": equity,
+                                "realized_pnl": realized_pnl,
+                                "unrealized_pnl": unrealized_pnl,
+                                "open_positions": open_positions_count,
+                                "gross_exposure": gross_exposure,
+                                "net_exposure": net_exposure
+                            }
+                            
+                            self.equity_tracker.log_snapshot(equity_data)
+                        except Exception as _e_equity:
+                            logger.debug(f"[V2_STATS] equity tracking failed: {_e_equity}")
+
+                        # Dashboard equity snapshot
+                        if self.bridge:
+                            try:
+                                self.bridge.snapshot_equity(bal, open_positions_count)
+                            except Exception as _e_dash:
+                                logger.debug(f"[DASHBOARD] snapshot_equity failed: {_e_dash}")
                 except Exception:
                     equity = 0.0
-                try:
-                    if self.bridge is not None:
-                        open_position_count = len(
-                            [p for p in positions if float(p.get("size", 0) or 0) > 0]
-                        )
-                        self.bridge.snapshot_equity(bal, open_positions=open_position_count)
-                        kill = self.bridge.check_kill_switch(equity)
-                except Exception as _e_bridge:
-                    logger.debug(f"[DASHBOARD] equity/kill-switch wrap failed: {_e_bridge}")
                 used = sum(float(p.get("positionValue", 0) or 0) for p in positions if float(p.get("size", 0) or 0) > 0)
 
                 sem = asyncio.Semaphore(self.prod.max_concurrency)
@@ -1607,11 +2056,41 @@ class SelectiveMLBot:
                             self.stats.log_signal(sig, ok, reason)
                         except Exception as _e_stats:
                             logger.debug(f"[STATS] log_signal wrap failed: {_e_stats}")
+                        
+                        # v2: Professional signal logging with complete feature snapshot
                         try:
-                            if self.bridge is not None:
-                                self.bridge.record_signal(sig, ok, reason)
-                        except Exception as _e_bridge:
-                            logger.debug(f"[DASHBOARD] record_signal wrap failed: {_e_bridge}")
+                            decision = "ACCEPTED" if ok else "REJECTED"
+                            signal_id = self.signal_logger.log_signal(sig, decision, reason)
+                            # Store signal_id for later trade linkage
+                            sig["_signal_id"] = signal_id
+                        except Exception as _e_v2_stats:
+                            logger.debug(f"[V2_STATS] signal_logger failed: {_e_v2_stats}")
+
+                        # Research: full snapshot + decision audit (write-only)
+                        all_reasons = self._audit_rejections(sig, positions, equity, used)
+                        sig["_rejection_reasons"] = all_reasons
+                        if self.research:
+                            try:
+                                sig["_dash_signal_id"] = self.research.record_signal(
+                                    sig, ok, reason, all_reasons=all_reasons
+                                )
+                                open_positions_count = len(
+                                    [p for p in positions if float(p.get("size", 0) or 0) > 0]
+                                )
+                                self.research.record_decision(
+                                    sig=sig,
+                                    allowed=ok,
+                                    reason=reason,
+                                    all_reasons=all_reasons,
+                                    size_mult=size_mult,
+                                    override=(reason == "override_high_ev"),
+                                    equity=equity,
+                                    used_notional=used,
+                                    open_positions_count=open_positions_count,
+                                )
+                            except Exception as _e_research:
+                                logger.debug(f"[RESEARCH] record failed: {_e_research}")
+
                         if not ok:
                             # Reset stickiness on hard reject.
                             if sym in self._stickiness:
@@ -1681,14 +2160,6 @@ class SelectiveMLBot:
                             continue
                         
                         qty = self._entry_qty(sig, size_mult, equity)
-                        try:
-                            if self.bridge is not None:
-                                qty = self.bridge.cap_qty(sym, qty, float(sig["entry"]))
-                        except Exception as _e_bridge:
-                            logger.debug(f"[DASHBOARD] cap_qty wrap failed: {_e_bridge}")
-                        if qty <= 0:
-                            logger.info(f"[ENTRY SKIP] {sym} dashboard_notional_cap")
-                            continue
                         entry_res = self.router.enter(sym, "long" if sig["direction"] == "long" else "short", qty)
                         if int(entry_res.get("retCode", -1)) != 0:
                             logger.warning(f"[ENTRY FAIL] {sym} ret={entry_res}")
@@ -1750,14 +2221,6 @@ class SelectiveMLBot:
                             if not self.heat.can_open(used, equity, notional):
                                 continue
                         qty = self._entry_qty(sig, self.prod.fallback_micro_size_mult)
-                        try:
-                            if self.bridge is not None:
-                                qty = self.bridge.cap_qty(sig["symbol"], qty, float(sig["entry"]))
-                        except Exception as _e_bridge:
-                            logger.debug(f"[DASHBOARD] fallback cap_qty wrap failed: {_e_bridge}")
-                        if qty <= 0:
-                            logger.info(f"[ENTRY SKIP] {sig['symbol']} dashboard_notional_cap")
-                            continue
                         entry_res = self.router.enter(sig["symbol"], "long" if sig["direction"] == "long" else "short", qty)
                         if int(entry_res.get("retCode", -1)) != 0:
                             logger.warning(f"[ENTRY FAIL] {sig['symbol']} ret={entry_res}")
@@ -1795,6 +2258,34 @@ class SelectiveMLBot:
                 self._cycle_errors = 0
                 self._save_state()
                 self._write_health(cycle_ms, signals_generated, executed_orders, equity)
+                # Research: resolve counterfactual outcomes for past signals.
+                # Post-hoc only — results are never read by decision logic.
+                try:
+                    self._resolve_signal_outcomes()
+                except Exception as _e_outcome:
+                    logger.debug(f"[RESEARCH] outcome resolve failed: {_e_outcome}")
+
+                if self.bridge:
+                    try:
+                        self.bridge.heartbeat(
+                            cycle_ms=cycle_ms,
+                            signals_generated=signals_generated,
+                            signals_after_tier1=signals_after_tier1,
+                            signals_allowed=signals_allowed,
+                            override_count=override_count,
+                            executed_orders=executed_orders,
+                            open_positions=len(self.position_states),
+                            equity=equity,
+                            cycle_errors=self._cycle_errors,
+                            started_ts=self.bridge.started_ts,
+                            strategy_id=self.bridge.strategy_id,
+                            config_path=self.bridge.config_path,
+                            bybit_ok=getattr(self, "_bybit_last_ok", False),
+                            bybit_last_ok_ts=getattr(self, "_bybit_last_ok_ts", None),
+                            bybit_last_error=getattr(self, "_bybit_last_error", None),
+                        )
+                    except Exception as _e_dash:
+                        logger.debug(f"[DASHBOARD] heartbeat failed: {_e_dash}")
             except Exception as e:
                 self._cycle_errors += 1
                 logger.error(f"[LOOP EXCEPTION] err={e}\n{traceback.format_exc()}")
@@ -1817,3 +2308,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

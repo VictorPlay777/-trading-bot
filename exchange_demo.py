@@ -28,10 +28,8 @@ class Exchange:
             '1d': 'D', '1w': 'W', '1M': 'M'
         }
         self.timeframe = tf_map.get(cfg['timeframe'], cfg['timeframe'])
-        self.api_key = config.BYBIT_API_KEY
-        self.api_secret = config.BYBIT_API_SECRET
-        if not self.api_key or not self.api_secret:
-            raise RuntimeError("BYBIT_API_KEY/BYBIT_API_SECRET must be set in .env")
+        self.api_key = config.BYBIT_API_KEY or "rRsm08OPN027nk5hgF"
+        self.api_secret = config.BYBIT_API_SECRET or "GD1qBUUx1KROqmAKwJLOpAanLNDwG6zr1CyA"
         self.base_url = "https://api-demo.bybit.com"  # DEMO URL
         self.recv_window = "10000"
         self.category = "linear"

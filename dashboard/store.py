@@ -144,6 +144,108 @@ CREATE TABLE IF NOT EXISTS sessions (
     user TEXT
 );
 
+CREATE TABLE IF NOT EXISTS signal_outcomes (
+    signal_snapshot_id INTEGER PRIMARY KEY,
+    symbol TEXT,
+    direction TEXT,
+    entry_price REAL,
+    resolved_ts REAL,
+    future_return_3 REAL,
+    future_return_5 REAL,
+    future_return_10 REAL,
+    tp_hit INTEGER,
+    sl_hit INTEGER,
+    tp_first INTEGER,
+    cf_mfe REAL,
+    cf_mae REAL,
+    cf_r REAL
+);
+CREATE INDEX IF NOT EXISTS idx_sig_out_resolved ON signal_outcomes(resolved_ts);
+
+CREATE TABLE IF NOT EXISTS signal_decisions (
+    signal_id TEXT PRIMARY KEY,
+    snapshot_id INTEGER,
+    ts REAL,
+    symbol TEXT,
+    direction TEXT,
+    allowed INTEGER,
+    final_reason TEXT,
+    all_reasons_json TEXT,
+    size_mult REAL,
+    override INTEGER,
+    equity REAL,
+    used_notional REAL,
+    open_positions_count INTEGER,
+    strategy_id TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_sig_decisions_ts ON signal_decisions(ts);
+CREATE INDEX IF NOT EXISTS idx_sig_decisions_symbol ON signal_decisions(symbol);
+
+CREATE TABLE IF NOT EXISTS trade_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    trade_id TEXT,
+    ts REAL,
+    event_type TEXT,
+    price REAL,
+    metric REAL,
+    metadata_json TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_trade_events_trade ON trade_events(trade_id);
+CREATE INDEX IF NOT EXISTS idx_trade_events_ts ON trade_events(ts);
+
+CREATE TABLE IF NOT EXISTS signal_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts REAL,
+    signal_id TEXT,
+    symbol TEXT,
+    direction TEXT,
+    timeframe TEXT,
+    confidence REAL,
+    probability REAL,
+    agreement INTEGER,
+    h3_dir TEXT, h3_conf REAL,
+    h5_dir TEXT, h5_conf REAL,
+    h10_dir TEXT, h10_conf REAL,
+    regime TEXT,
+    regime_confidence REAL,
+    trend_score REAL, breakout_score REAL, chop_score REAL, panic_score REAL,
+    atr REAL, atr_pct REAL, realized_volatility REAL,
+    adx REAL, ema_distance REAL, trend_strength REAL,
+    volume REAL, rel_volume REAL,
+    spread_bps REAL, spread_pct REAL,
+    bid_depth REAL, ask_depth REAL, total_depth REAL, imbalance REAL,
+    funding_rate REAL, open_interest REAL, oi_change REAL, basis REAL,
+    pc_1m REAL, pc_5m REAL, pc_15m REAL, pc_1h REAL,
+    hl_range REAL, wick_ratio REAL,
+    quality_score REAL, uncertainty REAL, ev REAL, edge_score REAL,
+    allowed INTEGER,
+    rejection_reason TEXT,
+    rejection_reasons_json TEXT,
+    size_mult REAL,
+    confidence_bucket TEXT, adx_bucket TEXT, atr_bucket TEXT,
+    volume_bucket TEXT, volatility_bucket TEXT,
+    funding_bucket TEXT, oi_bucket TEXT, depth_bucket TEXT,
+    hour_utc INTEGER, dow_utc INTEGER,
+    feature_version TEXT,
+    signal_schema_version TEXT,
+    strategy_id TEXT,
+    extra_json TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_sig_snap_ts ON signal_snapshots(ts);
+CREATE INDEX IF NOT EXISTS idx_sig_snap_symbol ON signal_snapshots(symbol);
+CREATE INDEX IF NOT EXISTS idx_sig_snap_allowed ON signal_snapshots(allowed);
+
+CREATE TABLE IF NOT EXISTS logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts REAL,
+    level TEXT,
+    category TEXT,
+    symbol TEXT,
+    message TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_logs_id ON logs(id);
+CREATE INDEX IF NOT EXISTS idx_logs_ts ON logs(ts);
+
 CREATE TABLE IF NOT EXISTS bot_heartbeat (
     id INTEGER PRIMARY KEY CHECK(id=1),
     ts REAL,
@@ -185,7 +287,57 @@ class Store:
     def init_schema(self):
         with self._lock:
             self._conn.executescript(SCHEMA)
+            self._migrate()
             self._conn.commit()
+
+    def _migrate(self):
+        new_trade_columns = {
+            "signal_snapshot_id": "INTEGER",
+            "signal_id": "TEXT",
+            "mae": "REAL",
+            "mfe": "REAL",
+            "mae_r": "REAL",
+            "mfe_r": "REAL",
+            "gross_pnl": "REAL",
+            "result": "TEXT",
+            "size_mult": "REAL",
+            "mfe_ts": "REAL",
+            "mae_ts": "REAL",
+            "risk_amount": "REAL",
+            "r_multiple_calc": "TEXT",
+            "drawdown_in_trade": "REAL",
+            "time_in_profit": "REAL",
+        }
+        existing = {row[1] for row in self._conn.execute("PRAGMA table_info(trades)")}
+        for name, col_type in new_trade_columns.items():
+            if name not in existing:
+                self._conn.execute(f"ALTER TABLE trades ADD COLUMN {name} {col_type}")
+        self._conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_trades_signal_snapshot ON trades(signal_snapshot_id)"
+        )
+        new_sig_columns = {
+            "entry_price": "REAL",
+            "probability_long": "REAL",
+            "probability_short": "REAL",
+            "predicted_direction": "TEXT",
+            "di_plus": "REAL",
+            "di_minus": "REAL",
+            "ema_slope": "REAL",
+            "ret_1": "REAL",
+            "ret_3": "REAL",
+            "ret_5": "REAL",
+            "ret_10": "REAL",
+            "momentum": "REAL",
+            "distance_from_high": "REAL",
+            "distance_from_low": "REAL",
+            "volume_change": "REAL",
+            "feature_version": "TEXT",
+            "signal_schema_version": "TEXT",
+        }
+        existing_sig = {row[1] for row in self._conn.execute("PRAGMA table_info(signal_snapshots)")}
+        for name, col_type in new_sig_columns.items():
+            if name not in existing_sig:
+                self._conn.execute(f"ALTER TABLE signal_snapshots ADD COLUMN {name} {col_type}")
 
     @staticmethod
     def _json(value: Any) -> str | None:
@@ -203,6 +355,10 @@ class Store:
             "fees_est", "fees_actual", "funding_est", "r_multiple", "exit_reason",
             "exit_reasons_json", "signal_json", "raw_json", "confidence", "regime",
             "ev", "score", "updated_ts",
+            "signal_snapshot_id", "signal_id", "mae", "mfe", "mae_r", "mfe_r",
+            "gross_pnl", "result", "size_mult",
+            "mfe_ts", "mae_ts", "risk_amount", "r_multiple_calc",
+            "drawdown_in_trade", "time_in_profit",
         ]
         values = [row.get(column) for column in columns]
         sql = f"""
@@ -410,6 +566,150 @@ class Store:
         ).fetchall()
         return [row[0] for row in rows]
 
+    SIGNAL_SNAPSHOT_COLUMNS = [
+        "ts", "signal_id", "symbol", "direction", "timeframe", "entry_price",
+        "probability_long", "probability_short", "predicted_direction",
+        "di_plus", "di_minus", "ema_slope",
+        "ret_1", "ret_3", "ret_5", "ret_10",
+        "momentum", "distance_from_high", "distance_from_low", "volume_change",
+        "confidence", "probability", "agreement",
+        "h3_dir", "h3_conf", "h5_dir", "h5_conf", "h10_dir", "h10_conf",
+        "regime", "regime_confidence",
+        "trend_score", "breakout_score", "chop_score", "panic_score",
+        "atr", "atr_pct", "realized_volatility",
+        "adx", "ema_distance", "trend_strength",
+        "volume", "rel_volume",
+        "spread_bps", "spread_pct",
+        "bid_depth", "ask_depth", "total_depth", "imbalance",
+        "funding_rate", "open_interest", "oi_change", "basis",
+        "pc_1m", "pc_5m", "pc_15m", "pc_1h", "hl_range", "wick_ratio",
+        "quality_score", "uncertainty", "ev", "edge_score",
+        "allowed", "rejection_reason", "rejection_reasons_json", "size_mult",
+        "confidence_bucket", "adx_bucket", "atr_bucket",
+        "volume_bucket", "volatility_bucket",
+        "funding_bucket", "oi_bucket", "depth_bucket",
+        "hour_utc", "dow_utc",
+        "feature_version", "signal_schema_version",
+        "strategy_id", "extra_json",
+    ]
+
+    def insert_signal_snapshot(self, row: dict):
+        values = [
+            self._json(row.get(c)) if c in ("rejection_reasons_json", "extra_json") else row.get(c)
+            for c in self.SIGNAL_SNAPSHOT_COLUMNS
+        ]
+        with self._lock:
+            cursor = self._conn.execute(
+                f"INSERT INTO signal_snapshots ({', '.join(self.SIGNAL_SNAPSHOT_COLUMNS)}) "
+                f"VALUES ({', '.join('?' for _ in self.SIGNAL_SNAPSHOT_COLUMNS)})",
+                values,
+            )
+            self._conn.commit()
+            return cursor.lastrowid
+
+    def list_signal_snapshots(self, filters=None, limit=500, offset=0):
+        filters = filters or {}
+        clauses, params = [], []
+        for field in ("symbol", "direction", "regime", "allowed", "strategy_id",
+                      "confidence_bucket", "adx_bucket", "atr_bucket"):
+            if filters.get(field) is not None:
+                clauses.append(f"{field}=?")
+                params.append(filters[field])
+        for field, op in (("start_ts", ">="), ("end_ts", "<=")):
+            if filters.get(field) is not None:
+                clauses.append(f"ts {op} ?")
+                params.append(filters[field])
+        where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+        rows = self._conn.execute(
+            f"SELECT * FROM signal_snapshots{where} ORDER BY id DESC LIMIT ? OFFSET ?",
+            [*params, int(limit), int(offset)],
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    def list_unresolved_signals(self, min_ts: float, limit: int = 500):
+        """Signals with a direction that have no outcome row yet and are old
+        enough for at least the 3-bar horizon to have elapsed."""
+        rows = self._conn.execute(
+            """SELECT s.* FROM signal_snapshots s
+               LEFT JOIN signal_outcomes o ON o.signal_snapshot_id = s.id
+               WHERE o.signal_snapshot_id IS NULL
+                 AND s.direction IS NOT NULL
+                 AND s.entry_price IS NOT NULL
+                 AND s.ts <= ?
+               ORDER BY s.ts ASC LIMIT ?""",
+            (min_ts, int(limit)),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    def insert_signal_outcome(self, row: dict):
+        cols = [
+            "signal_snapshot_id", "symbol", "direction", "entry_price", "resolved_ts",
+            "future_return_3", "future_return_5", "future_return_10",
+            "tp_hit", "sl_hit", "tp_first", "cf_mfe", "cf_mae", "cf_r",
+        ]
+        with self._lock:
+            self._conn.execute(
+                f"INSERT OR REPLACE INTO signal_outcomes ({', '.join(cols)}) "
+                f"VALUES ({', '.join('?' for _ in cols)})",
+                [row.get(c) for c in cols],
+            )
+            self._conn.commit()
+
+    def list_outcomes(self, limit: int = 100000):
+        rows = self._conn.execute(
+            """SELECT s.*, o.future_return_3, o.future_return_5, o.future_return_10,
+                      o.tp_hit, o.sl_hit, o.tp_first, o.cf_mfe, o.cf_mae, o.cf_r,
+                      o.resolved_ts AS outcome_ts
+               FROM signal_snapshots s
+               JOIN signal_outcomes o ON o.signal_snapshot_id = s.id
+               ORDER BY s.id DESC LIMIT ?""",
+            (int(limit),),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    def insert_log(self, ts, level, category, message, symbol=None):
+        with self._lock:
+            cursor = self._conn.execute(
+                "INSERT INTO logs (ts,level,category,symbol,message) VALUES (?,?,?,?,?)",
+                (ts, level, category, symbol, message),
+            )
+            self._conn.commit()
+            row_id = cursor.lastrowid
+            if row_id and row_id % 500 == 0:
+                self._conn.execute(
+                    "DELETE FROM logs WHERE id < ?", (row_id - 20000,)
+                )
+                self._conn.commit()
+            return row_id
+
+    def list_logs(self, filters=None, limit=200, offset=0):
+        filters = filters or {}
+        clauses, params = [], []
+        if filters.get("category"):
+            clauses.append("category=?")
+            params.append(filters["category"])
+        if filters.get("level"):
+            clauses.append("level=?")
+            params.append(filters["level"])
+        if filters.get("symbol"):
+            clauses.append("symbol=?")
+            params.append(filters["symbol"])
+        if filters.get("q"):
+            clauses.append("message LIKE ?")
+            params.append(f"%{filters['q']}%")
+        if filters.get("since_id") is not None:
+            clauses.append("id > ?")
+            params.append(filters["since_id"])
+        if filters.get("start_ts") is not None:
+            clauses.append("ts >= ?")
+            params.append(filters["start_ts"])
+        where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+        rows = self._conn.execute(
+            f"SELECT * FROM logs{where} ORDER BY id DESC LIMIT ? OFFSET ?",
+            [*params, int(limit), int(offset)],
+        ).fetchall()
+        return [dict(row) for row in rows]
+
     def get_setting(self, key, default=None):
         row = self._conn.execute("SELECT value_json FROM settings WHERE key=?", (key,)).fetchone()
         if row is None:
@@ -467,6 +767,85 @@ class Store:
             cursor = self._conn.execute("DELETE FROM sessions WHERE expires_ts<=?", (now,))
             self._conn.commit()
             return cursor.rowcount
+
+    def insert_signal_decision(self, row: dict):
+        with self._lock:
+            self._conn.execute(
+                """INSERT OR REPLACE INTO signal_decisions
+                (signal_id, snapshot_id, ts, symbol, direction, allowed, final_reason,
+                 all_reasons_json, size_mult, override, equity, used_notional,
+                 open_positions_count, strategy_id)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    row.get("signal_id"),
+                    row.get("snapshot_id"),
+                    row.get("ts", time.time()),
+                    row.get("symbol"),
+                    row.get("direction"),
+                    int(bool(row.get("allowed"))),
+                    row.get("final_reason"),
+                    self._json(row.get("all_reasons")),
+                    row.get("size_mult"),
+                    int(bool(row.get("override"))),
+                    row.get("equity"),
+                    row.get("used_notional"),
+                    row.get("open_positions_count"),
+                    row.get("strategy_id"),
+                ),
+            )
+            self._conn.commit()
+
+    def list_signal_decisions(self, filters=None, limit=500, offset=0):
+        filters = filters or {}
+        clauses, params = [], []
+        for field in ("symbol", "direction", "allowed", "strategy_id"):
+            if filters.get(field) is not None:
+                clauses.append(f"{field}=?")
+                params.append(filters[field])
+        for field, op in (("start_ts", ">="), ("end_ts", "<=")):
+            if filters.get(field) is not None:
+                clauses.append(f"ts {op} ?")
+                params.append(filters[field])
+        where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+        rows = self._conn.execute(
+            f"SELECT * FROM signal_decisions{where} ORDER BY ts DESC LIMIT ? OFFSET ?",
+            [*params, int(limit), int(offset)],
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    def insert_trade_event(self, row: dict):
+        with self._lock:
+            self._conn.execute(
+                """INSERT INTO trade_events (trade_id, ts, event_type, price, metric, metadata_json)
+                VALUES (?,?,?,?,?,?)""",
+                (
+                    row.get("trade_id"),
+                    row.get("ts", time.time()),
+                    row.get("event_type"),
+                    row.get("price"),
+                    row.get("metric"),
+                    self._json(row.get("metadata")),
+                ),
+            )
+            self._conn.commit()
+
+    def list_trade_events(self, trade_id=None, start_ts=None, end_ts=None, limit=1000):
+        clauses, params = [], []
+        if trade_id:
+            clauses.append("trade_id=?")
+            params.append(trade_id)
+        if start_ts is not None:
+            clauses.append("ts>=?")
+            params.append(start_ts)
+        if end_ts is not None:
+            clauses.append("ts<=?")
+            params.append(end_ts)
+        where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+        rows = self._conn.execute(
+            f"SELECT * FROM trade_events{where} ORDER BY ts LIMIT ?",
+            [*params, int(limit)],
+        ).fetchall()
+        return [dict(row) for row in rows]
 
     def write_heartbeat(self, fields: dict):
         columns = [
