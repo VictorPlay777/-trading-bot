@@ -29,9 +29,9 @@ class ProductionConfig:
     # Model EV typically 1-4% per signal, 1 ATR was often too far (1.4-5%).
     # 0.5 ATR (0.7-2.5%) brings target within model's expected move range.
     # Fees ~0.12%, so 0.5 ATR keeps fee-eat at 5-17% (acceptable).
-    # v8: TP/SL exits disabled — positions are closed manually via dashboard.
-    # Research counterfactuals still record hypothetical TP/SL outcomes.
-    enable_tp_sl_exits: bool = False
+    # Set False to disable automatic TP/SL exits (positions then close only manually
+    # via dashboard); research counterfactuals still record hypothetical TP/SL outcomes.
+    enable_tp_sl_exits: bool = True
     sl_atr_mult: float = 0.5      # v6: SL = 0.5*ATR
     tp1_r: float = 0.5            # v6: TP = 0.5*ATR
     tp2_r: float = 0.5            # unused when single_tp_full_close=True

@@ -93,11 +93,32 @@ class ProcessManager:
         except Exception:
             return
 
+    def _is_bot_cmdline(self, cmdline):
+        # interpreter followed by the bot script as its own argument
+        # (not e.g. `grep selective_ml_bot.py` or an editor holding the file)
+        if not cmdline or "python" not in Path(cmdline[0]).name:
+            return False
+        for part in cmdline[1:]:
+            if Path(part).name == "selective_ml_bot.py":
+                script = Path(part)
+                if script.is_absolute():
+                    return script.resolve() == (self.repo_root / "selective_ml_bot.py").resolve()
+                return True
+        return False
+
+    def _same_repo(self, pid):
+        if psutil is None:
+            return True
+        try:
+            return Path(psutil.Process(pid).cwd()).resolve() == self.repo_root.resolve()
+        except Exception:
+            return False
+
     def external_pid(self):
         for pid, cmdline in self._processes():
             if self.child_pid and pid == self.child_pid:
                 continue
-            if any("selective_ml_bot.py" in part for part in cmdline):
+            if self._is_bot_cmdline(cmdline) and self._same_repo(pid):
                 return pid
         return None
 

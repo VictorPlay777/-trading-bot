@@ -237,6 +237,7 @@ class SelectiveMLBot:
                     strategy_id=getattr(self.prod, "strategy_id", "unknown"),
                     config_path=str(cfg_path),
                 )
+                self.bridge.apply_strategy_overrides(self.prod)
                 self.bridge.install_log_sink()
                 logger.info("[DASHBOARD] bridge initialized")
             except Exception as e:
@@ -1087,6 +1088,11 @@ class SelectiveMLBot:
                 with open(trade_log_path, "w", encoding="utf-8") as f:
                     f.writelines(lines)
                 logger.info(f"[TRADE PATCHED] {symbol} realized_pnl_net={corrected_pnl:.2f}")
+                try:
+                    if self.bridge is not None:
+                        self.bridge.patch_trade_pnl(f"{symbol}_{int(opened_ts)}", corrected_pnl, exit_price)
+                except Exception as _e_bridge:
+                    logger.debug(f"[DASHBOARD] patch_trade_pnl wrap failed: {_e_bridge}")
         except Exception as e:
             logger.warning(f"[TRADE PATCH] {symbol} failed: {e}")
 
@@ -1228,6 +1234,11 @@ class SelectiveMLBot:
                 try:
                     fills = self.exec_tracker.poll_symbol(sym, limit=100)
                     for f in fills:
+                        try:
+                            if self.bridge is not None:
+                                self.bridge.record_fill(f)
+                        except Exception as _e_bridge:
+                            logger.debug(f"[DASHBOARD] record_fill wrap failed: {_e_bridge}")
                         logger.info(
                             f"[FILL] {f.symbol} side={f.side} qty={f.qty} price={f.price} fee={f.fee} "
                             f"fee_ccy={f.fee_currency} maker={f.is_maker} ts_ms={f.ts_ms} exec_id={f.exec_id}"
@@ -1302,6 +1313,26 @@ class SelectiveMLBot:
                     )
                 except Exception as e:
                     logger.debug(f"[EXPECTANCY] failed {sym}: {e}")
+
+                try:
+                    ov = self.bridge.position_overrides(sym) if self.bridge is not None else None
+                    if ov:
+                        tp1_changed = ov.get("tp1") is not None and float(ov["tp1"]) != float(
+                            st.take_profit_levels.get("tp1", 0.0)
+                        )
+                        if ov.get("stop_loss") is not None:
+                            st.stop_loss_price = float(ov["stop_loss"])
+                        for tp_key in ("tp1", "tp2", "tp3"):
+                            if ov.get(tp_key) is not None:
+                                st.take_profit_levels[tp_key] = float(ov[tp_key])
+                        if tp1_changed:
+                            st.tp1_done = False
+                        logger.info(
+                            f"[MANUAL_OVERRIDE] {sym} sl={st.stop_loss_price} "
+                            f"tp1={st.take_profit_levels.get('tp1')}"
+                        )
+                except Exception as _e_bridge:
+                    logger.debug(f"[DASHBOARD] position override wrap failed: {_e_bridge}")
 
                 # v8: TP/SL exits disabled — positions stay open until manual close.
                 if not getattr(self.prod, "enable_tp_sl_exits", True):
@@ -1985,8 +2016,9 @@ class SelectiveMLBot:
                         if self.bridge:
                             try:
                                 self.bridge.snapshot_equity(bal, open_positions_count)
+                                self.bridge.check_kill_switch(equity)
                             except Exception as _e_dash:
-                                logger.debug(f"[DASHBOARD] snapshot_equity failed: {_e_dash}")
+                                logger.debug(f"[DASHBOARD] equity/kill-switch failed: {_e_dash}")
                 except Exception:
                     equity = 0.0
                 used = sum(float(p.get("positionValue", 0) or 0) for p in positions if float(p.get("size", 0) or 0) > 0)
