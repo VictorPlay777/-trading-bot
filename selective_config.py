@@ -29,9 +29,17 @@ class ProductionConfig:
     # Model EV typically 1-4% per signal, 1 ATR was often too far (1.4-5%).
     # 0.5 ATR (0.7-2.5%) brings target within model's expected move range.
     # Fees ~0.12%, so 0.5 ATR keeps fee-eat at 5-17% (acceptable).
-    # v8: TP/SL exits disabled — positions are closed manually via dashboard.
-    # Research counterfactuals still record hypothetical TP/SL outcomes.
-    enable_tp_sl_exits: bool = False
+    # v8: TP/SL exits enabled with research-based percent brackets.
+    # "atr" uses sl_atr_mult / tp1_r multipliers; "research" uses the percent profile below.
+    enable_tp_sl_exits: bool = True
+    tp_sl_mode: str = "research"  # "atr" or "research"
+    # Empirical TP/SL percent values derived from research/tp_sl_research.py.
+    # LONG: tight SL 0.25% (MAE p95 ~17.7%), wide TP 4% (MFE p95 ~14.8%).
+    # SHORT: moderate SL 1.5%, wide TP 5% (MFE p95 ~18.8%, MAE p95 ~8.3%).
+    research_tp_long_pct: float = 4.0
+    research_sl_long_pct: float = 0.25
+    research_tp_short_pct: float = 5.0
+    research_sl_short_pct: float = 1.5
     sl_atr_mult: float = 0.5      # v6: SL = 0.5*ATR
     tp1_r: float = 0.5            # v6: TP = 0.5*ATR
     tp2_r: float = 0.5            # unused when single_tp_full_close=True

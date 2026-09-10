@@ -560,8 +560,27 @@ class SelectiveMLBot:
         return sig["ev"] >= self.prod.ev_min_decision and sig["confidence"] >= self.prod.conf_min_decision
 
     def _build_exit_levels(self, sig):
-        # Dynamic TP scaling based on signal confidence and EV
-        # Base multipliers from config
+        """Compute SL / TP1 / TP2 / TP3 for a signal."""
+        if getattr(self.prod, "tp_sl_mode", "atr") == "research":
+            side = sig["direction"]
+            entry = float(sig["entry"])
+            if side == "long":
+                tp_pct = float(self.prod.research_tp_long_pct)
+                sl_pct = float(self.prod.research_sl_long_pct)
+            else:
+                tp_pct = float(self.prod.research_tp_short_pct)
+                sl_pct = float(self.prod.research_sl_short_pct)
+            brackets = self.exit_engine.compute_percent_brackets(side, entry, tp_pct, sl_pct)
+            # TP3 = TP2 (single target) in research mode; used for trailing fallback.
+            brackets["tp3"] = brackets["tp2"]
+            logger.info(
+                f"[RESEARCH_TP_SL] {sig['symbol']} {side} entry={entry:.4f} "
+                f"tp={tp_pct:.2f}% sl={sl_pct:.2f}% "
+                f"sl_price={brackets['sl']:.4f} tp1={brackets['tp1']:.4f}"
+            )
+            return brackets
+
+        # Legacy ATR-based logic.
         base_tp1_r = float(self.prod.tp1_r)
         base_tp2_r = float(self.prod.tp2_r)
         base_tp3_r = float(self.prod.tp3_r)

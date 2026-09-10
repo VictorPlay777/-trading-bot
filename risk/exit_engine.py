@@ -17,3 +17,17 @@ class ExitEngine:
         # "risk" field preserved as SL distance for downstream sizing calculations.
         return {"sl": sl, "tp1": tp1, "tp2": tp2, "risk": sl_dist}
 
+    def compute_percent_brackets(self, side: str, entry: float, tp_pct: float, sl_pct: float):
+        """Fixed percent brackets based on empirical TP/SL research."""
+        sl_dist = entry * (sl_pct / 100.0)
+        tp_dist = entry * (tp_pct / 100.0)
+        if side == "long":
+            sl = entry - sl_dist
+            tp1 = entry + tp_dist
+            tp2 = entry + tp_dist
+        else:
+            sl = entry + sl_dist
+            tp1 = entry - tp_dist
+            tp2 = entry - tp_dist
+        return {"sl": sl, "tp1": tp1, "tp2": tp2, "risk": sl_dist}
+
