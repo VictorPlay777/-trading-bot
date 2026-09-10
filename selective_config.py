@@ -9,7 +9,7 @@ class ProductionConfig:
     # Bump this whenever you change parameters that should be tracked separately.
     strategy_id: str = "v7_v2_professional_stats_2026-09-07"
     strategy_notes: str = (
-        "v7: DATA COLLECTION MODE. Multi-bucket entries (conf >= 0.55), fixed notional 10k, "
+        "v7: DATA COLLECTION MODE. Multi-bucket entries (conf >= 0.55), fixed notional 20k, "
         "leverage 1x, TP=SL=0.5 ATR (inherited from v6 for cleanliness), no cooldowns. "
         "Goal: find edge threshold by confidence and by symbol. NOT optimized for profit."
     )
@@ -63,7 +63,7 @@ class ProductionConfig:
     max_wick_ratio: float = 2.5
     max_positions_per_symbol: int = 1
     # v7: fixed notional sizing — every trade is an equal experiment.
-    base_notional_usdt: float = 10000.0
+    base_notional_usdt: float = 20000.0
     max_portfolio_heat: float = 1.0  # no heat cap (full equity usable)
     min_ev: float = -999.0  # v7: EV filter disabled
 
@@ -128,7 +128,7 @@ class ProductionConfig:
     stickiness_required_cycles: int = 1
     stickiness_conf_drop_threshold: float = 0.15
     # v7: hard cap matches base_notional for fixed-size experiments.
-    max_position_notional_usdt: float = 10000.0
+    max_position_notional_usdt: float = 20000.0
     # v7: ADX filter disabled (was 22.0) — collect stats across all trend strengths.
     min_adx: float = 0.0
     # Force leverage to 1x for all symbols
