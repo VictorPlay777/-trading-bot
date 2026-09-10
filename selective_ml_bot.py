@@ -216,6 +216,7 @@ class SelectiveMLBot:
         self._candidate_meta = {}  # symbol -> select_symbols row (wick_ratio, pct, vol24)
         self._oi_prev = {}  # symbol -> previous open interest (for oi_change)
         self.position_states = {}
+        self._global_trailing_take_armed = False
         self._last_funding_refresh = 0.0
         self._funding_cache = {}
         self._last_cleanup_ts = 0.0
@@ -1433,6 +1434,34 @@ class SelectiveMLBot:
                     logger.warning(f"[GLOBAL TP] failed to close {sym}: {e}")
                 await asyncio.sleep(0.05)
 
+    async def _check_global_unrealized_trailing_take(self, positions: List[Dict[str, Any]]):
+        if not getattr(self.prod, "enable_global_unrealized_trailing_take", False):
+            return
+        activation = float(self.prod.global_unrealized_trailing_take_usdt)
+        if activation <= 0:
+            return
+        total = 0.0
+        for p in positions:
+            unreal = self._f(p.get("unrealisedPnl", p.get("unrealizedPnl", 0.0)))
+            total += unreal
+        if not self._global_trailing_take_armed:
+            if total >= activation:
+                self._global_trailing_take_armed = True
+                logger.info(
+                    f"[GLOBAL TRAILING TP ARMED] total_unrealized={total:.2f} >= {activation:.2f}"
+                )
+            return
+        # Armed: close all if total drops below the activation level.
+        if total < activation:
+            logger.warning(
+                f"[GLOBAL TRAILING TP HIT] total_unrealized={total:.2f} dropped below {activation:.2f} — closing all positions"
+            )
+            self._close_all_positions("global_unrealized_trailing_take")
+            self._global_trailing_take_armed = False
+            logger.info("[GLOBAL TRAILING TP] reset, waiting for next activation")
+        else:
+            logger.debug(f"[GLOBAL TRAILING TP] total_unrealized={total:.2f} still above {activation:.2f}")
+
     def allowed(self, sig, open_positions, equity, used_notional):
         override = self._is_high_ev_override_candidate(sig)
         # Dashboard risk controls (optional)
@@ -1939,6 +1968,7 @@ class SelectiveMLBot:
                 self._cleanup_entry_orders()
                 self._monitor_positions()
                 await self._check_global_unrealized_profit_take(positions)
+                await self._check_global_unrealized_trailing_take(positions)
 
                 if self.bridge:
                     try:

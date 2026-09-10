@@ -36,6 +36,10 @@ class ProductionConfig:
     # Global take-profit: close ALL positions when total unrealized PnL exceeds this USD amount.
     enable_global_unrealized_profit_take: bool = True
     global_unrealized_profit_take_usdt: float = 5000.0
+    # Trailing global take-profit: once total unrealized PnL reaches the activation level,
+    # close all positions if it then falls below that level.
+    enable_global_unrealized_trailing_take: bool = True
+    global_unrealized_trailing_take_usdt: float = 1500.0
     # Empirical TP/SL percent values derived from research/tp_sl_research.py.
     # LONG: tight SL 0.25% (MAE p95 ~17.7%), wide TP 4% (MFE p95 ~14.8%).
     # SHORT: moderate SL 1.5%, wide TP 5% (MFE p95 ~18.8%, MAE p95 ~8.3%).
