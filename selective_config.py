@@ -33,6 +33,9 @@ class ProductionConfig:
     # Positions are closed manually / via dashboard again until a better TP/SL profile is found.
     enable_tp_sl_exits: bool = False
     tp_sl_mode: str = "atr"  # "atr" or "research"
+    # Global take-profit: close ALL positions when total unrealized PnL exceeds this USD amount.
+    enable_global_unrealized_profit_take: bool = True
+    global_unrealized_profit_take_usdt: float = 5000.0
     # Empirical TP/SL percent values derived from research/tp_sl_research.py.
     # LONG: tight SL 0.25% (MAE p95 ~17.7%), wide TP 4% (MFE p95 ~14.8%).
     # SHORT: moderate SL 1.5%, wide TP 5% (MFE p95 ~18.8%, MAE p95 ~8.3%).

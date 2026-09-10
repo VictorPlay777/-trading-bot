@@ -15,6 +15,7 @@ from decimal import Decimal
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 import logging
+from typing import Any, Dict, List
 
 import numpy as np
 import pandas as pd
@@ -721,6 +722,20 @@ class SelectiveMLBot:
         logger.info(f"[EXIT] {st.symbol} reason={reason} qty={qty} remaining={self._remaining_qty(st)}")
         return True
 
+    def _close_all_positions(self, reason: str = "global_unrealized_profit_take"):
+        """Close every open position immediately."""
+        for sym in list(self.position_states.keys()):
+            st = self.position_states.get(sym)
+            if st is None or st.exit_state == "closed":
+                continue
+            rem = self._remaining_qty(st)
+            if rem <= 0:
+                continue
+            try:
+                self._close_market_reduce_only(st, rem, reason)
+            except Exception as e:
+                logger.warning(f"[CLOSE ALL FAIL] {sym}: {e}")
+
     def _fit_exit_qty(self, st: PositionState, desired_qty: Decimal) -> Decimal:
         """
         Ensure exit qty is exchange-valid.
@@ -1389,6 +1404,35 @@ class SelectiveMLBot:
                 logger.error(f"[MONITOR] exception symbol={sym} err={e}\n{traceback.format_exc()}")
                 continue
 
+    async def _check_global_unrealized_profit_take(self, positions: List[Dict[str, Any]]):
+        if not getattr(self.prod, "enable_global_unrealized_profit_take", False):
+            return
+        threshold = float(self.prod.global_unrealized_profit_take_usdt)
+        if threshold <= 0:
+            return
+        total = 0.0
+        for p in positions:
+            unreal = self._f(p.get("unrealisedPnl", p.get("unrealizedPnl", 0.0)))
+            total += unreal
+        logger.debug(f"[GLOBAL TP CHECK] total_unrealized={total:.2f} threshold={threshold:.2f}")
+        if total >= threshold:
+            logger.warning(
+                f"[GLOBAL TP] total unrealized PnL {total:.2f} USDT >= {threshold:.2f} USDT — closing all positions"
+            )
+            for sym in list(self.position_states.keys()):
+                st = self.position_states.get(sym)
+                if st is None or st.exit_state == "closed":
+                    continue
+                rem = self._remaining_qty(st)
+                if rem <= 0:
+                    continue
+                try:
+                    if self._close_market_reduce_only(st, rem, "global_unrealized_profit_take"):
+                        logger.info(f"[GLOBAL TP] closed {sym} qty={rem}")
+                except Exception as e:
+                    logger.warning(f"[GLOBAL TP] failed to close {sym}: {e}")
+                await asyncio.sleep(0.05)
+
     def allowed(self, sig, open_positions, equity, used_notional):
         override = self._is_high_ev_override_candidate(sig)
         # Dashboard risk controls (optional)
@@ -1894,6 +1938,7 @@ class SelectiveMLBot:
                 self._sync_state_from_exchange(positions)
                 self._cleanup_entry_orders()
                 self._monitor_positions()
+                await self._check_global_unrealized_profit_take(positions)
 
                 if self.bridge:
                     try:
