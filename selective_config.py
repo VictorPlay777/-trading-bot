@@ -32,7 +32,7 @@ class ProductionConfig:
     # v8: TP/SL exits disabled — live research showed stop_loss dominating and net negative.
     # Positions are closed manually / via dashboard again until a better TP/SL profile is found.
     enable_tp_sl_exits: bool = False
-    tp_sl_mode: str = "research"  # "atr" or "research"
+    tp_sl_mode: str = "atr"  # "atr" or "research"
     # Empirical TP/SL percent values derived from research/tp_sl_research.py.
     # LONG: tight SL 0.25% (MAE p95 ~17.7%), wide TP 4% (MFE p95 ~14.8%).
     # SHORT: moderate SL 1.5%, wide TP 5% (MFE p95 ~18.8%, MAE p95 ~8.3%).
