@@ -40,6 +40,9 @@ class ProductionConfig:
     # close all positions if it then falls below that level.
     enable_global_unrealized_trailing_take: bool = True
     global_unrealized_trailing_take_usdt: float = 1500.0
+    # Minimum age (seconds) a position must have before it can be closed by a global take-profit.
+    # Prevents fresh positions from being closed immediately after a global TP fires.
+    global_tp_min_position_age_sec: float = 60.0
     # Empirical TP/SL percent values derived from research/tp_sl_research.py.
     # LONG: tight SL 0.25% (MAE p95 ~17.7%), wide TP 4% (MFE p95 ~14.8%).
     # SHORT: moderate SL 1.5%, wide TP 5% (MFE p95 ~18.8%, MAE p95 ~8.3%).

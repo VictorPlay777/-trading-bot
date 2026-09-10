@@ -723,14 +723,19 @@ class SelectiveMLBot:
         logger.info(f"[EXIT] {st.symbol} reason={reason} qty={qty} remaining={self._remaining_qty(st)}")
         return True
 
-    def _close_all_positions(self, reason: str = "global_unrealized_profit_take"):
-        """Close every open position immediately."""
+    def _close_all_positions(self, reason: str = "global_unrealized_profit_take", min_age_sec: float = 0.0):
+        """Close every open position immediately, optionally skipping very fresh ones."""
+        now = time.time()
         for sym in list(self.position_states.keys()):
             st = self.position_states.get(sym)
             if st is None or st.exit_state == "closed":
                 continue
             rem = self._remaining_qty(st)
             if rem <= 0:
+                continue
+            age = now - float(st.opened_ts or now)
+            if age < min_age_sec:
+                logger.info(f"[CLOSE ALL SKIP] {sym} age={age:.1f}s < {min_age_sec:.1f}s")
                 continue
             try:
                 self._close_market_reduce_only(st, rem, reason)
@@ -1405,34 +1410,39 @@ class SelectiveMLBot:
                 logger.error(f"[MONITOR] exception symbol={sym} err={e}\n{traceback.format_exc()}")
                 continue
 
+    def _closeable_unrealized_total(self, positions: List[Dict[str, Any]]) -> float:
+        min_age = float(getattr(self.prod, "global_tp_min_position_age_sec", 0.0))
+        now = time.time()
+        total = 0.0
+        for p in positions:
+            sym = p.get("symbol")
+            st = self.position_states.get(sym)
+            if st is None:
+                continue
+            age = now - float(st.opened_ts or now)
+            if age < min_age:
+                continue
+            unreal = self._f(p.get("unrealisedPnl", p.get("unrealizedPnl", 0.0)))
+            total += unreal
+        return total
+
     async def _check_global_unrealized_profit_take(self, positions: List[Dict[str, Any]]):
         if not getattr(self.prod, "enable_global_unrealized_profit_take", False):
             return
         threshold = float(self.prod.global_unrealized_profit_take_usdt)
         if threshold <= 0:
             return
-        total = 0.0
-        for p in positions:
-            unreal = self._f(p.get("unrealisedPnl", p.get("unrealizedPnl", 0.0)))
-            total += unreal
+        total = self._closeable_unrealized_total(positions)
         logger.debug(f"[GLOBAL TP CHECK] total_unrealized={total:.2f} threshold={threshold:.2f}")
         if total >= threshold:
             logger.warning(
                 f"[GLOBAL TP] total unrealized PnL {total:.2f} USDT >= {threshold:.2f} USDT — closing all positions"
             )
-            for sym in list(self.position_states.keys()):
-                st = self.position_states.get(sym)
-                if st is None or st.exit_state == "closed":
-                    continue
-                rem = self._remaining_qty(st)
-                if rem <= 0:
-                    continue
-                try:
-                    if self._close_market_reduce_only(st, rem, "global_unrealized_profit_take"):
-                        logger.info(f"[GLOBAL TP] closed {sym} qty={rem}")
-                except Exception as e:
-                    logger.warning(f"[GLOBAL TP] failed to close {sym}: {e}")
-                await asyncio.sleep(0.05)
+            self._close_all_positions(
+                "global_unrealized_profit_take",
+                min_age_sec=float(getattr(self.prod, "global_tp_min_position_age_sec", 0.0)),
+            )
+            self._global_trailing_take_armed = False
 
     async def _check_global_unrealized_trailing_take(self, positions: List[Dict[str, Any]]):
         if not getattr(self.prod, "enable_global_unrealized_trailing_take", False):
@@ -1440,10 +1450,7 @@ class SelectiveMLBot:
         activation = float(self.prod.global_unrealized_trailing_take_usdt)
         if activation <= 0:
             return
-        total = 0.0
-        for p in positions:
-            unreal = self._f(p.get("unrealisedPnl", p.get("unrealizedPnl", 0.0)))
-            total += unreal
+        total = self._closeable_unrealized_total(positions)
         if not self._global_trailing_take_armed:
             if total >= activation:
                 self._global_trailing_take_armed = True
@@ -1456,7 +1463,10 @@ class SelectiveMLBot:
             logger.warning(
                 f"[GLOBAL TRAILING TP HIT] total_unrealized={total:.2f} dropped below {activation:.2f} — closing all positions"
             )
-            self._close_all_positions("global_unrealized_trailing_take")
+            self._close_all_positions(
+                "global_unrealized_trailing_take",
+                min_age_sec=float(getattr(self.prod, "global_tp_min_position_age_sec", 0.0)),
+            )
             self._global_trailing_take_armed = False
             logger.info("[GLOBAL TRAILING TP] reset, waiting for next activation")
         else:
